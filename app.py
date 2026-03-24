@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
-# --- 1. Salesforce風 UI & ダークモード強制リセット CSS ---
+# --- 1. Salesforce風 UI & ダークモード完全無効化 CSS ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
@@ -13,6 +13,7 @@ st.markdown("""
         background-color: #F3F3F2 !important;
         color: #181818 !important;
     }
+    
     /* サイドバー固定 */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
@@ -21,10 +22,39 @@ st.markdown("""
     [data-testid="stSidebar"] * {
         color: #181818 !important;
     }
-    /* テキスト色を黒に強制 */
+    
+    /* テキスト色を黒に強制（全体） */
     div[data-testid="stWidgetLabel"] p, label, p, h1, h2, h3, span, td, th {
         color: #181818 !important;
     }
+    
+    /* 🔥 入力ボックス（テキスト・数値）の背景色を白、文字を黒に強制 */
+    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input {
+        background-color: #FFFFFF !important;
+        color: #181818 !important;
+        border-color: #DDDBDA !important;
+    }
+    /* 数値入力のプラスマイナスボタン */
+    div[data-baseweb="button-group"] button {
+        background-color: #F3F3F2 !important;
+        color: #181818 !important;
+    }
+
+    /* 🔥 ボタン（Salesforce Blue）と文字色の白色固定 */
+    .stButton > button {
+        background-color: #0176D3 !important;
+        border-radius: 4px !important;
+        font-weight: 700 !important;
+        border: none !important;
+        padding: 0.6rem 2rem !important;
+    }
+    .stButton > button, .stButton > button p, .stButton > button span {
+        color: #FFFFFF !important;
+    }
+    .stButton > button:hover {
+        background-color: #014486 !important;
+    }
+
     /* ヘッダー */
     .slds-page-header {
         background-color: #FFFFFF !important;
@@ -47,15 +77,6 @@ st.markdown("""
         padding: 2rem;
         box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1);
         margin-bottom: 2rem;
-    }
-    /* ボタン */
-    .stButton > button {
-        background-color: #0176D3 !important;
-        color: #FFFFFF !important;
-        border-radius: 4px !important;
-        font-weight: 700 !important;
-        border: none !important;
-        padding: 0.6rem 2rem !important;
     }
     /* メトリック */
     [data-testid="stMetricValue"] {
@@ -125,7 +146,8 @@ if page == "ダッシュボード":
             st.markdown('<div class="slds-card">', unsafe_allow_html=True)
             fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_count, ki_count], title="案件捕捉数の比較",
                               color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
-            fig_hits.update_layout(template="plotly_white", font=dict(color="#181818"))
+            # 🔥 グラフ背景を完全に白に固定
+            fig_hits.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
             st.plotly_chart(fig_hits, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -135,7 +157,8 @@ if page == "ダッシュボード":
             pres_df = comp_df[comp_df != ""].value_counts().reset_index()
             pres_df.columns = ["企業名", "出現回数"]
             fig_p = px.bar(pres_df.head(8), x="出現回数", y="企業名", orientation='h', title="競合出現シェア (TOP 8)")
-            fig_p.update_layout(template="plotly_white", font=dict(color="#181818"))
+            # 🔥 グラフ背景を完全に白に固定
+            fig_p.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
             st.plotly_chart(fig_p, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -172,9 +195,12 @@ elif page == "機能・評価設定":
     st.subheader("🔍 検索ワードの追加とヒット件数比較", divider="blue")
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     
+    # 🔥 追加フィールドとボタンの横並びズレを解消
+    st.write("追加したい検索ワードを入力")
     col_add1, col_add2 = st.columns([3, 1])
-    new_word = col_add1.text_input("追加したい検索ワードを入力", placeholder="例：BIツール、AI活用", key="input_new_word")
-    if col_add2.button("ワードを追加"):
+    # label_visibility="collapsed" で見えないラベルを消去し高さを合わせる
+    new_word = col_add1.text_input("追加したい検索ワード", placeholder="例：BIツール、AI活用", key="input_new_word", label_visibility="collapsed")
+    if col_add2.button("ワードを追加", use_container_width=True):
         if new_word and new_word not in st.session_state.search_words:
             st.session_state.search_words.append(new_word)
             st.rerun()
@@ -199,7 +225,8 @@ elif page == "機能・評価設定":
         # 検索ワードのグラフ表示
         df_sw = pd.DataFrame(search_data)
         fig_sw = px.bar(df_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較")
-        fig_sw.update_layout(template="plotly_white", font=dict(color="#181818"))
+        # 🔥 グラフ背景を完全に白に固定
+        fig_sw.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
         st.plotly_chart(fig_sw, use_container_width=True)
     else:
         st.info("検索ワードを追加してください。")
