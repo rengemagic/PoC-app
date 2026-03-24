@@ -1,81 +1,77 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 
+# ページ設定
 st.set_page_config(page_title="ZEAL用 入札ツール比較PoC", layout="wide")
 
-st.title("⚖️入札ツールPoC評価")
-st.caption("NJSS vs 入札王：データプラットフォーム事業・アライアンス営業視点での評価")
+st.title("⚖️ 入札ツールPoC評価：2社比較モード")
+st.caption("NJSS vs 入札王 適合性チェックリスト")
 
-# --- 評価項目の定義 ---
+# --- 評価項目の定義（ジール様のビジネス視点） ---
 eval_items = [
-    "データ網羅性", "更新スピード", "過去落札データ", "予算書・予定情報",
-    "検索精度(DX/ETL)", "データ出力(CSV)", "競合・市場分析",
-    "組織連携・管理", "サポート体制", "ROI(費用対効果)"
+    "データ網羅性（横浜市等、ターゲット自治体のカバー）",
+    "更新スピード（公示後24時間以内の反映）",
+    "過去落札データ（過去3年分以上の蓄積）",
+    "予算書・予定情報（案件の予兆把握機能）",
+    "検索精度（DX/ETL/BI等のノイズ除去）",
+    "データ出力（CSV/Excel形式での一括出力）",
+    "競合分析（特定企業の落札履歴追跡）",
+    "組織連携（チーム内での案件ステータス管理）",
+    "サポート体制（専任担当による条件設定支援）",
+    "初期費用・コスト体系（予算との適合性）"
 ]
 
+# データ保持
 if 'data' not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=['サービス'] + eval_items)
+    st.session_state.data = pd.DataFrame(columns=['評価項目', 'NJSS', '入札王'])
+    # 初期データ作成
+    initial_df = pd.DataFrame({'評価項目': eval_items, 'NJSS': '×', '入札王': '×'})
+    st.session_state.data = initial_df
 
-# --- サイドバー：詳細入力 ---
-with st.sidebar:
-    st.header("📋 詳細スコアリング")
-    target = st.radio("評価対象", ["NJSS", "入札王"])
-    
-    scores = {}
-    for item in eval_items:
-        scores[item] = st.slider(f"{item}", 1, 5, 3)
-    
-    if st.button("評価を確定して更新"):
-        row_data = [target] + [scores[item] for item in eval_items]
-        new_df = pd.DataFrame([row_data], columns=['サービス'] + eval_items)
-        st.session_state.data = pd.concat([st.session_state.data[st.session_state.data['サービス'] != target], new_df])
-        st.success(f"{target} の評価を保存しました")
+# --- メイン画面：評価テーブル ---
+st.subheader("📋 評価入力テーブル")
+st.write("各項目の「○（適合）」または「×（不適合）」を選択してください。")
 
-# --- メイン画面 ---
-col1, col2 = st.columns([2, 1])
+# データフレームの編集（Streamlitのエディタ機能を使用）
+edited_df = st.data_editor(
+    st.session_state.data,
+    column_config={
+        "NJSS": st.column_config.SelectboxColumn("NJSS", options=["○", "×"], required=True),
+        "入札王": st.column_config.SelectboxColumn("入札王", options=["○", "×"], required=True),
+        "評価項目": st.column_config.TextColumn("評価項目", disabled=True)
+    },
+    hide_index=True,
+    use_container_width=True
+)
+
+# データの保存
+if st.button("評価を確定する"):
+    st.session_state.data = edited_df
+    st.success("評価を保存しました。")
+
+# --- 集計と可視化 ---
+st.markdown("---")
+col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📊 比較分析チャート")
-    if len(st.session_state.data) > 0:
-        fig = go.Figure()
-        for i, row in st.session_state.data.iterrows():
-            fig.add_trace(go.Scatterpolar(
-                r=[row[m] for m in eval_items],
-                theta=eval_items,
-                fill='toself',
-                name=row['サービス']
-            ))
-        fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True)
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("左側のサイドバーからスコアを入力してください。")
+    st.subheader("📈 適合数カウント")
+    njss_count = (edited_df['NJSS'] == '○').sum()
+    king_count = (edited_df['入札王'] == '○').sum()
+    st.metric("NJSSの○の数", f"{njss_count} / {len(eval_items)}")
+    st.metric("入札王の○の数", f"{king_count} / {len(eval_items)}")
 
 with col2:
-    st.subheader("📑 稟議用メモ")
-    st.text_area("データ連携に関する所感", placeholder="API連携やCSV加工の手間について...")
-    st.text_area("ターゲット(官公庁)の網羅感", placeholder="横浜市や特定団体の案件漏れについて...")
+    st.subheader("📥 スプレッドシート用エクスポート")
+    # CSV変換 (Excel/Googleシートで文字化けしないよう utf-8-sig を使用)
+    csv = edited_df.to_csv(index=False).encode('utf-8-sig')
+    st.download_button(
+        label="評価結果をCSV(Excel形式)でダウンロード",
+        data=csv,
+        file_name="bid_tool_comparison_zeal.csv",
+        mime="text/csv",
+    )
 
-# --- データ書き出し機能 ---
+# --- 稟議用コメント ---
 st.markdown("---")
-st.subheader("📥 評価データのエクスポート")
-if not st.session_state.data.empty:
-    csv = st.session_state.data.to_csv(index=False).encode('utf-8-sig')
-    st.download_button("評価結果をCSVとして保存", data=csv, file_name="bid_tool_poc_results.csv", mime="text/csv")
-else:
-    st.write("データがありません")
-
-# --- ジール様向けROI計算 ---
-st.markdown("---")
-st.subheader("💡 投資対効果シミュレーション")
-c1, c2 = st.columns(2)
-with c1:
-    manual_hours = st.number_input("現状の週あたり収集・整理工数(h)", value=10.0)
-    bid_count = st.number_input("月間応札検討数", value=5)
-with c2:
-    potential_value = st.number_input("平均受注単価(万円)", value=1000)
-    win_rate_up = st.slider("ツール活用による落札率向上期待(%)", 0, 10, 2)
-
-expected_benefit = (potential_value * (win_rate_up / 100) * bid_count)
-st.metric("導入による売上期待向上(月間)", f"{expected_benefit} 万円")
+st.subheader("📝 総合コメント（稟議補足用）")
+comment = st.text_area("選定理由や特記事項", placeholder="例：〇〇の理由により、データ網羅性に勝るNJSSを推奨する。")
