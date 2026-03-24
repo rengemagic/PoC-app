@@ -6,28 +6,76 @@ import io
 import csv
 import traceback
 
-# --- 1. UI & CSS (AdminLTE風ダークサイドバー & ダークモード強制リセット) ---
+# --- 1. UI & CSS (モダンSaaS風UI & 丸ボタン排除) ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
     <style>
+    /* 全体の背景と文字色 */
     [data-testid="stAppViewContainer"], .stApp { background-color: #F3F3F2 !important; color: #181818 !important; }
-    [data-testid="stSidebar"] { background-color: #2c3b41 !important; border-right: 1px solid #1a2226 !important; }
-    [data-testid="stSidebar"] * { color: #b8c7ce !important; }
-    .sidebar-section-header { color: #4b646f !important; font-size: 12px !important; font-weight: bold; padding: 10px 15px; background-color: #1a2226; margin: 20px 0px 15px 0px; }
-    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { margin-bottom: 1.5rem !important; color: white !important; font-size: 15px !important; cursor: pointer; }
-    [data-testid="stSidebar"] div.stRadio p { color: white !important; font-size: 15px !important; }
-    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 2px solid #D8DDE6; margin: -4rem -4rem 2rem -4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .slds-page-header h1 { color: #080707 !important; font-size: 1.6rem; font-weight: 700; margin: 0; }
-    .stButton > button { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 4px !important; font-weight: 700 !important; border: none !important; padding: 0.6rem 2rem !important; }
-    .stButton > button:hover { background-color: #014486 !important; }
-    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input, textarea { background-color: #FFFFFF !important; color: #181818 !important; border-color: #DDDBDA !important; }
-    div[data-baseweb="button-group"] button { background-color: #F3F3F2 !important; color: #181818 !important; }
-    [data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; color: #181818 !important; }
     
-    /* リセットボタン用の赤色スタイル */
-    .btn-danger > button { background-color: #D32F2F !important; }
-    .btn-danger > button:hover { background-color: #B71C1C !important; }
+    /* サイドバー配色 (モダンダーク) */
+    [data-testid="stSidebar"] { background-color: #212C31 !important; border-right: none !important; }
+    [data-testid="stSidebar"] * { color: #CFD8DC !important; }
+    
+    /* サイドバーのセクションヘッダー */
+    .sidebar-section-header { 
+        color: #78909C !important; 
+        font-size: 11px !important; 
+        font-weight: 700; 
+        letter-spacing: 1px;
+        padding: 10px 15px; 
+        margin: 20px 0px 5px 0px; 
+        text-transform: uppercase;
+    }
+
+    /* 🔥 【大改修】ラジオボタンの「丸いボタン」を完全に消し去る */
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child {
+        display: none !important;
+    }
+    
+    /* 🔥 【大改修】メニュー項目をモダンなテキストリンク風に拡張 */
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {
+        padding: 12px 16px !important;
+        margin-bottom: 4px !important;
+        border-radius: 6px !important;
+        background-color: transparent;
+        transition: all 0.2s ease-in-out !important;
+        cursor: pointer;
+        width: 100%;
+        display: block; /* 全体をクリック可能に */
+    }
+    
+    /* ホバー時（マウスを乗せた時）の美しいエフェクト */
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        color: #FFFFFF !important;
+    }
+    
+    /* メニューの文字スタイル */
+    [data-testid="stSidebar"] div.stRadio p { 
+        color: #CFD8DC !important; 
+        font-size: 14px !important; 
+        font-weight: 500 !important;
+        margin: 0 !important;
+    }
+
+    /* ページヘッダー */
+    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 1px solid #E0E0E0; margin: -4rem -4rem 2rem -4rem; }
+    .slds-page-header h1 { color: #181818 !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
+    
+    /* カードの影を少し柔らかく洗練されたものに */
+    .slds-card { background-color: #FFFFFF !important; border: 1px solid #E0E0E0 !important; border-radius: 8px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 2rem; }
+    
+    /* ボタン */
+    .stButton > button { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 6px !important; font-weight: 600 !important; border: none !important; padding: 0.6rem 1.5rem !important; transition: all 0.2s ease; }
+    .stButton > button:hover { background-color: #014486 !important; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(1, 118, 211, 0.2); }
+    
+    /* 入力ボックス類 */
+    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input, textarea { background-color: #F9FAFB !important; color: #181818 !important; border-color: #E0E0E0 !important; border-radius: 6px !important; }
+    div[data-baseweb="input"]:focus-within { border-color: #0176D3 !important; }
+    div[data-baseweb="button-group"] button { background-color: #F3F3F2 !important; color: #181818 !important; }
+    [data-testid="stFileUploadDropzone"] { background-color: #F9FAFB !important; color: #181818 !important; border: 2px dashed #E0E0E0 !important; border-radius: 8px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -37,10 +85,9 @@ if 'search_words' not in st.session_state:
 if 'search_counts' not in st.session_state:
     st.session_state.search_counts = {}
 
-# --- 2. スプレッドシート接続とデータ読み込み ---
+# --- 2. スプレッドシート接続 ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 💡 共通の正しい見出しリスト（リセット時にも使用します）
 CORRECT_COLUMNS = ["ID", "自治体名", "案件概要", "仕様書", "予算(千円)", 
                    "落札金額(千円)", "落札企業", "応札1", "応札2", "応札3", 
                    "NJSS掲載", "入札王掲載", "URL1", "URL2", "URL3", "URL4", "URL5"]
@@ -60,22 +107,36 @@ def load_data():
 
 # --- 3. サイドバーの構築 ---
 with st.sidebar:
-    st.markdown('<p class="sidebar-section-header">メインメニュー</p>', unsafe_allow_html=True)
-    test_mode = st.toggle("🧪 テストモード (インポート表示)")
+    st.markdown('<p class="sidebar-section-header">Menu</p>', unsafe_allow_html=True)
+    
+    test_mode = st.toggle("🧪 テストモード")
+    
     menu_options = ["ダッシュボード", "実測データ入力", "ワード検索数", "マニュアル"]
     if test_mode:
-        menu_options.append("データ一括インポート")
+        menu_options.append("データ管理 (テスト)")
+
     page = st.radio(
-        "メニュー", menu_options,
-        format_func=lambda x: {"ダッシュボード": "📊  ダッシュボード", "実測データ入力": "📝  実測データ入力", "ワード検索数": "🔍  ワード検索数", "マニュアル": "📖  マニュアル", "データ一括インポート": "📥  データ一括インポート"}[x],
+        "メニュー",
+        menu_options,
+        format_func=lambda x: {
+            "ダッシュボード": "📊  ダッシュボード",
+            "実測データ入力": "📝  実測データ入力",
+            "ワード検索数": "🔍  ワード検索数",
+            "マニュアル": "📖  マニュアル",
+            "データ管理 (テスト)": "⚙️  データ管理 (テスト)"
+        }[x],
         label_visibility="collapsed"
     )
+    
+    st.markdown("<br><br><br><br><br>", unsafe_allow_html=True)
+    st.caption("© 2026 ZEAL Corporation")
 
+# --- カスタムKPIカード ---
 def draw_kpi_card(title, value):
     st.markdown(f"""
-        <div style="background-color: #FFFFFF; border: 1px solid #DDDBDA; border-radius: 0.5rem; padding: 1.5rem; text-align: center; box-shadow: 0 2px 2px 0 rgba(0,0,0,0.1); margin-bottom: 2rem;">
-            <p style="color: #555555; font-size: 14px; font-weight: bold; margin: 0 0 10px 0;">{title}</p>
-            <p style="color: #0176D3; font-size: 36px; font-weight: bold; margin: 0;">{value}</p>
+        <div style="background-color: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 8px; padding: 1.5rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 2rem;">
+            <p style="color: #78909C; font-size: 13px; font-weight: 600; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">{title}</p>
+            <p style="color: #0176D3; font-size: 38px; font-weight: 700; margin: 0; line-height: 1;">{value}</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -84,6 +145,7 @@ def draw_kpi_card(title, value):
 if page == "ダッシュボード":
     st.markdown('<div class="slds-page-header"><h1>📊 PoC分析ダッシュボード</h1></div>', unsafe_allow_html=True)
     st.info("💡 以下のダッシュボードは、入力された実測データに基づきリアルタイムに更新されます。")
+    
     df = load_data()
     valid_df = df[df["自治体名"].notna() & (df["自治体名"] != "")]
 
@@ -93,6 +155,7 @@ if page == "ダッシュボード":
         kpi1, kpi2, kpi3 = st.columns(3)
         nj_count = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
         ki_count = valid_df["入札王掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
+        
         with kpi1: draw_kpi_card("NJSS 網羅率", f"{(nj_count/len(valid_df)*100):.1f}%")
         with kpi2: draw_kpi_card("入札王 網羅率", f"{(ki_count/len(valid_df)*100):.1f}%")
         with kpi3: draw_kpi_card("検証完了案件", f"{len(valid_df)} 件")
@@ -120,6 +183,7 @@ if page == "ダッシュボード":
             for word in st.session_state.search_words:
                 counts = st.session_state.search_counts.get(word, {"NJSS": 0, "入札王": 0})
                 dash_search_data.append({"検索ワード": word, "NJSS件数": counts["NJSS"], "入札王件数": counts["入札王"]})
+            
             df_dash_sw = pd.DataFrame(dash_search_data)
             fig_dash_sw = px.bar(df_dash_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較", color_discrete_map=color_map)
             fig_dash_sw.update_layout(**chart_layout)
@@ -290,13 +354,13 @@ elif page == "マニュアル":
     #### 🔍 ワード検索数
     * 「DX」「AI」などの特定のキーワードで検索した際、各ツールで何件ヒットするかを比較する画面です。
 
-    #### 🧪 テストモードとデータインポート
-    * サイドバーの「テストモード」をONにすると、「データ一括インポート」メニューが出現します。
-    * テストデータの取り込みや、データの初期化を行いたい場合に使用します。
+    #### ⚙️ データ管理 (テスト)
+    * サイドバーの「テストモード」をONにすると出現します。
+    * 過去のデータのインポートや、データの全消去（リセット）を行いたい場合に使用します。
     """)
 
-elif page == "データ一括インポート":
-    st.markdown('<div class="slds-page-header"><h1>📥 データ管理 (テスト環境用)</h1></div>', unsafe_allow_html=True)
+elif page == "データ管理 (テスト)":
+    st.markdown('<div class="slds-page-header"><h1>⚙️ データ管理 (テスト環境用)</h1></div>', unsafe_allow_html=True)
     st.warning("💡 このメニューは「テストモード」が有効な場合のみ表示されます。不要になったらサイドバーのスイッチをOFFにしてください。")
     
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
@@ -324,23 +388,17 @@ elif page == "データ一括インポート":
             st.error(f"CSVの読み込みに失敗しました: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 💡 データを安全に全消去するボタンを追加
-    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
-    st.markdown("### ⚠️ データの初期化")
+    st.markdown('<div class="slds-card" style="border-color: #EF9A9A;">', unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #D32F2F;'>⚠️ データの初期化</h3>", unsafe_allow_html=True)
     st.write("スプレッドシートのデータをすべて消去し、見出しだけの初期状態に戻します。この操作は取り消せません。")
     
-    st.markdown('<div class="btn-danger">', unsafe_allow_html=True)
     if st.button("🚨 すべてのデータを消去する (初期化)", use_container_width=True):
         try:
             url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            # 正しい見出しだけの空のデータフレームを作成
             empty_df = pd.DataFrame(columns=CORRECT_COLUMNS)
-            # クラウドへ上書き保存（実質リセット）
             conn.update(spreadsheet=url, data=empty_df)
-            
             if 'temp_df' in st.session_state:
                 del st.session_state.temp_df
-                
             st.success("データを完全に初期化しました！")
             st.rerun()
         except Exception as e:
