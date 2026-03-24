@@ -27,7 +27,7 @@ st.markdown("""
     .stButton > button:hover { background-color: #014486 !important; }
     
     /* 入力ボックス・ファイルアップローダーの背景白化 */
-    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input { background-color: #FFFFFF !important; color: #181818 !important; border-color: #DDDBDA !important; }
+    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input, textarea { background-color: #FFFFFF !important; color: #181818 !important; border-color: #DDDBDA !important; }
     div[data-baseweb="button-group"] button { background-color: #F3F3F2 !important; color: #181818 !important; }
     [data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; color: #181818 !important; }
     </style>
@@ -95,7 +95,6 @@ if page == "ダッシュボード":
     if valid_df.empty:
         st.warning("データがありません。左のメニューから「実測データ入力」を開き、検証結果を登録してください。")
     else:
-        # KPIカード（大型化・枠線あり）
         kpi1, kpi2, kpi3 = st.columns(3)
         nj_count = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
         ki_count = valid_df["入札王掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
@@ -104,20 +103,12 @@ if page == "ダッシュボード":
         with kpi2: draw_kpi_card("入札王 網羅率", f"{(ki_count/len(valid_df)*100):.1f}%")
         with kpi3: draw_kpi_card("検証完了案件", f"{len(valid_df)} 件")
 
-        # グラフ用共通レイアウト設定
-        chart_layout = dict(
-            template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", 
-            font=dict(color="#181818"), margin=dict(l=20, r=20, t=50, b=20)
-        )
-        
-        # 配色設定（NJSS: 青, 入札王: オレンジ）
+        chart_layout = dict(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"), margin=dict(l=20, r=20, t=50, b=20))
         color_map = {"NJSS": "#0176D3", "入札王": "#F28E2B", "NJSS件数": "#0176D3", "入札王件数": "#F28E2B"}
 
-        # 上段：案件捕捉数 ＆ 競合シェア
         col_l, col_r = st.columns(2)
         with col_l:
-            fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_count, ki_count], title="案件捕捉数の比較",
-                              color=["NJSS", "入札王"], color_discrete_map=color_map)
+            fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_count, ki_count], title="案件捕捉数の比較", color=["NJSS", "入札王"], color_discrete_map=color_map)
             fig_hits.update_layout(**chart_layout)
             st.plotly_chart(fig_hits, use_container_width=True)
             
@@ -126,11 +117,10 @@ if page == "ダッシュボード":
             pres_df = comp_df[comp_df != ""].value_counts().reset_index()
             pres_df.columns = ["企業名", "出現回数"]
             fig_p = px.bar(pres_df.head(8), x="出現回数", y="企業名", orientation='h', title="競合出現シェア (TOP 8)")
-            fig_p.update_traces(marker_color='#0176D3') # 単一色は青に統一
+            fig_p.update_traces(marker_color='#0176D3')
             fig_p.update_layout(**chart_layout)
             st.plotly_chart(fig_p, use_container_width=True)
 
-        # 下段：ワード検索数のグラフ
         if st.session_state.search_words:
             dash_search_data = []
             for word in st.session_state.search_words:
@@ -138,53 +128,107 @@ if page == "ダッシュボード":
                 dash_search_data.append({"検索ワード": word, "NJSS件数": counts["NJSS"], "入札王件数": counts["入札王"]})
             
             df_dash_sw = pd.DataFrame(dash_search_data)
-            fig_dash_sw = px.bar(df_dash_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較",
-                                 color_discrete_map=color_map)
+            fig_dash_sw = px.bar(df_dash_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較", color_discrete_map=color_map)
             fig_dash_sw.update_layout(**chart_layout)
             st.plotly_chart(fig_dash_sw, use_container_width=True)
 
 elif page == "実測データ入力":
     st.markdown('<div class="slds-page-header"><h1>📝 PoC 実測データ入力</h1></div>', unsafe_allow_html=True)
-    st.info("💡 表のセルを直接クリックしてデータを入力・修正してください。編集後は必ず左下の「クラウドへ一括保存」ボタンを押してください。")
     
-    df_display = st.session_state.get('temp_df', load_data())
-    
-    if not df_display.empty:
-        bool_columns = ["仕様書", "NJSS掲載", "入札王掲載"]
-        for col in bool_columns:
-            if col in df_display.columns:
-                df_display[col] = df_display[col].astype(str).str.strip().str.upper().map({'TRUE': True, '1': True, '1.0': True, 'YES': True}).fillna(False)
-        
-        num_columns = ["予算(千円)", "落札金額(千円)"]
-        for col in num_columns:
-            if col in df_display.columns:
-                df_display[col] = pd.to_numeric(df_display[col].astype(str).str.replace(r'[¥,]', '', regex=True), errors='coerce').fillna(0).astype(int)
+    # 既存データの読み込みと整理（空行を排除）
+    df_current = load_data()
+    valid_df = df_current[df_current["自治体名"].notna() & (df_current["自治体名"] != "")].copy()
+    next_id = len(valid_df) + 1
 
-    edited_df = st.data_editor(
-        df_display,
-        column_config={
-            "仕様書": st.column_config.CheckboxColumn("仕様書有"),
-            "NJSS掲載": st.column_config.CheckboxColumn("NJSS確認"),
-            "入札王掲載": st.column_config.CheckboxColumn("入札王確認"),
-            "予算(千円)": st.column_config.NumberColumn(format="¥%d"),
-            "落札金額(千円)": st.column_config.NumberColumn(format="¥%d"),
-        },
-        hide_index=True, num_rows="dynamic", use_container_width=True
-    )
-    
-    if st.button("☁️ クラウドへ一括保存 (スプレッドシート連携)"):
-        try:
-            url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            clean_df = edited_df.fillna("")
-            clean_df = clean_df.replace({None: ""})
-            conn.update(spreadsheet=url, data=clean_df)
-            
-            if 'temp_df' in st.session_state:
+    # CSVインポートデータがある場合の一括保存ボタン
+    if 'temp_df' in st.session_state and not st.session_state.temp_df.empty:
+        st.warning(f"📥 インポートされた {len(st.session_state.temp_df)} 件の未保存データがあります。")
+        if st.button("☁️ インポートデータを一括保存する", use_container_width=True):
+            try:
+                import_data = st.session_state.temp_df.fillna("")
+                import_data = import_data.replace({None: ""})
+                updated_df = pd.concat([valid_df, import_data], ignore_index=True)
+                url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+                conn.update(spreadsheet=url, data=updated_df)
                 del st.session_state.temp_df
-            st.success("スプレッドシートへの保存が完了しました！")
-            st.rerun()
-        except Exception as e:
-            st.error(f"保存に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
+                st.success("インポートデータの保存が完了しました！")
+                st.rerun()
+            except Exception as e:
+                st.error(f"保存に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
+        st.markdown("---")
+
+    st.info("💡 以下のフォームに各項目の実測結果を入力し、「この案件を保存する」ボタンを押して1件ずつ登録してください。")
+
+    # 入力フォーム（Salesforce風カードデザイン内）
+    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
+    with st.form("entry_form", clear_on_submit=True):
+        st.markdown("#### 🏢 基本情報", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            municipality = st.text_input("自治体名 (必須)", placeholder="例：横浜市")
+            budget = st.number_input("予算 (千円)", min_value=0, step=100)
+        with c2:
+            summary = st.text_area("案件概要", placeholder="例：R6年度 住民税システム改修", height=110)
+        
+        st.markdown("<br>#### 🏆 落札・応札情報", unsafe_allow_html=True)
+        c3, c4 = st.columns(2)
+        with c3:
+            winner = st.text_input("落札企業", placeholder="例：株式会社ジール")
+            winning_bid = st.number_input("落札金額 (千円)", min_value=0, step=100)
+        with c4:
+            bidder1 = st.text_input("応札企業 1")
+            bidder2 = st.text_input("応札企業 2")
+            bidder3 = st.text_input("応札企業 3")
+        
+        st.markdown("<br>#### ✅ ツール掲載確認", unsafe_allow_html=True)
+        c5, c6, c7 = st.columns(3)
+        with c5:
+            spec = st.checkbox("📄 仕様書あり")
+        with c6:
+            njss_listed = st.checkbox("🔵 NJSS に掲載あり")
+        with c7:
+            king_listed = st.checkbox("🟠 入札王 に掲載あり")
+            
+        st.markdown("---")
+        submitted = st.form_submit_button("☁️ この案件を保存する", use_container_width=True)
+
+    # 保存処理
+    if submitted:
+        if not municipality:
+            st.error("⚠️ 「自治体名」は必須項目です。入力してください。")
+        else:
+            new_record = pd.DataFrame([{
+                "ID": next_id,
+                "自治体名": municipality,
+                "案件概要": summary,
+                "仕様書": spec,
+                "予算(千円)": budget,
+                "落札金額(千円)": winning_bid,
+                "落札企業": winner,
+                "応札1": bidder1,
+                "応札2": bidder2,
+                "応札3": bidder3,
+                "NJSS掲載": njss_listed,
+                "入札王掲載": king_listed
+            }])
+            
+            # データのお掃除と結合
+            new_record = new_record.fillna("")
+            updated_df = pd.concat([valid_df, new_record], ignore_index=True)
+            
+            try:
+                url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+                conn.update(spreadsheet=url, data=updated_df)
+                st.success(f"🎉 「{municipality}」の案件データを保存しました！")
+                st.rerun()
+            except Exception as e:
+                st.error(f"保存に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 登録済みデータの一覧表示（確認用）
+    if not valid_df.empty:
+        st.markdown("### 📋 登録済みデータ一覧")
+        st.dataframe(valid_df, use_container_width=True, hide_index=True)
 
 elif page == "ワード検索数":
     st.markdown('<div class="slds-page-header"><h1>🔍 ワード検索数 実測入力</h1></div>', unsafe_allow_html=True)
@@ -242,9 +286,9 @@ elif page == "マニュアル":
     * 会議やプレゼン時の報告用画面としてご活用ください。
 
     #### 📝 実測データ入力
-    * Excelのような表形式で、実際の案件データや検証結果を直接入力・編集できる画面です。
-    * **【重要】** データを編集した後は、必ず表の下にある **「☁️ クラウドへ一括保存」** ボタンをクリックしてください。保存しないとダッシュボードに反映されません。
-    * 一番下の行をクリックすると新しい行が追加され、案件を増やすことができます。
+    * 案件ごとに実測結果を入力・登録できるフォームです。
+    * 必須項目（自治体名など）を入力し、**「☁️ この案件を保存する」**ボタンを押すことで、クラウド上のスプレッドシートにデータが蓄積されます。
+    * フォームの下部には、これまで登録したデータの一覧が確認用に表示されます。
 
     #### 🔍 ワード検索数
     * 「DX」「AI」などの特定のキーワードで検索した際、各ツールで何件ヒットするかを比較する画面です。
@@ -281,6 +325,6 @@ elif page == "データ一括インポート":
             
             if st.button("このデータを入力シートに反映する"):
                 st.session_state.temp_df = import_df
-                st.success("反映しました。「実測データ入力」画面に移動して保存してください。")
+                st.success("反映しました。「実測データ入力」画面に移動して一括保存してください。")
         except Exception as e:
             st.error(f"CSVの読み込みに失敗しました: {e}")
