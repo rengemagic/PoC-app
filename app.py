@@ -17,19 +17,17 @@ st.markdown("""
     .sidebar-section-header { color: #4b646f !important; font-size: 12px !important; font-weight: bold; padding: 10px 15px; background-color: #1a2226; margin: 20px 0px 15px 0px; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { margin-bottom: 1.5rem !important; color: white !important; font-size: 15px !important; cursor: pointer; }
     [data-testid="stSidebar"] div.stRadio p { color: white !important; font-size: 15px !important; }
-    
-    /* ページヘッダー */
     .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 2px solid #D8DDE6; margin: -4rem -4rem 2rem -4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .slds-page-header h1 { color: #080707 !important; font-size: 1.6rem; font-weight: 700; margin: 0; }
-    
-    /* ボタン */
     .stButton > button { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 4px !important; font-weight: 700 !important; border: none !important; padding: 0.6rem 2rem !important; }
     .stButton > button:hover { background-color: #014486 !important; }
-    
-    /* 入力ボックス・ファイルアップローダーの背景白化 */
     div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input, textarea { background-color: #FFFFFF !important; color: #181818 !important; border-color: #DDDBDA !important; }
     div[data-baseweb="button-group"] button { background-color: #F3F3F2 !important; color: #181818 !important; }
     [data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; color: #181818 !important; }
+    
+    /* リセットボタン用の赤色スタイル */
+    .btn-danger > button { background-color: #D32F2F !important; }
+    .btn-danger > button:hover { background-color: #B71C1C !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -39,43 +37,40 @@ if 'search_words' not in st.session_state:
 if 'search_counts' not in st.session_state:
     st.session_state.search_counts = {}
 
-# --- 2. スプレッドシート接続 ---
+# --- 2. スプレッドシート接続とデータ読み込み ---
 conn = st.connection("gsheets", type=GSheetsConnection)
+
+# 💡 共通の正しい見出しリスト（リセット時にも使用します）
+CORRECT_COLUMNS = ["ID", "自治体名", "案件概要", "仕様書", "予算(千円)", 
+                   "落札金額(千円)", "落札企業", "応札1", "応札2", "応札3", 
+                   "NJSS掲載", "入札王掲載", "URL1", "URL2", "URL3", "URL4", "URL5"]
 
 def load_data():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        return conn.read(spreadsheet=url, ttl="0s")
+        df = conn.read(spreadsheet=url, ttl="0s")
+        if "自治体名" not in df.columns:
+            return pd.DataFrame([{col: "" if col != "ID" else i+1 for col in CORRECT_COLUMNS} for i in range(50)])
+        for col in ["URL1", "URL2", "URL3", "URL4", "URL5"]:
+            if col not in df.columns:
+                df[col] = ""
+        return df
     except Exception as e:
-        return pd.DataFrame([{"ID": i+1, "自治体名": "", "案件概要": "", "仕様書": False, "予算(千円)": 0, 
-                              "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
-                              "NJSS掲載": False, "入札王掲載": False,
-                              "URL1": "", "URL2": "", "URL3": "", "URL4": "", "URL5": ""} for i in range(50)])
+        return pd.DataFrame([{col: "" if col != "ID" else i+1 for col in CORRECT_COLUMNS} for i in range(50)])
 
 # --- 3. サイドバーの構築 ---
 with st.sidebar:
     st.markdown('<p class="sidebar-section-header">メインメニュー</p>', unsafe_allow_html=True)
-    
     test_mode = st.toggle("🧪 テストモード (インポート表示)")
-    
     menu_options = ["ダッシュボード", "実測データ入力", "ワード検索数", "マニュアル"]
     if test_mode:
         menu_options.append("データ一括インポート")
-
     page = st.radio(
-        "メニュー",
-        menu_options,
-        format_func=lambda x: {
-            "ダッシュボード": "📊  ダッシュボード",
-            "実測データ入力": "📝  実測データ入力",
-            "ワード検索数": "🔍  ワード検索数",
-            "マニュアル": "📖  マニュアル",
-            "データ一括インポート": "📥  データ一括インポート"
-        }[x],
+        "メニュー", menu_options,
+        format_func=lambda x: {"ダッシュボード": "📊  ダッシュボード", "実測データ入力": "📝  実測データ入力", "ワード検索数": "🔍  ワード検索数", "マニュアル": "📖  マニュアル", "データ一括インポート": "📥  データ一括インポート"}[x],
         label_visibility="collapsed"
     )
 
-# --- カスタムKPIカードを描画する関数 ---
 def draw_kpi_card(title, value):
     st.markdown(f"""
         <div style="background-color: #FFFFFF; border: 1px solid #DDDBDA; border-radius: 0.5rem; padding: 1.5rem; text-align: center; box-shadow: 0 2px 2px 0 rgba(0,0,0,0.1); margin-bottom: 2rem;">
@@ -89,7 +84,6 @@ def draw_kpi_card(title, value):
 if page == "ダッシュボード":
     st.markdown('<div class="slds-page-header"><h1>📊 PoC分析ダッシュボード</h1></div>', unsafe_allow_html=True)
     st.info("💡 以下のダッシュボードは、入力された実測データに基づきリアルタイムに更新されます。")
-    
     df = load_data()
     valid_df = df[df["自治体名"].notna() & (df["自治体名"] != "")]
 
@@ -99,7 +93,6 @@ if page == "ダッシュボード":
         kpi1, kpi2, kpi3 = st.columns(3)
         nj_count = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
         ki_count = valid_df["入札王掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
-        
         with kpi1: draw_kpi_card("NJSS 網羅率", f"{(nj_count/len(valid_df)*100):.1f}%")
         with kpi2: draw_kpi_card("入札王 網羅率", f"{(ki_count/len(valid_df)*100):.1f}%")
         with kpi3: draw_kpi_card("検証完了案件", f"{len(valid_df)} 件")
@@ -127,7 +120,6 @@ if page == "ダッシュボード":
             for word in st.session_state.search_words:
                 counts = st.session_state.search_counts.get(word, {"NJSS": 0, "入札王": 0})
                 dash_search_data.append({"検索ワード": word, "NJSS件数": counts["NJSS"], "入札王件数": counts["入札王"]})
-            
             df_dash_sw = pd.DataFrame(dash_search_data)
             fig_dash_sw = px.bar(df_dash_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較", color_discrete_map=color_map)
             fig_dash_sw.update_layout(**chart_layout)
@@ -158,56 +150,51 @@ elif page == "実測データ入力":
 
     st.info("💡 以下のフォームに各項目の実測結果を入力し、「この案件を保存する」ボタンを押して1件ずつ登録してください。")
 
-    # --- 個別入力フォーム ---
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
-    
-    # 💡 フォームの枠外で変数を取得（リアルタイムに計算結果を表示するため）
-    st.markdown("#### 🏢 基本情報")
-    c1, c2 = st.columns(2)
-    with c1:
-        municipality = st.text_input("自治体名 (必須)", placeholder="例：東京都")
-        budget = st.number_input("予算 (単位: 千円)", min_value=0, step=100)
-        # 🎉 リアルタイムで実際の金額を表示するギミック
-        st.markdown(f"<p style='color: #0176D3; font-size: 13px; margin-top: -10px;'>💴 実際の金額: <b>{budget * 1000:,} 円</b></p>", unsafe_allow_html=True)
-    with c2:
-        summary = st.text_area("案件概要", placeholder="例：R6年度 住民税システム改修", height=110)
+    with st.form("entry_form", clear_on_submit=True):
+        st.markdown("#### 🏢 基本情報", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            municipality = st.text_input("自治体名 (必須)", placeholder="例：東京都")
+            budget = st.number_input("予算 (単位: 千円)", min_value=0, step=100)
+            st.markdown(f"<p style='color: #0176D3; font-size: 13px; margin-top: -10px;'>💴 実際の金額: <b>{budget * 1000:,} 円</b></p>", unsafe_allow_html=True)
+        with c2:
+            summary = st.text_area("案件概要", placeholder="例：R6年度 住民税システム改修", height=110)
         
-    st.markdown("---")
-    st.markdown("#### 🏆 落札・応札情報")
-    c3, c4 = st.columns(2)
-    with c3:
-        winner = st.text_input("落札企業", placeholder="例：株式会社ジール")
-        winning_bid = st.number_input("落札金額 (単位: 千円)", min_value=0, step=100)
-        st.markdown(f"<p style='color: #0176D3; font-size: 13px; margin-top: -10px;'>💴 実際の金額: <b>{winning_bid * 1000:,} 円</b></p>", unsafe_allow_html=True)
-    with c4:
-        bidder1 = st.text_input("応札企業 1")
-        bidder2 = st.text_input("応札企業 2")
-        bidder3 = st.text_input("応札企業 3")
+        st.markdown("<br>#### 🏆 落札・応札情報", unsafe_allow_html=True)
+        c3, c4 = st.columns(2)
+        with c3:
+            winner = st.text_input("落札企業", placeholder="例：株式会社ジール")
+            winning_bid = st.number_input("落札金額 (単位: 千円)", min_value=0, step=100)
+            st.markdown(f"<p style='color: #0176D3; font-size: 13px; margin-top: -10px;'>💴 実際の金額: <b>{winning_bid * 1000:,} 円</b></p>", unsafe_allow_html=True)
+        with c4:
+            bidder1 = st.text_input("応札企業 1")
+            bidder2 = st.text_input("応札企業 2")
+            bidder3 = st.text_input("応札企業 3")
         
-    st.markdown("---")
-    st.markdown("#### ✅ ツール掲載確認")
-    c5, c6, c7 = st.columns(3)
-    with c5:
-        spec = st.checkbox("📄 仕様書あり")
-    with c6:
-        njss_listed = st.checkbox("🔵 NJSS に掲載あり")
-    with c7:
-        king_listed = st.checkbox("🟠 入札王 に掲載あり")
-        
-    st.markdown("---")
-    st.markdown("#### 🔗 参考URL")
-    c8, c9 = st.columns(2)
-    with c8:
-        url1 = st.text_input("URL 1", placeholder="https://...")
-        url3 = st.text_input("URL 3", placeholder="https://...")
-        url5 = st.text_input("URL 5", placeholder="https://...")
-    with c9:
-        url2 = st.text_input("URL 2", placeholder="https://...")
-        url4 = st.text_input("URL 4", placeholder="https://...")
+        st.markdown("<br>#### ✅ ツール掲載確認", unsafe_allow_html=True)
+        c5, c6, c7 = st.columns(3)
+        with c5:
+            spec = st.checkbox("📄 仕様書あり")
+        with c6:
+            njss_listed = st.checkbox("🔵 NJSS に掲載あり")
+        with c7:
+            king_listed = st.checkbox("🟠 入札王 に掲載あり")
 
-    st.markdown("---")
-    # 保存ボタン
-    if st.button("☁️ この案件を保存する", use_container_width=True):
+        st.markdown("<br>#### 🔗 参考URL", unsafe_allow_html=True)
+        c8, c9 = st.columns(2)
+        with c8:
+            url1 = st.text_input("URL 1", placeholder="https://...")
+            url3 = st.text_input("URL 3", placeholder="https://...")
+            url5 = st.text_input("URL 5", placeholder="https://...")
+        with c9:
+            url2 = st.text_input("URL 2", placeholder="https://...")
+            url4 = st.text_input("URL 4", placeholder="https://...")
+            
+        st.markdown("---")
+        submitted = st.form_submit_button("☁️ この案件を保存する", use_container_width=True)
+
+    if submitted:
         if not municipality:
             st.error("⚠️ 「自治体名」は必須項目です。入力してください。")
         else:
@@ -218,10 +205,8 @@ elif page == "実測データ入力":
                 "NJSS掲載": njss_listed, "入札王掲載": king_listed,
                 "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5
             }])
-            
             new_record = new_record.fillna("")
             updated_df = pd.concat([valid_df, new_record], ignore_index=True)
-            
             try:
                 url = st.secrets["connections"]["gsheets"]["spreadsheet"]
                 conn.update(spreadsheet=url, data=updated_df)
@@ -229,14 +214,10 @@ elif page == "実測データ入力":
                 st.rerun()
             except Exception as e:
                 st.error(f"保存に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
-                
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 登録済みデータの一覧表示（確認用） ---
     if not valid_df.empty:
         st.markdown("### 📋 登録済みデータ一覧")
-        
-        # 💡 URLがクリック可能なリンクになるように設定
         st.dataframe(
             valid_df,
             column_config={
@@ -276,20 +257,16 @@ elif page == "ワード検索数":
         for word in st.session_state.search_words:
             if word not in st.session_state.search_counts:
                 st.session_state.search_counts[word] = {"NJSS": 0, "入札王": 0}
-            
             col_w1, col_w2 = st.columns(2)
             n_val = col_w1.number_input(f"NJSS: 【 {word} 】", min_value=0, value=st.session_state.search_counts[word]["NJSS"], key=f"n_{word}")
             k_val = col_w2.number_input(f"入札王: 【 {word} 】", min_value=0, value=st.session_state.search_counts[word]["入札王"], key=f"k_{word}")
-            
             st.session_state.search_counts[word]["NJSS"] = n_val
             st.session_state.search_counts[word]["入札王"] = k_val
-
             n_j = "○" if n_val >= k_val and n_val > 0 else "×"
             k_j = "○" if k_val >= n_val and k_val > 0 else "×"
             search_data.append({"検索ワード": word, "NJSS件数": n_val, "NJSS判定": n_j, "入札王件数": k_val, "入札王判定": k_j})
         
         st.table(pd.DataFrame(search_data))
-        
         color_map = {"NJSS件数": "#0176D3", "入札王件数": "#F28E2B"}
         df_sw = pd.DataFrame(search_data)
         fig_sw = px.bar(df_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較", color_discrete_map=color_map)
@@ -298,57 +275,74 @@ elif page == "ワード検索数":
 
 elif page == "マニュアル":
     st.markdown('<div class="slds-page-header"><h1>📖 操作マニュアル</h1></div>', unsafe_allow_html=True)
-    
     st.markdown("""
     ### 1. 本ツールの目的
     本ツールは、入札情報サービス（NJSS、入札王など）の導入検討に向けたPoC（概念実証）において、**各ツールの網羅率や検索精度を定量的に比較・評価**するための専用ダッシュボードです。
 
     ### 2. 各メニューの利用方法
-    
     #### 📊 ダッシュボード
     * 入力されたデータをもとに、各ツールの「網羅率（カバー率）」「競合他社の出現シェア」「ワード検索数の比較」をリアルタイムにグラフ化します。
-    * 会議やプレゼン時の報告用画面としてご活用ください。
 
     #### 📝 実測データ入力
     * 案件ごとに実測結果を入力・登録できるフォームです。
     * 必須項目（自治体名など）を入力し、**「☁️ この案件を保存する」**ボタンを押すことで、クラウド上のスプレッドシートにデータが蓄積されます。
-    * フォームの下部には、これまで登録したデータの一覧が確認用に表示されます。
 
     #### 🔍 ワード検索数
     * 「DX」「AI」などの特定のキーワードで検索した際、各ツールで何件ヒットするかを比較する画面です。
-    * ワードを追加し、実測した数値を入力すると、自動でダッシュボードのグラフに連携されます。
 
     #### 🧪 テストモードとデータインポート
     * サイドバーの「テストモード」をONにすると、「データ一括インポート」メニューが出現します。
-    * Excel等で作成したCSVファイルをアップロードすることで、一括でデータを流し込むことができます（初期データの登録などに便利です）。
+    * テストデータの取り込みや、データの初期化を行いたい場合に使用します。
     """)
 
 elif page == "データ一括インポート":
-    st.markdown('<div class="slds-page-header"><h1>📥 データ一括インポート (テスト環境用)</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="slds-page-header"><h1>📥 データ管理 (テスト環境用)</h1></div>', unsafe_allow_html=True)
     st.warning("💡 このメニューは「テストモード」が有効な場合のみ表示されます。不要になったらサイドバーのスイッチをOFFにしてください。")
+    
+    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
+    st.markdown("### 📤 CSVアップロード")
     uploaded_file = st.file_uploader("テスト用CSVファイルをアップロードしてください", type="csv")
     if uploaded_file:
         try:
-            try:
-                import_df = pd.read_csv(uploaded_file, encoding="utf-8")
+            try: import_df = pd.read_csv(uploaded_file, encoding="utf-8")
             except UnicodeDecodeError:
                 uploaded_file.seek(0)
                 import_df = pd.read_csv(uploaded_file, encoding="shift-jis")
-
             if len(import_df.columns) == 1 and "," in import_df.columns[0]:
                 uploaded_file.seek(0)
-                try:
-                    import_df = pd.read_csv(uploaded_file, encoding="utf-8", quoting=csv.QUOTE_NONE)
+                try: import_df = pd.read_csv(uploaded_file, encoding="utf-8", quoting=csv.QUOTE_NONE)
                 except UnicodeDecodeError:
                     uploaded_file.seek(0)
                     import_df = pd.read_csv(uploaded_file, encoding="shift-jis", quoting=csv.QUOTE_NONE)
                 import_df.columns = import_df.columns.str.replace('"', '', regex=False)
                 import_df = import_df.replace('"', '', regex=True)
-
             st.dataframe(import_df.head())
-            
             if st.button("このデータを入力シートに反映する"):
                 st.session_state.temp_df = import_df
                 st.success("反映しました。「実測データ入力」画面に移動して一括保存してください。")
         except Exception as e:
             st.error(f"CSVの読み込みに失敗しました: {e}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 💡 データを安全に全消去するボタンを追加
+    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
+    st.markdown("### ⚠️ データの初期化")
+    st.write("スプレッドシートのデータをすべて消去し、見出しだけの初期状態に戻します。この操作は取り消せません。")
+    
+    st.markdown('<div class="btn-danger">', unsafe_allow_html=True)
+    if st.button("🚨 すべてのデータを消去する (初期化)", use_container_width=True):
+        try:
+            url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+            # 正しい見出しだけの空のデータフレームを作成
+            empty_df = pd.DataFrame(columns=CORRECT_COLUMNS)
+            # クラウドへ上書き保存（実質リセット）
+            conn.update(spreadsheet=url, data=empty_df)
+            
+            if 'temp_df' in st.session_state:
+                del st.session_state.temp_df
+                
+            st.success("データを完全に初期化しました！")
+            st.rerun()
+        except Exception as e:
+            st.error(f"初期化に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
+    st.markdown('</div>', unsafe_allow_html=True)
