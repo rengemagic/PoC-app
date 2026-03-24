@@ -4,16 +4,19 @@ import plotly.express as px
 
 st.set_page_config(page_title="入札ツール精密評価・分析ボード", layout="wide")
 
-st.title("🛡️ 入札ツール精密PoC評価 & グラフ分析システム")
-st.caption("検索ワード任意追加 ・ 50件実測 ・ 機能比較 ・ 自動判定レポート")
+st.title("🛡️ 入札ツール精密PoC評価 & 競合分析システム")
+st.caption("検索ワード任意追加 ・ 50件実測（応札3社個別入力） ・ 機能比較 ・ 自動判定")
 
 # --- セッション状態の初期化 ---
 if 'search_words' not in st.session_state:
     st.session_state.search_words = ["DX推進", "データ分析基盤"]
 
 if 'past_cases' not in st.session_state:
+    # 列定義を拡張：応札企業を3社まで個別入力できるように設定
     st.session_state.past_cases = pd.DataFrame(
-        [{"ID": i+1, "自治体名": "", "案件概要": "", "仕様書": False, "予算(千円)": 0, "落札企業": "", "応札企業(名・数)": "", "NJSS掲載": False, "入札王掲載": False} for i in range(50)]
+        [{"ID": i+1, "自治体名": "", "案件概要": "", "仕様書": False, "予算(千円)": 0, 
+          "落札企業": "", "応札1": "", "応札2": "", "応札3": "",
+          "NJSS掲載": False, "入札王掲載": False} for i in range(50)]
     )
 
 # --- 1. 検索ワード比較（任意設定） ---
@@ -42,13 +45,11 @@ if st.session_state.search_words:
         search_data.append({"ワード": word, "NJSS": n_val, "NJSS判定": n_j, "入札王": k_val, "入札王判定": k_j})
     
     st.table(pd.DataFrame(search_data))
-    df_sw = pd.DataFrame(search_data)
-    fig_sw = px.bar(df_sw, x="ワード", y=["NJSS", "入札王"], barmode="group", title="ワード別ヒット件数（実測値）")
-    st.plotly_chart(fig_sw, use_container_width=True)
 
-# --- 2. 過去案件 50件データ検証 ---
+# --- 2. 過去案件 50件データ検証（競合分析強化版） ---
 st.header("2. 過去案件・競合データ入力（50件）")
-st.write("各ツールで「落札・応札企業名」や「仕様書」まで辿り着けるか実測してください。")
+st.write("落札企業だけでなく、応札していた競合3社まで入力し、各ツールで捕捉できるか検証します。")
+
 edited_cases = st.data_editor(
     st.session_state.past_cases,
     column_config={
@@ -56,13 +57,16 @@ edited_cases = st.data_editor(
         "NJSS掲載": st.column_config.CheckboxColumn("NJSS掲載"),
         "入札王掲載": st.column_config.CheckboxColumn("入札王掲載"),
         "予算(千円)": st.column_config.NumberColumn("予算(千円)", format="%d"),
+        "応札1": st.column_config.TextColumn("応札企業1"),
+        "応札2": st.column_config.TextColumn("応札企業2"),
+        "応札3": st.column_config.TextColumn("応札企業3"),
     },
     hide_index=True,
     num_rows="fixed",
     use_container_width=True
 )
 
-# --- 3. 主要機能チェックリスト（復活版） ---
+# --- 3. 主要機能チェックリスト ---
 st.header("3. 主要機能チェックリスト")
 features = ["メール通知精度", "カテゴリ検索", "一括CSVダウンロード", "API連携可能", "予算書・予定情報検索", "落札企業分析機能", "同時アクセス数上限", "スマホ閲覧対応"]
 njss_f_scores = 0
@@ -80,41 +84,40 @@ with f_col2:
         if st.checkbox(f"入札王: {feat}", key=f"ki_f_{feat}"):
             king_f_scores += 1
 
-st.subheader("🏁 機能面での総合判定")
-if njss_f_scores > king_f_scores:
-    st.success(f"機能の充実度では 【NJSS】 が優勢です。 ({njss_f_scores} / {len(features)})")
-elif king_f_scores > njss_f_scores:
-    st.success(f"機能の充実度では 【入札王】 が優勢です。 ({king_f_scores} / {len(features)})")
-else:
-    st.warning(f"機能面は 【互角】 です。 ({njss_f_scores}項目)")
-
-# --- 4. 過去案件データの自動分析レポート ---
+# --- 4. データの可視化レポート ---
 st.header("📊 PoCデータ分析レポート")
 valid_df = edited_cases[edited_cases["自治体名"] != ""]
 
 if not valid_df.empty:
     col_g1, col_g2 = st.columns(2)
     with col_g1:
+        # 捕捉数比較
         nj_hits = valid_df["NJSS掲載"].sum()
         ki_hits = valid_df["入札王掲載"].sum()
         fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_hits, ki_hits], color=["NJSS", "入札王"],
-                          title=f"案件捕捉数（検証 {len(valid_df)} 件中）", labels={'x': 'ツール', 'y': 'ヒット数'})
+                          title=f"案件捕捉数（検証 {len(valid_df)} 件中）")
         st.plotly_chart(fig_hits, use_container_width=True)
         
     with col_g2:
-        spec_count = valid_df["仕様書"].sum()
-        budget_count = (valid_df["予算(千円)"] > 0).sum()
-        fig_info = px.pie(values=[spec_count, budget_count], names=["仕様書あり", "予算額あり"], title="詳細情報の充足度", hole=0.3)
-        st.plotly_chart(fig_info, use_container_width=True)
-
-    # 落札企業ランキング
-    comp_df = valid_df[valid_df["落札企業"] != ""]["落札企業"].value_counts().reset_index()
-    if not comp_df.empty:
+        # 落札企業のシェア分析
+        comp_df = valid_df[valid_df["落札企業"] != ""]["落札企業"].value_counts().reset_index()
         comp_df.columns = ["企業名", "落札数"]
-        fig_comp = px.bar(comp_df.head(5), x="落札数", y="企業名", orientation='h', title="競合他社の落札シェア(TOP5)")
+        fig_comp = px.pie(comp_df.head(5), values="落札数", names="企業名", title="落札企業のシェア(TOP5)", hole=0.3)
         st.plotly_chart(fig_comp, use_container_width=True)
+
+    # 競合全体の出現回数（落札＋応札1〜3）
+    st.subheader("🏢 競合企業の出現頻度（マーケット・プレゼンス）")
+    all_competitors = pd.concat([
+        valid_df["落札企業"], valid_df["応札1"], valid_df["応札2"], valid_df["応札3"]
+    ])
+    presence_df = all_competitors[all_competitors != ""].value_counts().reset_index()
+    presence_df.columns = ["企業名", "出現回数"]
+    if not presence_df.empty:
+        fig_pres = px.bar(presence_df.head(10), x="出現回数", y="企業名", orientation='h', 
+                          title="応札・落札によく登場する企業（TOP10）", color="出現回数")
+        st.plotly_chart(fig_pres, use_container_width=True)
 else:
-    st.info("上の表に自治体名を入力すると分析グラフが表示されます。")
+    st.info("表に自治体名を入力すると分析グラフが表示されます。")
 
 # --- 5. 出力 ---
 st.header("5. エクスポート")
