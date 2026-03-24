@@ -1,103 +1,96 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="入札ツールPoC試験エディタ", layout="wide")
+st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
-st.title("🧪 入札ツールPoC：試験シナリオ＆実測評価")
-st.caption("株式会社ジール様向け：仕様・精度・運用負荷の実測検証ボード")
+st.title("🛡️ 入札ツール精密PoC評価システム")
+st.caption("実測データに基づく「NJSS vs 入札王」の自動判定レポート作成ツール")
 
-# --- 試験シナリオの定義 ---
-scenarios = {
-    "1. 検索精度（DX/ETL）": {
-        "scenario": "キーワード『ETL』『データ基盤』『DX推進』で検索し、ノイズ（無関係な案件）が混入しないか確認する。",
-        "check_point": "ヒット件数の妥当性と、検索フィルタの使い勝手",
-        "input_label": "ヒット件数（件）"
+# --- 1. 推奨検索ワード比較（自動判定） ---
+st.header("1. 検索ヒット件数比較（精度検証）")
+search_words = ["ETL", "データ基盤", "DX推進", "データ分析", "AI・機械学習"]
+search_data = []
+
+col_sw1, col_sw2 = st.columns(2)
+with col_sw1:
+    st.subheader("NJSS ヒット数")
+    njss_counts = {word: st.number_input(f"NJSS: {word}", min_value=0, key=f"njss_sw_{word}") for word in search_words}
+with col_sw2:
+    st.subheader("入札王 ヒット数")
+    king_counts = {word: st.number_input(f"入札王: {word}", min_value=0, key=f"king_sw_{word}") for word in search_words}
+
+for word in search_words:
+    n = njss_counts[word]
+    k = king_counts[word]
+    njss_j = "○" if n >= k and n > 0 else "×"
+    king_j = "○" if k >= n and k > 0 else "×"
+    search_data.append({"ワード": word, "NJSS件数": n, "NJSS判定": njss_j, "入札王件数": k, "入札王判定": king_j})
+
+st.table(pd.DataFrame(search_data))
+
+# --- 2. 過去案件 50件データ検証 ---
+st.header("2. 過去案件データ充足度（50件検証）")
+st.info("過去の案件について、どこまで情報が取得できるか50件分の枠を用意しました。")
+
+# 50件分のデータ入力用の器（データエディタ）
+if 'past_cases' not in st.session_state:
+    st.session_state.past_cases = pd.DataFrame(
+        [{"ID": i+1, "自治体名": "", "案件概要": "", "仕様書": False, "予算(千円)": 0, "製品名": "", "NJSS確認": False, "入札王確認": False} for i in range(50)]
+    )
+
+edited_cases = st.data_editor(
+    st.session_state.past_cases,
+    column_config={
+        "仕様書": st.column_config.CheckboxColumn("仕様書有"),
+        "NJSS確認": st.column_config.CheckboxColumn("NJSS掲載"),
+        "入札王確認": st.column_config.CheckboxColumn("入札王掲載"),
     },
-    "2. 通知の速報性": {
-        "scenario": "特定機関をフォローし、公示から何時間後に通知メールが届くか計測する。",
-        "check_point": "メール受信時刻と公示時刻の差分",
-        "input_label": "平均通知ラグ（時間）"
-    },
-    "3. 過去データの深掘り": {
-        "scenario": "過去3年間の『システム開発』案件を検索し、落札価格と応札企業一覧が揃っているか確認する。",
-        "check_point": "CSV出力した際のデータ欠損の有無",
-        "input_label": "データ充足率（%）"
-    },
-    "4. 予算書からの予兆管理": {
-        "scenario": "次年度の予算書情報をキーワード検索し、将来的な案件化の可能性を早期発見できるか試す。",
-        "check_point": "予算書から具体的な案件名が特定できるか",
-        "input_label": "発見できた有望案件数（件）"
-    },
-    "5. チーム連携の負荷": {
-        "scenario": "気になる案件を『お気に入り』に入れ、コメントを付けて社内共有するフローを試す。",
-        "check_point": "共有リンクの開きやすさや、ステータス変更の容易性",
-        "input_label": "操作ステップ数（クリック数）"
-    }
-}
+    hide_index=True,
+    num_rows="fixed"
+)
 
-if 'results' not in st.session_state:
-    st.session_state.results = {
-        name: {
-            "NJSS": {"value": 0, "judge": "×", "note": ""},
-            "入札王": {"value": 0, "judge": "×", "note": ""}
-        } for name in scenarios.keys()
-    }
+# 過去案件の自動判定ロジック
+njss_hit_rate = (edited_cases["NJSS確認"].sum() / 50) * 100
+king_hit_rate = (edited_cases["入札王確認"].sum() / 50) * 100
 
-# --- メイン画面 ---
-st.info("💡 各シナリオに基づき実測値を入力し、総合的な判断で○/×を選択してください。")
+c1, c2 = st.columns(2)
+c1.metric("NJSS 過去案件網羅率", f"{njss_hit_rate}%")
+c2.metric("入札王 過去案件網羅率", f"{king_hit_rate}%")
 
-for name, info in scenarios.items():
-    with st.expander(f"📖 シナリオ：{name}", expanded=True):
-        st.write(f"**試験内容:** {info['scenario']}")
-        st.write(f"**着眼点:** {info['check_point']}")
-        
-        col1, col2 = st.columns(2)
-        
-        # NJSSの入力
-        with col1:
-            st.markdown("🟡 **NJSS**")
-            val_njss = st.number_input(f"{info['input_label']} ", key=f"val_njss_{name}", min_value=0)
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                if st.button("判定切替", key=f"btn_njss_{name}"):
-                    st.session_state.results[name]["NJSS"]["judge"] = "○" if st.session_state.results[name]["NJSS"]["judge"] == "×" else "×"
-                st.write(f"判定: **{st.session_state.results[name]['NJSS']['judge']}**")
-            with c2:
-                st.session_state.results[name]["NJSS"]["note"] = st.text_area(
-                    "検証メモ", key=f"note_njss_{name}", placeholder="例：検索結果は多いが、一部保守案件が混ざる"
-                )
+# --- 3. 機能チェックリスト（優劣自動判定） ---
+st.header("3. 機能チェックリスト")
+features = ["メール送信機能", "カテゴリ検索", "AIレコメンド", "スマホ対応", "CSV一括DL", "API連携", "予算書検索", "落札傾向分析"]
+feature_checks = []
 
-        # 入札王の入力
-        with col2:
-            st.markdown("🔵 **入札王**")
-            val_king = st.number_input(f"{info['input_label']}  ", key=f"val_king_{name}", min_value=0)
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                if st.button("判定切替", key=f"btn_king_{name}"):
-                    st.session_state.results[name]["入札王"]["judge"] = "○" if st.session_state.results[name]["入札王"]["judge"] == "×" else "×"
-                st.write(f"判定: **{st.session_state.results[name]['入札王']['judge']}**")
-            with c2:
-                st.session_state.results[name]["入札王"]["note"] = st.text_area(
-                    "検証メモ", key=f"note_king_{name}", placeholder="例：予算書から来年度の大型案件を2件特定"
-                )
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    st.subheader("NJSS 機能")
+    njss_f = {f: st.checkbox(f, key=f"njss_f_{f}") for f in features}
+with col_f2:
+    st.subheader("入札王 機能")
+    king_f = {f: st.checkbox(f, key=f"king_f_{f}") for f in features}
 
-# --- エクスポート ---
-st.markdown("---")
-summary_data = []
-for name in scenarios.keys():
-    summary_data.append({
-        "試験項目": name,
-        "NJSS実測値": st.session_state.results[name]["NJSS"]["value"],
-        "NJSS判定": st.session_state.results[name]["NJSS"]["judge"],
-        "NJSS備考": st.session_state.results[name]["NJSS"]["note"],
-        "入札王実測値": st.session_state.results[name]["入札王"]["value"],
-        "入札王判定": st.session_state.results[name]["入札王"]["judge"],
-        "入札王備考": st.session_state.results[name]["入札王"]["note"]
-    })
-df = pd.DataFrame(summary_data)
+njss_score = sum(njss_f.values())
+king_score = sum(king_f.values())
 
-st.subheader("📊 試験結果サマリー")
-st.table(df)
+st.subheader("🏁 最終優劣判定")
+if njss_score > king_score:
+    st.success(f"機能面では 【NJSS】 が優勢です（{njss_score} vs {king_score}）")
+elif king_score > njss_score:
+    st.success(f"機能面では 【入札王】 が優勢です（{king_score} vs {njss_score}）")
+else:
+    st.warning(f"機能面は 【引き分け】 です（{njss_score} vs {king_score}）")
 
-csv = df.to_csv(index=False).encode('utf-8-sig')
-st.download_button("📩 試験結果をCSVでダウンロード", data=csv, file_name="poc_test_report.csv", mime="text/csv")
+# --- 4. CSV出力 ---
+st.header("4. 結果の出力")
+
+# 全データをまとめる作業（複数の表を一つのCSVにするため簡略化して結合）
+if st.button("全データを集計してダウンロード準備"):
+    # 各セクションの結果を文字列として結合したり、複数のCSVボタンを用意したりできますが、
+    # ここでは「過去案件の精査データ」をメインに出力します。
+    final_csv = edited_cases.to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📩 50件検証データをCSVで保存", data=final_csv, file_name="poc_full_report.csv", mime="text/csv")
+    
+    # 検索ワード結果もCSV化
+    sw_csv = pd.DataFrame(search_data).to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📩 検索ワード比較をCSVで保存", data=sw_csv, file_name="search_word_comparison.csv", mime="text/csv")
