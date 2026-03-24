@@ -9,127 +9,46 @@ st.set_page_config(page_title="入札ツール精密評価ボード", layout="wi
 
 st.markdown("""
     <style>
-    /* ブラウザのダークモードを強制リセットし、ベース色を固定 */
-    [data-testid="stAppViewContainer"], .stApp {
-        background-color: #F3F3F2 !important;
-        color: #181818 !important;
+    /* ブラウザのダークモード強制リセット */
+    [data-testid="stAppViewContainer"], .stApp { background-color: #F3F3F2 !important; color: #181818 !important; }
+    
+    /* サイドバー配色 (AdminLTEダーク) */
+    [data-testid="stSidebar"] { background-color: #2c3b41 !important; border-right: 1px solid #1a2226 !important; }
+    [data-testid="stSidebar"] * { color: #b8c7ce !important; }
+    
+    /* サイドバーのセクションヘッダー */
+    .sidebar-section-header { 
+        color: #4b646f !important; 
+        font-size: 12px !important; 
+        font-weight: bold; 
+        padding: 10px 15px; 
+        background-color: #1a2226; 
+        margin: 20px 0px 15px 0px; 
     }
     
-    /* 🔥 サイドバーの完全刷新 (AdminLTE風ダークテーマ) */
-    [data-testid="stSidebar"] {
-        background-color: #2c3b41 !important; /* AdminLTEの濃紺 */
-        border-right: 1px solid #1a2226 !important;
-    }
-    [data-testid="stSidebar"] * {
-        color: #b8c7ce !important; /* AdminLTEの灰色っぽい文字色 */
-    }
-    
-    /* サイドバーのユーザープロフィール、検索ボックス、セクションヘッダー */
-    .sidebar-user-panel {
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid #374850;
-        margin-bottom: 10px;
-    }
-    .sidebar-user-name {
-        font-weight: 600;
+    /* 🔥 メニュー（ラジオボタン）の文字サイズと【縦のスペース】を広くする */
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { 
+        margin-bottom: 1.5rem !important; /* 縦のスペースを大幅に拡大 */
         color: white !important;
-        margin-bottom: 0px !important;
+        font-size: 15px !important;
+        cursor: pointer;
     }
-    .sidebar-user-status {
-        color: #3c763d !important;
-        font-size: 12px;
-        margin-top: 0px !important;
-    }
-    .sidebar-search-box {
-        padding: 0px 10px 10px 10px;
-    }
-    .sidebar-section-header {
-        color: #4b646f !important;
-        text-transform: uppercase !important;
-        font-size: 12px !important;
-        font-weight: bold;
-        padding: 10px 15px;
-        background-color: #1a2226; /* ヘッダーの背景色を少し暗く */
-        margin: 10px 0px 0px 0px;
+    [data-testid="stSidebar"] div.stRadio p { 
+        color: white !important; 
+        font-size: 15px !important;
     }
 
-    /* 🔥 サイドバーのメニュー項目のカスタマイズ (絵文字バッジ付き) */
-    [data-testid="stSidebar"] .stRadio > label {
-        color: #b8c7ce !important;
-        font-weight: normal !important;
-        font-size: 14px !important;
-    }
-    
-    /* 🔥 ラジオボタンのラベルテキスト全体の色を白に固定 */
-    [data-testid="stSidebar"] div.stRadio p {
-        color: white !important;
-    }
-
-    /* メインヘッダー */
-    .slds-page-header {
-        background-color: #FFFFFF !important;
-        padding: 1.5rem 2rem;
-        border-bottom: 2px solid #D8DDE6;
-        margin: -4rem -4rem 2rem -4rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .slds-page-header h1 {
-        color: #080707 !important;
-        font-size: 1.6rem;
-        font-weight: 700;
-        margin: 0;
-    }
-
-    /* Salesforce風カード (ライトテーマ固定) */
-    .slds-card {
-        background-color: #FFFFFF !important;
-        border: 1px solid #DDDBDA !important;
-        border-radius: 0.5rem;
-        padding: 2rem;
-        box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-    }
-
-    /* ボタン（Salesforce Blue、文字色白） */
-    .stButton > button {
-        background-color: #0176D3 !important;
-        color: #FFFFFF !important;
-        border-radius: 4px !important;
-        font-weight: 700 !important;
-        border: none !important;
-        padding: 0.6rem 2rem !important;
-    }
-    .stButton > button:hover {
-        background-color: #014486 !important;
-    }
-    
-    /* メトリック（数字） */
-    [data-testid="stMetricValue"] {
-        color: #0176D3 !important;
-        font-weight: 700;
-    }
-    [data-testid="stMetricLabel"] p {
-        color: #555555 !important;
-    }
-
-    /* 入力ボックス（テキスト・数値）の背景色を白、文字を黒に強制 */
-    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input {
-        background-color: #FFFFFF !important;
-        color: #181818 !important;
-        border-color: #DDDBDA !important;
-    }
-    /* 数値入力のプラスマイナスボタン */
-    div[data-baseweb="button-group"] button {
-        background-color: #F3F3F2 !important;
-        color: #181818 !important;
-    }
-    /* ファイルアップローダーの背景も白に */
-    [data-testid="stFileUploadDropzone"] {
-        background-color: #FFFFFF !important;
-        color: #181818 !important;
-    }
+    /* メイン画面のヘッダー・カードなど */
+    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 2px solid #D8DDE6; margin: -4rem -4rem 2rem -4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .slds-page-header h1 { color: #080707 !important; font-size: 1.6rem; font-weight: 700; margin: 0; }
+    .slds-card { background-color: #FFFFFF !important; border: 1px solid #DDDBDA !important; border-radius: 0.5rem; padding: 2rem; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1); margin-bottom: 2rem; }
+    .stButton > button { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 4px !important; font-weight: 700 !important; border: none !important; padding: 0.6rem 2rem !important; }
+    .stButton > button:hover { background-color: #014486 !important; }
+    [data-testid="stMetricValue"] { color: #0176D3 !important; font-weight: 700; }
+    [data-testid="stMetricLabel"] p { color: #555555 !important; }
+    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input { background-color: #FFFFFF !important; color: #181818 !important; border-color: #DDDBDA !important; }
+    div[data-baseweb="button-group"] button { background-color: #F3F3F2 !important; color: #181818 !important; }
+    [data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; color: #181818 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -149,41 +68,25 @@ def load_data():
                               "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
                               "NJSS掲載": False, "入札王掲載": False} for i in range(50)])
 
-# --- 3. サイドバーの構築 (AdminLTE風) ---
+# --- 3. サイドバーの構築 (人物エリア削除・日本語化) ---
 with st.sidebar:
-    # ユーザープロフィール (HTMLで丸い画像を再現)
-    col_img, col_info = st.columns([1, 3])
-    with col_img:
-        st.markdown('<img src="https://adminlte.io/themes/v2/dist/img/user2-160x160.jpg" style="width: 45px; border-radius: 50%; border: 2px solid #374850; margin-top: 10px;">', unsafe_allow_html=True)
-    with col_info:
-        st.markdown('<p class="sidebar-user-name" style="margin-top: 10px;">田中 太郎</p>', unsafe_allow_html=True)
-        st.markdown('<p class="sidebar-user-status">● Online</p>', unsafe_allow_html=True)
-    
-    st.markdown('<div style="border-bottom: 1px solid #374850; margin-bottom: 15px;"></div>', unsafe_allow_html=True)
-
-    # 検索ボックス (ダミー)
-    st.markdown('<div class="sidebar-search-box">', unsafe_allow_html=True)
-    st.text_input("Search...", placeholder="Search...", key="input_sidebar_search", label_visibility="collapsed")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ナビゲーションメニュー
-    st.markdown('<p class="sidebar-section-header">MAIN NAVIGATION</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sidebar-section-header">メインメニュー</p>', unsafe_allow_html=True)
     page = st.radio(
         "メニュー",
         ["ダッシュボード", "実測データ入力", "機能・評価設定", "データ一括インポート"],
         format_func=lambda x: {
-            "ダッシュボード": "📊  Dashboard v1",
-            "実測データ入力": "📝  Records (🟢 new)",
-            "機能・評価設定": "⚙️  Settings (🔵 4)",
-            "データ一括インポート": "📥  Import (🔴 12)"
+            "ダッシュボード": "📊  ダッシュボード",
+            "実測データ入力": "📝  実測データ入力",
+            "機能・評価設定": "⚙️  機能・評価設定",
+            "データ一括インポート": "📥  データ一括インポート"
         }[x],
         label_visibility="collapsed"
     )
 
-    st.markdown('<p class="sidebar-section-header">LABELS</p>', unsafe_allow_html=True)
-    st.markdown('⭕ <span style="color: #dd4b39; font-weight: bold; font-size: 14px;">Important</span>', unsafe_allow_html=True)
-    st.markdown('⭕ <span style="color: #f39c12; font-size: 14px;">Warning</span>', unsafe_allow_html=True)
-    st.markdown('⭕ <span style="color: #00a65a; font-size: 14px;">Information</span>', unsafe_allow_html=True)
+    st.markdown('<p class="sidebar-section-header">ステータスラベル</p>', unsafe_allow_html=True)
+    st.markdown('⭕ <span style="color: #dd4b39; font-weight: bold; font-size: 14px;">重要案件</span>', unsafe_allow_html=True)
+    st.markdown('⭕ <span style="color: #f39c12; font-size: 14px;">確認待ち</span>', unsafe_allow_html=True)
+    st.markdown('⭕ <span style="color: #00a65a; font-size: 14px;">検証完了</span>', unsafe_allow_html=True)
 
     st.markdown("---")
     st.caption("開発: 株式会社ジール アライアンス部門")
@@ -261,7 +164,6 @@ elif page == "機能・評価設定":
     st.subheader("🔍 検索ワードの追加とヒット件数比較", divider="blue")
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     
-    st.write("追加したい検索ワードを入力")
     col_add1, col_add2 = st.columns([3, 1])
     new_word = col_add1.text_input("追加したい検索ワード", placeholder="例：BIツール、AI活用", key="input_new_word", label_visibility="collapsed")
     if col_add2.button("ワードを追加", use_container_width=True):
@@ -328,7 +230,12 @@ elif page == "データ一括インポート":
     uploaded_file = st.file_uploader("テスト用CSVファイルをアップロードしてください", type="csv")
     if uploaded_file:
         try:
-            import_df = pd.read_csv(uploaded_file, encoding="utf-8-sig", sep=None, engine="python")
+            try:
+                import_df = pd.read_csv(uploaded_file, encoding="utf-8")
+            except UnicodeDecodeError:
+                uploaded_file.seek(0)
+                import_df = pd.read_csv(uploaded_file, encoding="shift-jis")
+
             st.dataframe(import_df.head())
             
             if len(import_df.columns) == 1:
