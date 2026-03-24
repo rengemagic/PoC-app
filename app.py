@@ -30,17 +30,20 @@ st.markdown("""
         display: flex;
         align-items: center;
         border-bottom: 1px solid #374850;
+        margin-bottom: 10px;
     }
     .sidebar-user-name {
         font-weight: 600;
         color: white !important;
+        margin-bottom: 0px !important;
     }
     .sidebar-user-status {
         color: #3c763d !important;
-        font-size: 11px;
+        font-size: 12px;
+        margin-top: 0px !important;
     }
     .sidebar-search-box {
-        padding: 10px;
+        padding: 0px 10px 10px 10px;
     }
     .sidebar-section-header {
         color: #4b646f !important;
@@ -48,6 +51,8 @@ st.markdown("""
         font-size: 12px !important;
         font-weight: bold;
         padding: 10px 15px;
+        background-color: #1a2226; /* ヘッダーの背景色を少し暗く */
+        margin: 10px 0px 0px 0px;
     }
 
     /* 🔥 サイドバーのメニュー項目のカスタマイズ (絵文字バッジ付き) */
@@ -55,9 +60,6 @@ st.markdown("""
         color: #b8c7ce !important;
         font-weight: normal !important;
         font-size: 14px !important;
-    }
-    [data-testid="stSidebar"] .stRadio div[data-testid="stWidgetLabel"] p {
-        color: #b8c7ce !important;
     }
     
     /* 🔥 ラジオボタンのラベルテキスト全体の色を白に固定 */
@@ -149,19 +151,19 @@ def load_data():
 
 # --- 3. サイドバーの構築 (AdminLTE風) ---
 with st.sidebar:
-    # ユーザープロフィール
-    st.markdown('<div class="sidebar-user-panel">', unsafe_allow_html=True)
-    col_user_img, col_user_info = st.columns([1, 2])
-    # ダミーの画像URL (AdminLTEの画像に似せる)
-    st.image("https://adminlte.io/themes/v2/dist/img/user2-160x160.jpg", width=64, class_="img-circle")
-    with col_user_info:
-        st.markdown('<p class="sidebar-user-name">田中 太郎</p>', unsafe_allow_html=True)
+    # ユーザープロフィール (HTMLで丸い画像を再現)
+    col_img, col_info = st.columns([1, 3])
+    with col_img:
+        st.markdown('<img src="https://adminlte.io/themes/v2/dist/img/user2-160x160.jpg" style="width: 45px; border-radius: 50%; border: 2px solid #374850; margin-top: 10px;">', unsafe_allow_html=True)
+    with col_info:
+        st.markdown('<p class="sidebar-user-name" style="margin-top: 10px;">田中 太郎</p>', unsafe_allow_html=True)
         st.markdown('<p class="sidebar-user-status">● Online</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div style="border-bottom: 1px solid #374850; margin-bottom: 15px;"></div>', unsafe_allow_html=True)
 
-    # 検索ボックス (開発中)
+    # 検索ボックス (ダミー)
     st.markdown('<div class="sidebar-search-box">', unsafe_allow_html=True)
-    st.text_input("Search...", placeholder="例：ETL、BIツール", key="input_sidebar_search", label_visibility="collapsed")
+    st.text_input("Search...", placeholder="Search...", key="input_sidebar_search", label_visibility="collapsed")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ナビゲーションメニュー
@@ -170,7 +172,7 @@ with st.sidebar:
         "メニュー",
         ["ダッシュボード", "実測データ入力", "機能・評価設定", "データ一括インポート"],
         format_func=lambda x: {
-            "ダッシュボード": "📊  ダッシュボード",
+            "ダッシュボード": "📊  Dashboard v1",
             "実測データ入力": "📝  Records (🟢 new)",
             "機能・評価設定": "⚙️  Settings (🔵 4)",
             "データ一括インポート": "📥  Import (🔴 12)"
@@ -179,7 +181,9 @@ with st.sidebar:
     )
 
     st.markdown('<p class="sidebar-section-header">LABELS</p>', unsafe_allow_html=True)
-    st.write("🔴 重要案件")
+    st.markdown('⭕ <span style="color: #dd4b39; font-weight: bold; font-size: 14px;">Important</span>', unsafe_allow_html=True)
+    st.markdown('⭕ <span style="color: #f39c12; font-size: 14px;">Warning</span>', unsafe_allow_html=True)
+    st.markdown('⭕ <span style="color: #00a65a; font-size: 14px;">Information</span>', unsafe_allow_html=True)
 
     st.markdown("---")
     st.caption("開発: 株式会社ジール アライアンス部門")
@@ -208,7 +212,6 @@ if page == "ダッシュボード":
             st.markdown('<div class="slds-card">', unsafe_allow_html=True)
             fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_count, ki_count], title="案件捕捉数の比較",
                               color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
-            # グラフ背景を完全に白に固定
             fig_hits.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
             st.plotly_chart(fig_hits, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -219,7 +222,6 @@ if page == "ダッシュボード":
             pres_df = comp_df[comp_df != ""].value_counts().reset_index()
             pres_df.columns = ["企業名", "出現回数"]
             fig_p = px.bar(pres_df.head(8), x="出現回数", y="企業名", orientation='h', title="競合出現シェア (TOP 8)")
-            # グラフ背景を完全に白に固定
             fig_p.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
             st.plotly_chart(fig_p, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -244,27 +246,23 @@ elif page == "実測データ入力":
     if st.button("☁️ クラウドへ一括保存 (スプレッドシート連携)"):
         try:
             url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            # 💡 一番左のタブ（デフォルト）に書き込むようにしました
             conn.update(spreadsheet=url, data=edited_df)
             if 'temp_df' in st.session_state:
                 del st.session_state.temp_df
             st.success("スプレッドシートへの保存が完了しました。")
             st.rerun()
         except Exception as e:
-            st.error(f"保存に失敗しました。共有設定を確認してください: {e}")
+            st.error(f"保存に失敗しました。詳細エラー: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "機能・評価設定":
     st.markdown('<div class="slds-page-header"><h1>⚙️ 機能・評価設定</h1></div>', unsafe_allow_html=True)
     
-    # --- 前半：検索ワード検証 ---
     st.subheader("🔍 検索ワードの追加とヒット件数比較", divider="blue")
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     
-    # 🔥 追加フィールドとボタンの横並びズレを解消
     st.write("追加したい検索ワードを入力")
     col_add1, col_add2 = st.columns([3, 1])
-    # label_visibility="collapsed" で見えないラベルを消去し高さを合わせる
     new_word = col_add1.text_input("追加したい検索ワード", placeholder="例：BIツール、AI活用", key="input_new_word", label_visibility="collapsed")
     if col_add2.button("ワードを追加", use_container_width=True):
         if new_word and new_word not in st.session_state.search_words:
@@ -288,17 +286,14 @@ elif page == "機能・評価設定":
         
         st.table(pd.DataFrame(search_data))
         
-        # 検索ワードのグラフ表示
         df_sw = pd.DataFrame(search_data)
         fig_sw = px.bar(df_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較")
-        # グラフ背景を完全に白に固定
         fig_sw.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
         st.plotly_chart(fig_sw, use_container_width=True)
     else:
         st.info("検索ワードを追加してください。")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 後半：機能チェックリスト ---
     st.subheader("✅ 主要機能チェックリスト", divider="blue")
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     features = ["メール通知精度", "カテゴリ検索", "一括CSVダウンロード", "API連携可能", "予算書・予定情報検索", "落札企業分析機能", "同時アクセス数上限", "スマホ閲覧対応"]
@@ -333,7 +328,6 @@ elif page == "データ一括インポート":
     uploaded_file = st.file_uploader("テスト用CSVファイルをアップロードしてください", type="csv")
     if uploaded_file:
         try:
-            # 💡 カンマ区切りが認識されないケースを防ぐ強力な読み込み
             import_df = pd.read_csv(uploaded_file, encoding="utf-8-sig", sep=None, engine="python")
             st.dataframe(import_df.head())
             
