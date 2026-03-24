@@ -49,7 +49,8 @@ def load_data():
     except Exception as e:
         return pd.DataFrame([{"ID": i+1, "自治体名": "", "案件概要": "", "仕様書": False, "予算(千円)": 0, 
                               "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
-                              "NJSS掲載": False, "入札王掲載": False} for i in range(50)])
+                              "NJSS掲載": False, "入札王掲載": False,
+                              "URL1": "", "URL2": "", "URL3": "", "URL4": "", "URL5": ""} for i in range(50)])
 
 # --- 3. サイドバーの構築 ---
 with st.sidebar:
@@ -135,12 +136,10 @@ if page == "ダッシュボード":
 elif page == "実測データ入力":
     st.markdown('<div class="slds-page-header"><h1>📝 PoC 実測データ入力</h1></div>', unsafe_allow_html=True)
     
-    # 既存データの読み込みと整理（空行を排除）
     df_current = load_data()
     valid_df = df_current[df_current["自治体名"].notna() & (df_current["自治体名"] != "")].copy()
     next_id = len(valid_df) + 1
 
-    # CSVインポートデータがある場合の一括保存ボタン
     if 'temp_df' in st.session_state and not st.session_state.temp_df.empty:
         st.warning(f"📥 インポートされた {len(st.session_state.temp_df)} 件の未保存データがあります。")
         if st.button("☁️ インポートデータを一括保存する", use_container_width=True):
@@ -159,60 +158,67 @@ elif page == "実測データ入力":
 
     st.info("💡 以下のフォームに各項目の実測結果を入力し、「この案件を保存する」ボタンを押して1件ずつ登録してください。")
 
-    # 入力フォーム（Salesforce風カードデザイン内）
+    # --- 個別入力フォーム ---
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
-    with st.form("entry_form", clear_on_submit=True):
-        st.markdown("#### 🏢 基本情報", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            municipality = st.text_input("自治体名 (必須)", placeholder="例：横浜市")
-            budget = st.number_input("予算 (千円)", min_value=0, step=100)
-        with c2:
-            summary = st.text_area("案件概要", placeholder="例：R6年度 住民税システム改修", height=110)
+    
+    # 💡 フォームの枠外で変数を取得（リアルタイムに計算結果を表示するため）
+    st.markdown("#### 🏢 基本情報")
+    c1, c2 = st.columns(2)
+    with c1:
+        municipality = st.text_input("自治体名 (必須)", placeholder="例：東京都")
+        budget = st.number_input("予算 (単位: 千円)", min_value=0, step=100)
+        # 🎉 リアルタイムで実際の金額を表示するギミック
+        st.markdown(f"<p style='color: #0176D3; font-size: 13px; margin-top: -10px;'>💴 実際の金額: <b>{budget * 1000:,} 円</b></p>", unsafe_allow_html=True)
+    with c2:
+        summary = st.text_area("案件概要", placeholder="例：R6年度 住民税システム改修", height=110)
         
-        st.markdown("<br>#### 🏆 落札・応札情報", unsafe_allow_html=True)
-        c3, c4 = st.columns(2)
-        with c3:
-            winner = st.text_input("落札企業", placeholder="例：株式会社ジール")
-            winning_bid = st.number_input("落札金額 (千円)", min_value=0, step=100)
-        with c4:
-            bidder1 = st.text_input("応札企業 1")
-            bidder2 = st.text_input("応札企業 2")
-            bidder3 = st.text_input("応札企業 3")
+    st.markdown("---")
+    st.markdown("#### 🏆 落札・応札情報")
+    c3, c4 = st.columns(2)
+    with c3:
+        winner = st.text_input("落札企業", placeholder="例：株式会社ジール")
+        winning_bid = st.number_input("落札金額 (単位: 千円)", min_value=0, step=100)
+        st.markdown(f"<p style='color: #0176D3; font-size: 13px; margin-top: -10px;'>💴 実際の金額: <b>{winning_bid * 1000:,} 円</b></p>", unsafe_allow_html=True)
+    with c4:
+        bidder1 = st.text_input("応札企業 1")
+        bidder2 = st.text_input("応札企業 2")
+        bidder3 = st.text_input("応札企業 3")
         
-        st.markdown("<br>#### ✅ ツール掲載確認", unsafe_allow_html=True)
-        c5, c6, c7 = st.columns(3)
-        with c5:
-            spec = st.checkbox("📄 仕様書あり")
-        with c6:
-            njss_listed = st.checkbox("🔵 NJSS に掲載あり")
-        with c7:
-            king_listed = st.checkbox("🟠 入札王 に掲載あり")
-            
-        st.markdown("---")
-        submitted = st.form_submit_button("☁️ この案件を保存する", use_container_width=True)
+    st.markdown("---")
+    st.markdown("#### ✅ ツール掲載確認")
+    c5, c6, c7 = st.columns(3)
+    with c5:
+        spec = st.checkbox("📄 仕様書あり")
+    with c6:
+        njss_listed = st.checkbox("🔵 NJSS に掲載あり")
+    with c7:
+        king_listed = st.checkbox("🟠 入札王 に掲載あり")
+        
+    st.markdown("---")
+    st.markdown("#### 🔗 参考URL")
+    c8, c9 = st.columns(2)
+    with c8:
+        url1 = st.text_input("URL 1", placeholder="https://...")
+        url3 = st.text_input("URL 3", placeholder="https://...")
+        url5 = st.text_input("URL 5", placeholder="https://...")
+    with c9:
+        url2 = st.text_input("URL 2", placeholder="https://...")
+        url4 = st.text_input("URL 4", placeholder="https://...")
 
-    # 保存処理
-    if submitted:
+    st.markdown("---")
+    # 保存ボタン
+    if st.button("☁️ この案件を保存する", use_container_width=True):
         if not municipality:
             st.error("⚠️ 「自治体名」は必須項目です。入力してください。")
         else:
             new_record = pd.DataFrame([{
-                "ID": next_id,
-                "自治体名": municipality,
-                "案件概要": summary,
-                "仕様書": spec,
-                "予算(千円)": budget,
-                "落札金額(千円)": winning_bid,
-                "落札企業": winner,
-                "応札1": bidder1,
-                "応札2": bidder2,
-                "応札3": bidder3,
-                "NJSS掲載": njss_listed,
-                "入札王掲載": king_listed
+                "ID": next_id, "自治体名": municipality, "案件概要": summary, "仕様書": spec,
+                "予算(千円)": budget, "落札金額(千円)": winning_bid, "落札企業": winner,
+                "応札1": bidder1, "応札2": bidder2, "応札3": bidder3,
+                "NJSS掲載": njss_listed, "入札王掲載": king_listed,
+                "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5
             }])
             
-            # データのお掃除と結合
             new_record = new_record.fillna("")
             updated_df = pd.concat([valid_df, new_record], ignore_index=True)
             
@@ -223,12 +229,30 @@ elif page == "実測データ入力":
                 st.rerun()
             except Exception as e:
                 st.error(f"保存に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
+                
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 登録済みデータの一覧表示（確認用）
+    # --- 登録済みデータの一覧表示（確認用） ---
     if not valid_df.empty:
         st.markdown("### 📋 登録済みデータ一覧")
-        st.dataframe(valid_df, use_container_width=True, hide_index=True)
+        
+        # 💡 URLがクリック可能なリンクになるように設定
+        st.dataframe(
+            valid_df,
+            column_config={
+                "仕様書": st.column_config.CheckboxColumn("仕様書有"),
+                "NJSS掲載": st.column_config.CheckboxColumn("NJSS確認"),
+                "入札王掲載": st.column_config.CheckboxColumn("入札王確認"),
+                "予算(千円)": st.column_config.NumberColumn(format="¥%d"),
+                "落札金額(千円)": st.column_config.NumberColumn(format="¥%d"),
+                "URL1": st.column_config.LinkColumn("URL 1"),
+                "URL2": st.column_config.LinkColumn("URL 2"),
+                "URL3": st.column_config.LinkColumn("URL 3"),
+                "URL4": st.column_config.LinkColumn("URL 4"),
+                "URL5": st.column_config.LinkColumn("URL 5"),
+            },
+            use_container_width=True, hide_index=True
+        )
 
 elif page == "ワード検索数":
     st.markdown('<div class="slds-page-header"><h1>🔍 ワード検索数 実測入力</h1></div>', unsafe_allow_html=True)
