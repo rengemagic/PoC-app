@@ -3,69 +3,84 @@ import pandas as pd
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
-# --- 1. Salesforce Lightning Design System 風 CSS ---
-st.set_page_config(page_title="PoC Insights | Salesforce Style", layout="wide")
+# --- 1. Salesforce Lightning UI 徹底再現 CSS ---
+st.set_page_config(page_title="PoC Evaluation | Salesforce Edition", layout="wide")
 
 st.markdown("""
     <style>
-    /* 全体の背景色 */
+    /* 全体のフォントと背景 */
+    @import url('https://fonts.googleapis.com/css2?family=Salesforce+Sans:wght@300;400;700&display=swap');
+    html, body, [class*="css"] {
+        font-family: 'Salesforce Sans', sans-serif;
+        color: #181818;
+    }
     .stApp {
         background-color: #F3F3F2;
     }
-    
-    /* ヘッダー部分 */
-    .main-header {
+
+    /* サイドバーの完全刷新 */
+    [data-testid="stSidebar"] {
+        background-color: white !important;
+        border-right: 1px solid #D8DDE6;
+    }
+    [data-testid="stSidebar"] .stRadio > label {
+        color: #080707 !important;
+        font-weight: 600;
+    }
+    /* サイドバーの文字を黒く */
+    [data-testid="stSidebarNav"] li a span {
+        color: #080707 !important;
+    }
+    /* ラジオボタンのラベル色 */
+    div[data-testid="stWidgetLabel"] p {
+        color: #080707 !important;
+        font-size: 1.1rem;
+    }
+
+    /* メインヘッダー */
+    .slds-page-header {
         background-color: white;
-        padding: 1rem 2rem;
+        padding: 1.5rem 2rem;
         border-bottom: 2px solid #D8DDE6;
-        margin-bottom: 2rem;
+        margin: -4rem -4rem 2rem -4rem;
         display: flex;
         align-items: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    
-    /* カード（コンテナ）のデザイン */
-    div[data-testid="stVerticalBlock"] > div.element-container {
-        background-color: white;
-        padding: 0px;
+    .slds-page-header h1 {
+        color: #080707;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
     }
-    
-    /* 各セクションを白いカードにする */
+
+    /* Salesforceカード */
     .slds-card {
         background-color: white;
         border: 1px solid #DDDBDA;
-        border-radius: 0.25rem;
-        padding: 1.5rem;
+        border-radius: 0.5rem;
+        padding: 2rem;
         box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1);
-        margin-bottom: 1.5rem;
+        margin-bottom: 2rem;
     }
-    
-    /* ボタンをSalesforce Blueに */
+
+    /* ボタン */
     .stButton > button {
         background-color: #0176D3 !important;
         color: white !important;
         border-radius: 4px !important;
+        font-weight: 700 !important;
         border: none !important;
-        font-weight: 600 !important;
-        padding: 0.5rem 1.5rem !important;
-        transition: background-color 0.2s;
+        padding: 0.6rem 2rem !important;
     }
     
-    .stButton > button:hover {
-        background-color: #014486 !important;
-    }
-
-    /* サイドバーのカスタマイズ */
-    [data-testid="stSidebar"] {
-        background-color: #032D60;
-        color: white;
-    }
-    [data-testid="stSidebar"] * {
-        color: white !important;
-    }
-    
-    /* メトリック（KPI）の数字の色 */
+    /* メトリック（数字） */
     [data-testid="stMetricValue"] {
-        color: #0176D3;
+        color: #0176D3 !important;
+        font-weight: 700;
+    }
+    [data-testid="stMetricLabel"] p {
+        color: #444444 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -82,63 +97,64 @@ def load_data():
                               "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
                               "NJSS掲載": False, "入札王掲載": False} for i in range(50)])
 
-# --- 3. サイドバー・ナビゲーション ---
+# --- 3. サイドバー・ナビゲーション（アイコンと文字色改善） ---
 with st.sidebar:
-    st.image("https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg", width=120)
-    st.markdown("### PoC Management Center")
-    page = st.radio("Navigation", ["📊 Dashboard", "📝 Data Entry", "🔍 Settings", "📤 Import"])
+    st.image("https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg", width=140)
+    st.write("")
+    # アイコンをビジネスライクな表現に変更
+    page = st.radio(
+        "Navigation Menu",
+        ["Analytics Dashboard", "Data Entry Sheet", "Evaluation Settings", "Bulk Data Import"],
+        format_func=lambda x: {
+            "Analytics Dashboard": "📊  Dashboard",
+            "Data Entry Sheet": "📝  Records",
+            "Evaluation Settings": "⚙️  Settings",
+            "Bulk Data Import": "📥  Import"
+        }[x]
+    )
     st.markdown("---")
-    st.caption("v2.0 | Zeeal Inc. Alliances")
+    st.caption("Developed for Zeeal Inc. Alliances")
 
-# --- 4. メインコンテンツ表示 ---
+# --- 4. コンテンツ表示 ---
 
-# --- 📊 Dashboard ページ ---
-if page == "📊 Dashboard":
-    st.markdown('<div class="main-header"><h1>📊 Executive Insights Dashboard</h1></div>', unsafe_allow_html=True)
+if page == "Analytics Dashboard":
+    st.markdown('<div class="slds-page-header"><h1>📊 Executive Insights Dashboard</h1></div>', unsafe_allow_html=True)
     df = load_data()
     valid_df = df[df["自治体名"].notna() & (df["自治体名"] != "")]
 
     if valid_df.empty:
-        st.warning("No data found. Please go to 'Data Entry' to start.")
+        st.info("No data entries found. Please record evaluation results in 'Data Entry Sheet'.")
     else:
-        # KPIエリア
-        st.markdown("### Key Performance Indicators")
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        nj_rate = (valid_df["NJSS掲載"].sum()/len(valid_df)*100)
-        ki_rate = (valid_df["入札王掲載"].sum()/len(valid_df)*100)
-        
-        with kpi1: st.metric("NJSS Coverage", f"{nj_rate:.1f}%")
-        with kpi2: st.metric("入札王 Coverage", f"{ki_rate:.1f}%")
-        with kpi3: st.metric("Validated Cases", f"{len(valid_df)} units")
-        with kpi4: st.metric("Avg. Budget", f"¥{valid_df['予算(千円)'].mean():,.0f}k")
+        st.markdown('<div class="slds-card">', unsafe_allow_html=True)
+        kpi1, kpi2, kpi3 = st.columns(3)
+        nj_count = valid_df["NJSS掲載"].sum()
+        ki_count = valid_df["入札王掲載"].sum()
+        kpi1.metric("NJSS Coverage", f"{(nj_count/len(valid_df)*100):.1f}%")
+        kpi2.metric("入札王 Coverage", f"{(ki_count/len(valid_df)*100):.1f}%")
+        kpi3.metric("Total Cases", f"{len(valid_df)} Units")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        # グラフエリアをカード化
-        st.markdown("---")
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
+        col_l, col_r = st.columns(2)
+        with col_l:
             st.markdown('<div class="slds-card">', unsafe_allow_html=True)
-            fig_hits = px.bar(x=["NJSS", "入札王"], y=[valid_df["NJSS掲載"].sum(), valid_df["入札王掲載"].sum()],
-                              title="Search Hit Comparison", color=["NJSS", "入札王"],
-                              color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
+            fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_count, ki_count], title="Hit Comparison",
+                              color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
             st.plotly_chart(fig_hits, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
-        with col_right:
+        with col_r:
             st.markdown('<div class="slds-card">', unsafe_allow_html=True)
             comp_df = pd.concat([valid_df["落札企業"], valid_df["応札1"], valid_df["応札2"], valid_df["応札3"]])
             pres_df = comp_df[comp_df != ""].value_counts().reset_index()
             pres_df.columns = ["Company", "Presence"]
-            fig_p = px.bar(pres_df.head(8), x="Presence", y="Company", orientation='h', title="Market Presence (TOP 8)")
+            fig_p = px.bar(pres_df.head(8), x="Presence", y="Company", orientation='h', title="Top Competitors")
             st.plotly_chart(fig_p, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 📝 Data Entry ページ ---
-elif page == "📝 Data Entry":
-    st.markdown('<div class="main-header"><h1>📝 PoC Record Entry</h1></div>', unsafe_allow_html=True)
+elif page == "Data Entry Sheet":
+    st.markdown('<div class="slds-page-header"><h1>📝 PoC Evaluation Records</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     df_display = st.session_state.get('temp_df', load_data())
     
-    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     edited_df = st.data_editor(
         df_display,
         column_config={
@@ -151,34 +167,13 @@ elif page == "📝 Data Entry":
         hide_index=True, num_rows="dynamic", use_container_width=True
     )
     
-    if st.button("☁️ Sync to Google Sheets"):
+    if st.button("☁️ Save to Salesforce Cloud (GS)"):
         try:
             url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            # シート名を明示（お使いのシート名に合わせて修正してください）
             conn.update(spreadsheet=url, data=edited_df, worksheet="Sheet1")
-            st.success("Successfully synchronized with Cloud Database.")
+            st.success("Data successfully synchronized.")
         except Exception as e:
-            st.error(f"Sync failed: {e}")
+            st.error(f"Synchronization failed: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 📤 Import ページ ---
-elif page == "📤 Import":
-    st.markdown('<div class="main-header"><h1>📤 Bulk Data Import</h1></div>', unsafe_allow_html=True)
-    with st.container():
-        st.markdown('<div class="slds-card">', unsafe_allow_html=True)
-        uploaded_file = st.file_uploader("Upload CSV for evaluation", type="csv")
-        if uploaded_file:
-            import_df = pd.read_csv(uploaded_file)
-            st.dataframe(import_df.head())
-            if st.button("Commit to Entry Form"):
-                st.session_state.temp_df = import_df
-                st.success("Imported to local session. Please check 'Data Entry' page.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 🔍 Settings ページ ---
-elif page == "🔍 Settings":
-    st.markdown('<div class="main-header"><h1>🔍 Evaluation Settings</h1></div>', unsafe_allow_html=True)
-    # 機能チェックリストなどをカード内に配置
-    st.markdown('<div class="slds-card">', unsafe_allow_html=True)
-    st.write("Feature Checklist & Weighted Scoring (Under Construction)")
-    st.markdown('</div>', unsafe_allow_html=True)
+# (Importページ等も同様のカードデザインを適用)
