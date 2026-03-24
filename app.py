@@ -3,42 +3,19 @@ import pandas as pd
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 import io
+import csv  # 💡追加: CSVの細かな読み込み制御に使用
 
 # --- 1. UI & CSS (AdminLTE風ダークサイドバー & ダークモード強制リセット) ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
     <style>
-    /* ブラウザのダークモード強制リセット */
     [data-testid="stAppViewContainer"], .stApp { background-color: #F3F3F2 !important; color: #181818 !important; }
-    
-    /* サイドバー配色 (AdminLTEダーク) */
     [data-testid="stSidebar"] { background-color: #2c3b41 !important; border-right: 1px solid #1a2226 !important; }
     [data-testid="stSidebar"] * { color: #b8c7ce !important; }
-    
-    /* サイドバーのセクションヘッダー */
-    .sidebar-section-header { 
-        color: #4b646f !important; 
-        font-size: 12px !important; 
-        font-weight: bold; 
-        padding: 10px 15px; 
-        background-color: #1a2226; 
-        margin: 20px 0px 15px 0px; 
-    }
-    
-    /* 🔥 メニュー（ラジオボタン）の文字サイズと【縦のスペース】を広くする */
-    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { 
-        margin-bottom: 1.5rem !important; /* 縦のスペースを大幅に拡大 */
-        color: white !important;
-        font-size: 15px !important;
-        cursor: pointer;
-    }
-    [data-testid="stSidebar"] div.stRadio p { 
-        color: white !important; 
-        font-size: 15px !important;
-    }
-
-    /* メイン画面のヘッダー・カードなど */
+    .sidebar-section-header { color: #4b646f !important; font-size: 12px !important; font-weight: bold; padding: 10px 15px; background-color: #1a2226; margin: 20px 0px 15px 0px; }
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { margin-bottom: 1.5rem !important; color: white !important; font-size: 15px !important; cursor: pointer; }
+    [data-testid="stSidebar"] div.stRadio p { color: white !important; font-size: 15px !important; }
     .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 2px solid #D8DDE6; margin: -4rem -4rem 2rem -4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .slds-page-header h1 { color: #080707 !important; font-size: 1.6rem; font-weight: 700; margin: 0; }
     .slds-card { background-color: #FFFFFF !important; border: 1px solid #DDDBDA !important; border-radius: 0.5rem; padding: 2rem; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1); margin-bottom: 2rem; }
@@ -68,7 +45,7 @@ def load_data():
                               "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
                               "NJSS掲載": False, "入札王掲載": False} for i in range(50)])
 
-# --- 3. サイドバーの構築 (人物エリア削除・日本語化) ---
+# --- 3. サイドバーの構築 ---
 with st.sidebar:
     st.markdown('<p class="sidebar-section-header">メインメニュー</p>', unsafe_allow_html=True)
     page = st.radio(
@@ -230,20 +207,31 @@ elif page == "データ一括インポート":
     uploaded_file = st.file_uploader("テスト用CSVファイルをアップロードしてください", type="csv")
     if uploaded_file:
         try:
+            # 1. まず普通に読み込みを試す
             try:
                 import_df = pd.read_csv(uploaded_file, encoding="utf-8")
             except UnicodeDecodeError:
                 uploaded_file.seek(0)
                 import_df = pd.read_csv(uploaded_file, encoding="shift-jis")
 
+            # 💡 2. もしExcel等の仕様で「1つの列」に合体してしまっていたら、強制的にカンマで再分割する修復ロジック
+            if len(import_df.columns) == 1 and "," in import_df.columns[0]:
+                uploaded_file.seek(0)
+                try:
+                    import_df = pd.read_csv(uploaded_file, encoding="utf-8", quoting=csv.QUOTE_NONE)
+                except UnicodeDecodeError:
+                    uploaded_file.seek(0)
+                    import_df = pd.read_csv(uploaded_file, encoding="shift-jis", quoting=csv.QUOTE_NONE)
+                
+                # 自動分割によって発生したゴミ（不要なクォーテーション等）を掃除
+                import_df.columns = import_df.columns.str.replace('"', '', regex=False)
+                import_df = import_df.replace('"', '', regex=True)
+
             st.dataframe(import_df.head())
             
-            if len(import_df.columns) == 1:
-                st.error("⚠️ CSVが1つの列として認識されています。メモ帳等でファイルを開き、カンマ(,)で区切られているか確認してください。")
-            else:
-                if st.button("このデータを入力シートに反映する"):
-                    st.session_state.temp_df = import_df
-                    st.success("反映しました。「実測データ入力」画面に移動して保存してください。")
+            if st.button("このデータを入力シートに反映する"):
+                st.session_state.temp_df = import_df
+                st.success("反映しました。「実測データ入力」画面に移動して保存してください。")
         except Exception as e:
             st.error(f"CSVの読み込みに失敗しました: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
