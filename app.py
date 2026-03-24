@@ -3,19 +3,33 @@ import pandas as pd
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 import io
-import csv  # 💡追加: CSVの細かな読み込み制御に使用
+import csv
+import traceback  # 💡追加：エラーの詳細な原因を特定するためのライブラリ
 
 # --- 1. UI & CSS (AdminLTE風ダークサイドバー & ダークモード強制リセット) ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
     <style>
+    /* ブラウザのダークモード強制リセット */
     [data-testid="stAppViewContainer"], .stApp { background-color: #F3F3F2 !important; color: #181818 !important; }
+    
+    /* サイドバー配色 (AdminLTEダーク) */
     [data-testid="stSidebar"] { background-color: #2c3b41 !important; border-right: 1px solid #1a2226 !important; }
     [data-testid="stSidebar"] * { color: #b8c7ce !important; }
+    
+    /* サイドバーのユーザープロフィール、検索ボックス、セクションヘッダー */
+    .sidebar-user-panel { padding: 10px; display: flex; align-items: center; border-bottom: 1px solid #374850; margin-bottom: 10px; }
+    .sidebar-user-name { font-weight: 600; color: white !important; margin-bottom: 0px !important; }
+    .sidebar-user-status { color: #3c763d !important; font-size: 12px; margin-top: 0px !important; }
+    .sidebar-search-box { padding: 0px 10px 10px 10px; }
     .sidebar-section-header { color: #4b646f !important; font-size: 12px !important; font-weight: bold; padding: 10px 15px; background-color: #1a2226; margin: 20px 0px 15px 0px; }
+    
+    /* メニュー（ラジオボタン）の文字サイズと縦のスペース */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { margin-bottom: 1.5rem !important; color: white !important; font-size: 15px !important; cursor: pointer; }
     [data-testid="stSidebar"] div.stRadio p { color: white !important; font-size: 15px !important; }
+
+    /* メイン画面のヘッダー・カードなど */
     .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 2px solid #D8DDE6; margin: -4rem -4rem 2rem -4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .slds-page-header h1 { color: #080707 !important; font-size: 1.6rem; font-weight: 700; margin: 0; }
     .slds-card { background-color: #FFFFFF !important; border: 1px solid #DDDBDA !important; border-radius: 0.5rem; padding: 2rem; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1); margin-bottom: 2rem; }
@@ -23,6 +37,8 @@ st.markdown("""
     .stButton > button:hover { background-color: #014486 !important; }
     [data-testid="stMetricValue"] { color: #0176D3 !important; font-weight: 700; }
     [data-testid="stMetricLabel"] p { color: #555555 !important; }
+    
+    /* 入力ボックス・ファイルアップローダーの背景白化 */
     div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input { background-color: #FFFFFF !important; color: #181818 !important; border-color: #DDDBDA !important; }
     div[data-baseweb="button-group"] button { background-color: #F3F3F2 !important; color: #181818 !important; }
     [data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; color: #181818 !important; }
@@ -45,7 +61,7 @@ def load_data():
                               "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
                               "NJSS掲載": False, "入札王掲載": False} for i in range(50)])
 
-# --- 3. サイドバーの構築 ---
+# --- 3. サイドバーの構築 (日本語化) ---
 with st.sidebar:
     st.markdown('<p class="sidebar-section-header">メインメニュー</p>', unsafe_allow_html=True)
     page = st.radio(
@@ -126,13 +142,22 @@ elif page == "実測データ入力":
     if st.button("☁️ クラウドへ一括保存 (スプレッドシート連携)"):
         try:
             url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            conn.update(spreadsheet=url, data=edited_df)
+            
+            # 💡 【重要】エラーの元凶である None や NaN を「空文字」に一括変換する
+            clean_df = edited_df.fillna("")
+            clean_df = clean_df.replace({None: ""})
+            
+            # お掃除済みのきれいなデータ(clean_df)を保存する
+            conn.update(spreadsheet=url, data=clean_df)
+            
             if 'temp_df' in st.session_state:
                 del st.session_state.temp_df
-            st.success("スプレッドシートへの保存が完了しました。")
+            st.success("スプレッドシートへの保存が完了しました！")
             st.rerun()
+            
         except Exception as e:
-            st.error(f"保存に失敗しました。詳細エラー: {e}")
+            # 💡 エラーの正体を隠さずすべて表示する
+            st.error(f"保存に失敗しました。詳細エラー:\n```\n{traceback.format_exc()}\n```")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "機能・評価設定":
@@ -214,7 +239,7 @@ elif page == "データ一括インポート":
                 uploaded_file.seek(0)
                 import_df = pd.read_csv(uploaded_file, encoding="shift-jis")
 
-            # 💡 2. もしExcel等の仕様で「1つの列」に合体してしまっていたら、強制的にカンマで再分割する修復ロジック
+            # 2. Excel等の仕様で「1つの列」に合体してしまっていたら、強制的にカンマで再分割する修復ロジック
             if len(import_df.columns) == 1 and "," in import_df.columns[0]:
                 uploaded_file.seek(0)
                 try:
