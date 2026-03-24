@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="ZEAL用 入札ツール比較PoC", layout="wide")
 
-st.title("⚖️ 株式会社ジール様向け 入札ツールPoC評価")
+st.title("⚖️入札ツールPoC評価")
 st.caption("NJSS vs 入札王：データプラットフォーム事業・アライアンス営業視点での評価")
 
 # --- 評価項目の定義 ---
