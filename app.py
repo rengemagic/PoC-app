@@ -2,60 +2,70 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
+import io
 
-# --- 1. Salesforce風 UI & ダークモード完全無効化 CSS ---
+# --- 1. UI & CSS (AdminLTE風ダークサイドバー & ダークモード強制リセット) ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
     <style>
-    /* ブラウザのダークモードを強制リセット */
+    /* ブラウザのダークモードを強制リセットし、ベース色を固定 */
     [data-testid="stAppViewContainer"], .stApp {
         background-color: #F3F3F2 !important;
         color: #181818 !important;
     }
     
-    /* サイドバー固定 */
+    /* 🔥 サイドバーの完全刷新 (AdminLTE風ダークテーマ) */
     [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #D8DDE6 !important;
+        background-color: #2c3b41 !important; /* AdminLTEの濃紺 */
+        border-right: 1px solid #1a2226 !important;
     }
     [data-testid="stSidebar"] * {
-        color: #181818 !important;
+        color: #b8c7ce !important; /* AdminLTEの灰色っぽい文字色 */
     }
     
-    /* テキスト色を黒に強制（全体） */
-    div[data-testid="stWidgetLabel"] p, label, p, h1, h2, h3, span, td, th {
-        color: #181818 !important;
+    /* サイドバーのユーザープロフィール、検索ボックス、セクションヘッダー */
+    .sidebar-user-panel {
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #374850;
+    }
+    .sidebar-user-name {
+        font-weight: 600;
+        color: white !important;
+    }
+    .sidebar-user-status {
+        color: #3c763d !important;
+        font-size: 11px;
+    }
+    .sidebar-search-box {
+        padding: 10px;
+    }
+    .sidebar-section-header {
+        color: #4b646f !important;
+        text-transform: uppercase !important;
+        font-size: 12px !important;
+        font-weight: bold;
+        padding: 10px 15px;
+    }
+
+    /* 🔥 サイドバーのメニュー項目のカスタマイズ (絵文字バッジ付き) */
+    [data-testid="stSidebar"] .stRadio > label {
+        color: #b8c7ce !important;
+        font-weight: normal !important;
+        font-size: 14px !important;
+    }
+    [data-testid="stSidebar"] .stRadio div[data-testid="stWidgetLabel"] p {
+        color: #b8c7ce !important;
     }
     
-    /* 🔥 入力ボックス（テキスト・数値）の背景色を白、文字を黒に強制 */
-    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input {
-        background-color: #FFFFFF !important;
-        color: #181818 !important;
-        border-color: #DDDBDA !important;
-    }
-    /* 数値入力のプラスマイナスボタン */
-    div[data-baseweb="button-group"] button {
-        background-color: #F3F3F2 !important;
-        color: #181818 !important;
+    /* 🔥 ラジオボタンのラベルテキスト全体の色を白に固定 */
+    [data-testid="stSidebar"] div.stRadio p {
+        color: white !important;
     }
 
-    /* 🔥 ボタン（Salesforce Blue）と文字色の白色固定 */
-    .stButton > button {
-        background-color: #0176D3 !important;
-        border-radius: 4px !important;
-        font-weight: 700 !important;
-        border: none !important;
-        padding: 0.6rem 2rem !important;
-    }
-    .stButton > button, .stButton > button p, .stButton > button span {
-        color: #FFFFFF !important;
-    }
-    .stButton > button:hover {
-        background-color: #014486 !important;
-    }
-
-    /* ヘッダー */
+    /* メインヘッダー */
     .slds-page-header {
         background-color: #FFFFFF !important;
         padding: 1.5rem 2rem;
@@ -69,7 +79,8 @@ st.markdown("""
         font-weight: 700;
         margin: 0;
     }
-    /* カード */
+
+    /* Salesforce風カード (ライトテーマ固定) */
     .slds-card {
         background-color: #FFFFFF !important;
         border: 1px solid #DDDBDA !important;
@@ -78,13 +89,44 @@ st.markdown("""
         box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1);
         margin-bottom: 2rem;
     }
-    /* メトリック */
+
+    /* ボタン（Salesforce Blue、文字色白） */
+    .stButton > button {
+        background-color: #0176D3 !important;
+        color: #FFFFFF !important;
+        border-radius: 4px !important;
+        font-weight: 700 !important;
+        border: none !important;
+        padding: 0.6rem 2rem !important;
+    }
+    .stButton > button:hover {
+        background-color: #014486 !important;
+    }
+    
+    /* メトリック（数字） */
     [data-testid="stMetricValue"] {
         color: #0176D3 !important;
         font-weight: 700;
     }
     [data-testid="stMetricLabel"] p {
         color: #555555 !important;
+    }
+
+    /* 入力ボックス（テキスト・数値）の背景色を白、文字を黒に強制 */
+    div[data-baseweb="input"], div[data-baseweb="input"] > div, div[data-baseweb="base-input"], input {
+        background-color: #FFFFFF !important;
+        color: #181818 !important;
+        border-color: #DDDBDA !important;
+    }
+    /* 数値入力のプラスマイナスボタン */
+    div[data-baseweb="button-group"] button {
+        background-color: #F3F3F2 !important;
+        color: #181818 !important;
+    }
+    /* ファイルアップローダーの背景も白に */
+    [data-testid="stFileUploadDropzone"] {
+        background-color: #FFFFFF !important;
+        color: #181818 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -100,25 +142,45 @@ def load_data():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         return conn.read(spreadsheet=url, ttl="0s")
-    except:
+    except Exception as e:
         return pd.DataFrame([{"ID": i+1, "自治体名": "", "案件概要": "", "仕様書": False, "予算(千円)": 0, 
                               "落札金額(千円)": 0, "落札企業": "", "応札1": "", "応札2": "", "応札3": "", 
                               "NJSS掲載": False, "入札王掲載": False} for i in range(50)])
 
-# --- 3. サイドバー ---
+# --- 3. サイドバーの構築 (AdminLTE風) ---
 with st.sidebar:
-    st.image("https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg", width=140)
-    st.write("")
+    # ユーザープロフィール
+    st.markdown('<div class="sidebar-user-panel">', unsafe_allow_html=True)
+    col_user_img, col_user_info = st.columns([1, 2])
+    # ダミーの画像URL (AdminLTEの画像に似せる)
+    st.image("https://adminlte.io/themes/v2/dist/img/user2-160x160.jpg", width=64, class_="img-circle")
+    with col_user_info:
+        st.markdown('<p class="sidebar-user-name">田中 太郎</p>', unsafe_allow_html=True)
+        st.markdown('<p class="sidebar-user-status">● Online</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 検索ボックス (開発中)
+    st.markdown('<div class="sidebar-search-box">', unsafe_allow_html=True)
+    st.text_input("Search...", placeholder="例：ETL、BIツール", key="input_sidebar_search", label_visibility="collapsed")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ナビゲーションメニュー
+    st.markdown('<p class="sidebar-section-header">MAIN NAVIGATION</p>', unsafe_allow_html=True)
     page = st.radio(
         "メニュー",
         ["ダッシュボード", "実測データ入力", "機能・評価設定", "データ一括インポート"],
         format_func=lambda x: {
             "ダッシュボード": "📊  ダッシュボード",
-            "実測データ入力": "📝  実測データ入力",
-            "機能・評価設定": "⚙️  機能・評価設定",
-            "データ一括インポート": "📥  データ一括インポート"
-        }[x]
+            "実測データ入力": "📝  Records (🟢 new)",
+            "機能・評価設定": "⚙️  Settings (🔵 4)",
+            "データ一括インポート": "📥  Import (🔴 12)"
+        }[x],
+        label_visibility="collapsed"
     )
+
+    st.markdown('<p class="sidebar-section-header">LABELS</p>', unsafe_allow_html=True)
+    st.write("🔴 重要案件")
+
     st.markdown("---")
     st.caption("開発: 株式会社ジール アライアンス部門")
 
@@ -146,7 +208,7 @@ if page == "ダッシュボード":
             st.markdown('<div class="slds-card">', unsafe_allow_html=True)
             fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_count, ki_count], title="案件捕捉数の比較",
                               color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
-            # 🔥 グラフ背景を完全に白に固定
+            # グラフ背景を完全に白に固定
             fig_hits.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
             st.plotly_chart(fig_hits, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -157,7 +219,7 @@ if page == "ダッシュボード":
             pres_df = comp_df[comp_df != ""].value_counts().reset_index()
             pres_df.columns = ["企業名", "出現回数"]
             fig_p = px.bar(pres_df.head(8), x="出現回数", y="企業名", orientation='h', title="競合出現シェア (TOP 8)")
-            # 🔥 グラフ背景を完全に白に固定
+            # グラフ背景を完全に白に固定
             fig_p.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
             st.plotly_chart(fig_p, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -182,10 +244,14 @@ elif page == "実測データ入力":
     if st.button("☁️ クラウドへ一括保存 (スプレッドシート連携)"):
         try:
             url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            conn.update(spreadsheet=url, data=edited_df, worksheet="Sheet1")
+            # 💡 一番左のタブ（デフォルト）に書き込むようにしました
+            conn.update(spreadsheet=url, data=edited_df)
+            if 'temp_df' in st.session_state:
+                del st.session_state.temp_df
             st.success("スプレッドシートへの保存が完了しました。")
+            st.rerun()
         except Exception as e:
-            st.error(f"保存に失敗しました: {e}")
+            st.error(f"保存に失敗しました。共有設定を確認してください: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "機能・評価設定":
@@ -225,7 +291,7 @@ elif page == "機能・評価設定":
         # 検索ワードのグラフ表示
         df_sw = pd.DataFrame(search_data)
         fig_sw = px.bar(df_sw, x="検索ワード", y=["NJSS件数", "入札王件数"], barmode="group", title="ワード別 ヒット件数比較")
-        # 🔥 グラフ背景を完全に白に固定
+        # グラフ背景を完全に白に固定
         fig_sw.update_layout(template="plotly_white", paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#181818"))
         st.plotly_chart(fig_sw, use_container_width=True)
     else:
@@ -266,9 +332,17 @@ elif page == "データ一括インポート":
     st.markdown('<div class="slds-card">', unsafe_allow_html=True)
     uploaded_file = st.file_uploader("テスト用CSVファイルをアップロードしてください", type="csv")
     if uploaded_file:
-        import_df = pd.read_csv(uploaded_file)
-        st.dataframe(import_df.head())
-        if st.button("このデータを入力シートに反映する"):
-            st.session_state.temp_df = import_df
-            st.success("反映しました。「実測データ入力」画面に移動して保存してください。")
+        try:
+            # 💡 カンマ区切りが認識されないケースを防ぐ強力な読み込み
+            import_df = pd.read_csv(uploaded_file, encoding="utf-8-sig", sep=None, engine="python")
+            st.dataframe(import_df.head())
+            
+            if len(import_df.columns) == 1:
+                st.error("⚠️ CSVが1つの列として認識されています。メモ帳等でファイルを開き、カンマ(,)で区切られているか確認してください。")
+            else:
+                if st.button("このデータを入力シートに反映する"):
+                    st.session_state.temp_df = import_df
+                    st.success("反映しました。「実測データ入力」画面に移動して保存してください。")
+        except Exception as e:
+            st.error(f"CSVの読み込みに失敗しました: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
