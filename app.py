@@ -122,8 +122,6 @@ if not st.session_state.logged_in:
                 else:
                     st.error("IDまたはパスワードが間違っています。")
 
-    # クールなフッター
-    st.markdown("<p style='text-align: center; margin-top: 40px; font-size: 12px; color: #94A3B8;'>© 2026 ZEAL Corporation. All rights reserved.</p>", unsafe_allow_html=True)
     st.stop()
 
 # --- 4. カスタム関数・状態初期化 ---
