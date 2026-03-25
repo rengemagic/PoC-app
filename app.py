@@ -99,14 +99,18 @@ if not st.session_state.logged_in:
     # ログイン画面専用のヘッダーデザイン
     st.markdown("""
         <div style="text-align: center; margin-top: 60px; margin-bottom: 30px;">
-            <div style="font-size: 36px; font-weight: 800; color: #0F172A; letter-spacing: 2px; margin-bottom: 5px;">ツール評価ボード</div>
-            <div style="font-size: 13px; color: #64748B; letter-spacing: 2px;">SECURE SYSTEM LOGIN</div>
+            <div style="font-size: 36px; font-weight: 800; color: #0F172A; letter-spacing: 2px; margin-bottom: 5px;">Analytics Solution Board</div>
+            <div style="font-size: 13px; color: #64748B; letter-spacing: 2px;">PoC ANALYTICS DASHBOARD</div>
+            <div style="font-size: 13px; color: #64748B; letter-spacing: 2px; margin-top: 10px;">SECURE SYSTEM LOGIN</div>
         </div>
     """, unsafe_allow_html=True)
     
     # 画面中央に配置するためにカラム幅を調整
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
+        # 💡 ロゴ画像を配置（中央揃えのためカラム内）
+        st.image("image_2.png", width=300)
+        
         with st.form("login_form"):
             st.markdown("<p style='font-size: 14px; color: #334155; font-weight: 600; text-align: center; margin-bottom: 25px;'>認証情報を入力してください</p>", unsafe_allow_html=True)
             user_id = st.text_input("ユーザーID", placeholder="ID")
@@ -175,6 +179,9 @@ def calculate_projections():
 
 # --- 6. サイドバー ---
 with st.sidebar:
+    # 💡 ロゴ画像を配置（サイドバーの最上部）
+    st.sidebar.image("image_2.png", width=150)
+    
     st.markdown('<p class="sidebar-section-header">Menu</p>', unsafe_allow_html=True)
     test_mode = st.toggle("データ管理モード")
     menu_options = ["ダッシュボード", "過去案件情報入力", "ワード検索数", "コスト・ROI分析", "詳細マニュアル"]
