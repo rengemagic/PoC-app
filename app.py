@@ -7,10 +7,10 @@ import io
 import csv
 import traceback
 
-# --- 1. ページ初期設定 (Streamlitの仕様上、必ず一番上に記述します) ---
-st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
+# --- 1. ページ初期設定 (タイトルを「ツール評価ボード」に変更) ---
+st.set_page_config(page_title="ツール評価ボード", layout="wide")
 
-# --- 2. UI & CSS (白枠原因の完全撤去・見出し装飾・アイコン排除) ---
+# --- 2. UI & CSS (ボタンの青色統一・クールなフォームデザイン) ---
 st.markdown("""
     <style>
     /* ヘッダーの非表示と上部余白の調整 */
@@ -57,59 +57,73 @@ st.markdown("""
         letter-spacing: 0.05em;
     }
 
-    /* プライマリボタン（保存、追加、クリアなど） */
-    button[kind="primary"] { 
+    /* 💡 すべてのボタンを完全な「青」に統一 */
+    button[kind="primary"], button[kind="secondary"], button[kind="secondaryFormSubmit"], .stButton > button, .stDownloadButton > button { 
         background-color: #0176D3 !important; 
         color: #FFFFFF !important; 
         border-radius: 6px !important; 
         font-weight: 700 !important; 
-        font-size: 1.1rem !important;
+        font-size: 1.05rem !important;
         border: none !important; 
-        padding: 0.75rem 1.5rem !important; 
+        padding: 0.6rem 1.5rem !important; 
         transition: all 0.2s ease;
     }
-    button[kind="primary"]:hover { background-color: #014486 !important; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(1, 118, 211, 0.3); }
-    
-    /* セカンダリボタン */
-    button[kind="secondary"] {
-        background-color: #FFFFFF !important;
-        color: #0F172A !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 6px !important;
-        font-weight: 600 !important;
+    button[kind="primary"]:hover, button[kind="secondary"]:hover, button[kind="secondaryFormSubmit"]:hover, .stButton > button:hover, .stDownloadButton > button:hover { 
+        background-color: #014486 !important; 
+        color: #FFFFFF !important;
+        transform: translateY(-2px); 
+        box-shadow: 0 4px 6px rgba(1, 118, 211, 0.3); 
     }
-    button[kind="secondary"]:hover { border-color: #0176D3 !important; color: #0176D3 !important; }
+
+    /* 💡 フォーム（ログイン画面や入力画面）をクールなカード風に装飾 */
+    [data-testid="stForm"] {
+        background-color: #FFFFFF;
+        padding: 2.5rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        border: 1px solid #E2E8F0;
+        border-top: 5px solid #0176D3;
+    }
 
     /* 入力フォームのデザイン */
-    div[data-baseweb="input"], input, textarea { background-color: #FFFFFF !important; color: #0F172A !important; border-radius: 6px !important; border-color: #CBD5E1 !important; }
-    div[data-baseweb="input"]:focus-within { border-color: #0176D3 !important; }
+    div[data-baseweb="input"], input, textarea { background-color: #F8FAFC !important; color: #0F172A !important; border-radius: 6px !important; border-color: #CBD5E1 !important; }
+    div[data-baseweb="input"]:focus-within { border-color: #0176D3 !important; background-color: #FFFFFF !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. セキュリティ：ログイン機能ブロック ---
+# --- 3. セキュリティ：クールなログイン画面 ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.markdown("<h2 style='text-align: center; color: #0176D3; margin-top: 50px;'>入札ツール精密評価ボード</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>アクセスにはIDとパスワードが必要です。</p>", unsafe_allow_html=True)
+    # ログイン画面専用のヘッダーデザイン
+    st.markdown("""
+        <div style="text-align: center; margin-top: 60px; margin-bottom: 30px;">
+            <div style="font-size: 36px; font-weight: 800; color: #0F172A; letter-spacing: 2px; margin-bottom: 5px;">ツール評価ボード</div>
+            <div style="font-size: 13px; color: #64748B; letter-spacing: 2px;">SECURE SYSTEM LOGIN</div>
+        </div>
+    """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # 画面中央に配置するためにカラム幅を調整
+    col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         with st.form("login_form"):
-            user_id = st.text_input("ユーザーID", placeholder="IDを入力してください")
-            password = st.text_input("パスワード", type="password", placeholder="パスワードを入力してください")
-            
-            submit = st.form_submit_button("システムにログイン", type="primary", use_container_width=True)
+            st.markdown("<p style='font-size: 14px; color: #334155; font-weight: 600; text-align: center; margin-bottom: 25px;'>認証情報を入力してください</p>", unsafe_allow_html=True)
+            user_id = st.text_input("ユーザーID", placeholder="ID")
+            password = st.text_input("パスワード", type="password", placeholder="Password")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit = st.form_submit_button("ログイン", use_container_width=True)
             
             if submit:
-                # ※ここでIDとパスワードを設定します（自由に変更可能です）
+                # ※ここでIDとパスワードを設定します
                 if user_id == "zeal_admin" and password == "poc2026!":
                     st.session_state.logged_in = True
                     st.rerun()
                 else:
                     st.error("IDまたはパスワードが間違っています。")
-    # 未ログイン時はここで処理を強制終了
+
+    # クールなフッター
+    st.markdown("<p style='text-align: center; margin-top: 40px; font-size: 12px; color: #94A3B8;'>© 2026 ZEAL Corporation. All rights reserved.</p>", unsafe_allow_html=True)
     st.stop()
 
 # --- 4. カスタム関数・状態初期化 ---
@@ -177,7 +191,7 @@ with st.sidebar:
 # --- 7. コンテンツ表示 ---
 
 if page == "ダッシュボード":
-    st.markdown('<div class="slds-page-header"><h1>PoC分析ダッシュボード</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="slds-page-header"><h1>ツール評価ボード</h1></div>', unsafe_allow_html=True)
     df = load_data()
     valid_df = df[df["自治体名"].notna() & (df["自治体名"] != "")]
     
@@ -297,7 +311,7 @@ elif page == "過去案件情報入力":
         njl = c6.checkbox("NJSSに掲載あり")
         kil = c7.checkbox("入札王に掲載あり")
         
-        if st.form_submit_button("この案件を保存する", type="primary", use_container_width=True):
+        if st.form_submit_button("この案件を保存する", use_container_width=True):
             if mun:
                 new_rec = pd.DataFrame([{"ID": len(valid_df)+1, "自治体名": mun, "案件概要": smm, "仕様書": spc, "予算(千円)": 0, "落札金額(千円)": wbid, "落札企業": wnr, "応札1": b1, "応札2": b2, "応札3": "", "NJSS掲載": njl, "入札王掲載": kil}])
                 try:
@@ -319,10 +333,10 @@ elif page == "ワード検索数":
     st.markdown('<div class="section-title">比較キーワードの操作</div>', unsafe_allow_html=True)
     c_add1, c_add2, c_add3 = st.columns([2, 1, 1])
     new_w = c_add1.text_input("キーワード", placeholder="例: BIツール、DX推進", key="in_new_w", label_visibility="collapsed")
-    if c_add2.button("追加", type="primary", use_container_width=True):
+    if c_add2.button("追加", use_container_width=True):
         if new_w and new_w not in st.session_state.search_words:
             st.session_state.search_words.append(new_w); st.rerun()
-    if c_add3.button("リストをクリア", type="primary", use_container_width=True): 
+    if c_add3.button("リストをクリア", use_container_width=True): 
         st.session_state.search_words = []
         st.session_state.search_counts = {}
         st.rerun()
@@ -336,7 +350,7 @@ elif page == "ワード検索数":
 
         edited_df = st.data_editor(df_search, num_rows="dynamic", use_container_width=True, hide_index=True, key="kw_editor")
         
-        if st.button("テーブルの検索件数を保存する", type="primary", use_container_width=True):
+        if st.button("テーブルの検索件数を保存する", use_container_width=True):
             st.session_state.search_words = edited_df["検索ワード"].dropna().tolist()
             new_counts = {}
             for _, row in edited_df.iterrows():
@@ -372,7 +386,7 @@ elif page == "コスト・ROI分析":
     mg = cs2.number_input("平均粗利率 (%)", value=st.session_state.costs["margin"], help="落札金額に対する、自社の粗利の割合。")
     ab = cs3.number_input("年間想定応札数 (件)", value=st.session_state.costs["annual_bids"], help="1年間に何件の入札に参加するか。")
     
-    if st.button("設定を保存してグラフを更新", type="primary", use_container_width=True):
+    if st.button("設定を保存してグラフを更新", use_container_width=True):
         st.session_state.costs.update({"n_init": n_i, "n_month": n_m, "n_opt": n_o, "k_init": k_i, "k_month": k_m, "k_opt": k_o, "margin": mg, "win_rate": wr, "annual_bids": ab})
         st.success("設定を更新しました。")
 
@@ -451,7 +465,7 @@ elif page == "データ管理 (一括・初期化)":
         {"ID": 1, "自治体名": "東京都", "案件概要": "ダッシュボード構築", "仕様書": True, "予算(千円)": 0, "落札金額(千円)": 15000, "落札企業": "株式会社ジール", "応札1": "A社", "応札2": "B社", "応札3": "", "NJSS掲載": True, "入札王掲載": False},
         {"ID": 2, "自治体名": "大阪府", "案件概要": "BIツールライセンス更新", "仕様書": True, "予算(千円)": 0, "落札金額(千円)": 8000, "落札企業": "C社", "応札1": "株式会社ジール", "応札2": "", "応札3": "", "NJSS掲載": True, "入札王掲載": True}
     ]
-    st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="all_in_one_sample.csv", mime="text/csv", type="primary")
+    st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="all_in_one_sample.csv", mime="text/csv")
     
     st.markdown('<div class="section-title">CSV一括インポート</div>', unsafe_allow_html=True)
     up_f = st.file_uploader("作成またはダウンロードしたCSVをアップロード", type="csv")
@@ -460,7 +474,7 @@ elif page == "データ管理 (一括・初期化)":
         st.write("プレビュー (先頭5件):")
         st.dataframe(im_df.head())
         
-        if st.button("このデータをシステムとスプレッドシートへ書き込む", type="primary", use_container_width=True):
+        if st.button("このデータをシステムとスプレッドシートへ書き込む", use_container_width=True):
             try:
                 new_projects = []
                 for _, row in im_df.iterrows():
@@ -501,7 +515,7 @@ elif page == "データ管理 (一括・初期化)":
         st.warning("スプレッドシートの全案件データ、コスト設定、検索ワードを完全に消去し、空っぽの初期状態に戻します。")
         confirm = st.checkbox("本当にすべてのデータを消去してよろしいですか？（この操作は元に戻せません）")
         
-        if st.button("全データを初期化して空っぽにする", type="primary", use_container_width=True):
+        if st.button("全データを初期化して空っぽにする", use_container_width=True):
             if confirm:
                 try:
                     save_data_to_gsheets(pd.DataFrame(columns=CORRECT_COLUMNS))
