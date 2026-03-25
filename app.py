@@ -7,77 +7,31 @@ import io
 import csv
 import traceback
 
-# --- 1. UI & CSS (白枠原因の全撤去・プライマリボタンの強調) ---
+# --- 1. UI & CSS ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
     <style>
-    /* ヘッダーの非表示と上部余白の調整 */
     [data-testid="stHeader"] { display: none !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0rem !important; background-color: #F8FAFC !important; }
     [data-testid="block-container"] { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-
-    /* 文字色設定 */
     .stApp { color: #1E293B !important; }
-    
-    /* サイドバー配色 */
     [data-testid="stSidebar"] { background-color: #1E293B !important; border-right: none !important; }
     [data-testid="stSidebar"] * { color: #CBD5E1 !important; }
     .sidebar-section-header { color: #64748B !important; font-size: 11px !important; font-weight: 700; letter-spacing: 1px; padding: 10px 15px; margin: 20px 0px 5px 0px; text-transform: uppercase; }
-
-    /* ラジオボタンをリンク風に */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 6px !important; background-color: transparent; transition: all 0.2s; cursor: pointer; width: 100%; display: block; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #FFFFFF !important; }
     [data-testid="stSidebar"] div.stRadio p { color: #F8FAFC !important; font-size: 14px !important; font-weight: 500 !important; margin: 0 !important; }
-
-    /* ページヘッダー装飾 */
-    .slds-page-header { 
-        background-color: #FFFFFF !important; 
-        padding: 1.5rem 2rem; 
-        border-bottom: 1px solid #E2E8F0; 
-        margin: -2rem -4rem 2rem -4rem; 
-        border-left: 8px solid #0176D3; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
+    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 1px solid #E2E8F0; margin: -2rem -4rem 2rem -4rem; border-left: 8px solid #0176D3; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
-    
-    /* プライマリボタン（保存、追加、クリアなど）を大きく青く強調 */
-    button[kind="primary"] { 
-        background-color: #0176D3 !important; 
-        color: #FFFFFF !important; 
-        border-radius: 6px !important; 
-        font-weight: 700 !important; 
-        font-size: 1.1rem !important;
-        border: none !important; 
-        padding: 0.75rem 1.5rem !important; 
-        transition: all 0.2s ease;
-    }
+    button[kind="primary"] { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 1.1rem !important; border: none !important; padding: 0.75rem 1.5rem !important; transition: all 0.2s ease; }
     button[kind="primary"]:hover { background-color: #014486 !important; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(1, 118, 211, 0.3); }
-    
-    /* セカンダリボタン */
-    button[kind="secondary"] {
-        background-color: #FFFFFF !important;
-        color: #0F172A !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 6px !important;
-        font-weight: 600 !important;
-    }
+    button[kind="secondary"] { background-color: #FFFFFF !important; color: #0F172A !important; border: 1px solid #CBD5E1 !important; border-radius: 6px !important; font-weight: 600 !important; }
     button[kind="secondary"]:hover { border-color: #0176D3 !important; color: #0176D3 !important; }
-
-    /* 入力フォームのデザイン */
     div[data-baseweb="input"], input, textarea { background-color: #FFFFFF !important; color: #0F172A !important; border-radius: 6px !important; border-color: #CBD5E1 !important; }
     div[data-baseweb="input"]:focus-within { border-color: #0176D3 !important; }
-    
-    /* カードの汎用デザイン */
-    .custom-card {
-        background-color: #FFFFFF; 
-        border: 1px solid #E2E8F0; 
-        border-radius: 8px; 
-        padding: 1.5rem; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
-        margin-bottom: 1.5rem;
-    }
+    .custom-card { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 1.5rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -94,9 +48,9 @@ def draw_kpi_card(title, value):
 if 'search_words' not in st.session_state: st.session_state.search_words = []
 if 'search_counts' not in st.session_state: st.session_state.search_counts = {}
 if 'costs' not in st.session_state: 
-    st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
+    st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 0, "win_rate": 0, "annual_bids": 0}
 
-# --- データ接続 ---
+# --- データ接続と完全上書き保存関数 ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 CORRECT_COLUMNS = ["ID", "自治体名", "案件概要", "仕様書", "予算(千円)", "落札金額(千円)", "落札企業", "応札1", "応札2", "応札3", "NJSS掲載", "入札王掲載"]
 
@@ -107,6 +61,19 @@ def load_data():
         if "自治体名" not in df.columns: return pd.DataFrame(columns=CORRECT_COLUMNS)
         return df
     except: return pd.DataFrame(columns=CORRECT_COLUMNS)
+
+# 💡【重要】古いデータの残骸を完全に塗りつぶすセーブ関数
+def save_data_to_gsheets(new_df):
+    current_df = load_data()
+    # 新しいデータが行数が少ない場合、不足分を空文字（空白）で埋めて上書きする
+    if len(new_df) < len(current_df):
+        pad_len = len(current_df) - len(new_df)
+        empty_pad = pd.DataFrame([[""] * len(CORRECT_COLUMNS) for _ in range(pad_len)], columns=CORRECT_COLUMNS)
+        save_df = pd.concat([new_df, empty_pad], ignore_index=True)
+    else:
+        save_df = new_df
+    
+    conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=save_df)
 
 def calculate_projections():
     df = load_data()
@@ -139,34 +106,27 @@ if page == "ダッシュボード":
     if valid_df.empty:
         st.info("データがありません。「過去案件情報入力」または「データ管理」からデータを登録してください。")
     else:
-        # --- 💡 KPIカードの多角化 (3個 → 6個へ拡張) ---
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown("### プロジェクト・カバレッジサマリー")
         
         nj_c = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
         ki_c = valid_df["入札王掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
-        
-        # 追加の計算ロジック
         avg_bid_val = valid_df["落札金額(千円)"].mean() * 1000
         exp_profit = avg_bid_val * (st.session_state.costs["margin"]/100) * (st.session_state.costs["win_rate"]/100)
         comp_series = pd.concat([valid_df["応札1"], valid_df["応札2"], valid_df["応札3"]])
         comp_count = comp_series[comp_series != ""].nunique()
 
-        # 上段 3カード (網羅率・件数)
         k1, k2, k3 = st.columns(3)
         with k1: draw_kpi_card("分析対象案件数", f"{len(valid_df)} 件")
         with k2: draw_kpi_card("NJSS 網羅率", f"{(nj_c/len(valid_df)*100):.1f}%")
         with k3: draw_kpi_card("入札王 網羅率", f"{(ki_c/len(valid_df)*100):.1f}%")
         
-        # 下段 3カード (金額・競合)
         k4, k5, k6 = st.columns(3)
         with k4: draw_kpi_card("平均落札金額", f"¥ {int(avg_bid_val):,}")
         with k5: draw_kpi_card("1応札あたりの期待利益", f"¥ {int(exp_profit):,}")
         with k6: draw_kpi_card("観測された競合企業数", f"{comp_count} 社")
-        
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- 詳細分析グラフ (X/Y軸ラベルの消去設定を追加) ---
         col_l, col_r = st.columns(2)
         with col_l:
             st.markdown('<div class="custom-card">', unsafe_allow_html=True)
@@ -214,7 +174,6 @@ if page == "ダッシュボード":
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown("### 🏆 総合判定・分析レポート")
         
-        # 判定ロジック
         nj_cov = (nj_c / len(valid_df) * 100)
         ki_cov = (ki_c / len(valid_df) * 100)
         nj_sw, ki_sw = 0, 0
@@ -276,7 +235,7 @@ elif page == "過去案件情報入力":
             if mun:
                 new_rec = pd.DataFrame([{"ID": len(valid_df)+1, "自治体名": mun, "案件概要": smm, "仕様書": spc, "予算(千円)": 0, "落札金額(千円)": wbid, "落札企業": wnr, "応札1": b1, "応札2": b2, "応札3": "", "NJSS掲載": njl, "入札王掲載": kil}])
                 try:
-                    conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.concat([valid_df, new_rec], ignore_index=True).fillna(""))
+                    save_data_to_gsheets(pd.concat([valid_df, new_rec], ignore_index=True).fillna(""))
                     st.success("✅ スプレッドシートへの保存に成功しました！")
                 except: 
                     st.error("保存に失敗しました。")
@@ -382,7 +341,9 @@ elif page == "コスト・ROI分析":
     n_p5 = p_df.iloc[-1]["NJSS利益"]
     k_p5 = p_df.iloc[-1]["入札王利益"]
     
-    if n_p5 < 0 and k_p5 < 0:
+    if n_p5 == 0 and k_p5 == 0:
+        st.info("※ 上部の設定に数値を入力すると、こちらに5年後の予測と評価コメントが表示されます。")
+    elif n_p5 < 0 and k_p5 < 0:
         st.warning("**【警告】現在の設定では、5年後も両ツールとも赤字（投資回収不可）の予測です。**\n\nツール費用を回収するためには、「想定年間応札数」を増やすか、「平均受注率」「平均粗利率」を改善する必要があります。")
     elif n_p5 > k_p5:
         diff = n_p5 - k_p5
@@ -480,8 +441,7 @@ elif page == "データ管理 (一括・初期化)":
                             new_projects.append(row)
                 
                 if new_projects:
-                    final_df = pd.concat([load_data(), pd.DataFrame(new_projects)], ignore_index=True).fillna("")
-                    conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=final_df)
+                    save_data_to_gsheets(pd.DataFrame(new_projects))
                 
                 st.success("✅ コスト設定、検索ワード、過去案件データのすべてを正常に読み込み・保存しました！ダッシュボードを確認してください。")
             except Exception as e: 
@@ -495,13 +455,13 @@ elif page == "データ管理 (一括・初期化)":
         if st.button("全データを初期化して空っぽにする", type="primary", use_container_width=True):
             if confirm:
                 try:
-                    conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
+                    save_data_to_gsheets(pd.DataFrame(columns=CORRECT_COLUMNS))
                     st.session_state.search_words = []
                     st.session_state.search_counts = {}
-                    st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
-                    st.success("✅ すべてのデータを消去し、初期状態に戻しました。")
+                    st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 0, "win_rate": 0, "annual_bids": 0}
+                    st.success("✅ すべてのデータを完全に消去し、初期状態に戻しました。")
                     st.rerun()
-                except: 
-                    st.error("初期化に失敗しました。")
+                except Exception as e: 
+                    st.error(f"初期化に失敗しました。詳細: {e}")
             else:
                 st.error("※消去を実行するには、上の確認チェックボックスにチェックを入れてください。")
