@@ -7,7 +7,7 @@ import io
 import csv
 import traceback
 
-# --- 1. UI & CSS (白枠原因の排除・モダンデザイン) ---
+# --- 1. UI & CSS (白枠原因の排除・モダンデザイン・青ボタン統一) ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
@@ -42,7 +42,7 @@ st.markdown("""
     }
     .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
     
-    /* 青×白の統一ボタンデザイン */
+    /* 青×白の統一ボタンデザイン (すべてのボタンに適用) */
     .stButton > button { 
         background-color: #0176D3 !important; 
         color: #FFFFFF !important; 
@@ -58,22 +58,31 @@ st.markdown("""
     /* 入力フォームのデザイン */
     div[data-baseweb="input"], input, textarea { background-color: #FFFFFF !important; color: #0F172A !important; border-radius: 6px !important; border-color: #CBD5E1 !important; }
     div[data-baseweb="input"]:focus-within { border-color: #0176D3 !important; }
+    
+    /* カードデザインのHTML汎用クラス */
+    .custom-card {
+        background-color: #FFFFFF; 
+        border: 1px solid #E2E8F0; 
+        border-radius: 8px; 
+        padding: 1.5rem; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+        margin-bottom: 1.5rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- カスタムKPIカード関数 (HTMLベースで安全に描画) ---
+# --- カスタムKPIカード関数 ---
 def draw_kpi_card(title, value):
     st.markdown(f"""
-        <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.5rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 1.5rem;">
+        <div class="custom-card" style="text-align: center;">
             <p style="color: #64748B; font-size: 14px; font-weight: 700; margin: 0 0 8px 0;">{title}</p>
             <p style="color: #0176D3; font-size: 38px; font-weight: 700; margin: 0; line-height: 1.2;">{value}</p>
         </div>
     """, unsafe_allow_html=True)
 
-# --- セッション状態の初期化 ---
-if 'search_words' not in st.session_state: st.session_state.search_words = ["DX推進", "データ分析基盤"]
-if 'search_counts' not in st.session_state: 
-    st.session_state.search_counts = {"DX推進": {"NJSS": 0, "入札王": 0}, "データ分析基盤": {"NJSS": 0, "入札王": 0}}
+# --- セッション状態の初期化 (完全にクリアな状態でスタート) ---
+if 'search_words' not in st.session_state: st.session_state.search_words = []
+if 'search_counts' not in st.session_state: st.session_state.search_counts = {}
 if 'costs' not in st.session_state: 
     st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
 
@@ -85,7 +94,7 @@ def load_data():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         df = conn.read(spreadsheet=url, ttl="0s")
-        if "自治体名" not in df.columns: return pd.DataFrame(columns=CORRECT_COLUMNS)
+        if "自治体名" not in df.columns: return pd.DataFrame(columns=CORRECT_COLUMNS) # 見出しだけを返す
         return df
     except: return pd.DataFrame(columns=CORRECT_COLUMNS)
 
@@ -107,7 +116,7 @@ with st.sidebar:
     st.markdown('<p class="sidebar-section-header">Menu</p>', unsafe_allow_html=True)
     test_mode = st.toggle("データ管理モード")
     menu_options = ["ダッシュボード", "過去案件情報入力", "ワード検索数", "コスト・ROI分析", "詳細マニュアル"]
-    if test_mode: menu_options.append("データ管理 (一括処理)")
+    if test_mode: menu_options.append("データ管理 (一括処理・初期化)")
     page = st.radio("メニュー選択", menu_options, label_visibility="collapsed")
 
 # --- 4. コンテンツ表示 ---
@@ -118,8 +127,9 @@ if page == "ダッシュボード":
     valid_df = df[df["自治体名"].notna() & (df["自治体名"] != "")]
     
     if valid_df.empty:
-        st.info("データがありません。「過去案件情報入力」からデータを登録してください。")
+        st.info("現在データがありません。「過去案件情報入力」からデータを登録してください。")
     else:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown("### 全体カバレッジ（網羅率）")
         k1, k2, k3 = st.columns(3)
         nj_c = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
@@ -127,15 +137,17 @@ if page == "ダッシュボード":
         with k1: draw_kpi_card("NJSS 網羅率", f"{(nj_c/len(valid_df)*100):.1f}%")
         with k2: draw_kpi_card("入札王 網羅率", f"{(ki_c/len(valid_df)*100):.1f}%")
         with k3: draw_kpi_card("分析対象案件数", f"{len(valid_df)} 件")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.markdown("### 詳細分析グラフ")
         col_l, col_r = st.columns(2)
         with col_l:
+            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
             fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_c, ki_c], title="案件捕捉数の比較", color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
             fig_hits.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="white")
             st.plotly_chart(fig_hits, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         with col_r:
+            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
             comp_df = pd.concat([valid_df["落札企業"], valid_df["応札1"], valid_df["応札2"], valid_df["応札3"]])
             pres_df = comp_df[comp_df != ""].value_counts().reset_index().head(6)
             pres_df.columns = ["企業名", "出現回数"]
@@ -143,9 +155,11 @@ if page == "ダッシュボード":
             fig_p.update_traces(marker_color='#0176D3')
             fig_p.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="white")
             st.plotly_chart(fig_p, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        col_w, col_roi = st.columns(2)
-        with col_w:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown("### キーワード検索精度比較")
+        if st.session_state.search_words and st.session_state.search_counts:
             s_data = []
             for w in st.session_state.search_words:
                 n_val = st.session_state.search_counts.get(w, {}).get("NJSS", 0)
@@ -153,19 +167,24 @@ if page == "ダッシュボード":
                 s_data.append({"ワード": w, "NJSS": n_val, "入札王": k_val})
             df_sw = pd.DataFrame(s_data)
             if not df_sw.empty:
-                fig_sw = px.bar(df_sw, x="ワード", y=["NJSS", "入札王"], barmode="group", title="キーワード検索精度比較", color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
-                fig_sw.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="white")
+                fig_sw = px.bar(df_sw, x="ワード", y=["NJSS", "入札王"], barmode="group", color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
+                fig_sw.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="white")
                 st.plotly_chart(fig_sw, use_container_width=True)
-        with col_roi:
-            p_df, _ = calculate_projections()
-            fig_proj = px.line(p_df, x="年", y=["NJSS利益", "入札王利益"], title="累積期待利益の予測推移（5カ年）", color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
-            fig_proj.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="white")
-            st.plotly_chart(fig_proj, use_container_width=True)
+        else:
+            st.write("検索ワードのデータがありません。「ワード検索数」画面からデータを追加してください。")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        p_df, _ = calculate_projections()
+        fig_proj = px.line(p_df, x="年", y=["NJSS利益", "入札王利益"], title="累積期待利益の予測推移（5カ年）", color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
+        fig_proj.update_layout(template="plotly_white", paper_bgcolor="white")
+        st.plotly_chart(fig_proj, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown("### 総合判定・分析レポート")
         
-        # 判定ロジック（自動実行）
+        # 判定ロジック
         nj_cov = (nj_c / len(valid_df) * 100)
         ki_cov = (ki_c / len(valid_df) * 100)
         nj_sw, ki_sw = 0, 0
@@ -194,22 +213,23 @@ if page == "ダッシュボード":
                 st.success("**【結論】 NJSSの導入を推奨します。**\n\n網羅率が高く、過去のターゲット案件を確実に取りこぼさず捕捉できています。中長期的に見て機会損失を防ぐことで、費用対効果を最大化できる可能性が高いです。")
             else:
                 st.success("**【結論】 入札王の導入を推奨します。**\n\nコストパフォーマンスが非常に高く、損益分岐点を早く超えることができます。ROI（投資対効果）を重視した運用に最適です。")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "過去案件情報入力":
     st.markdown('<div class="slds-page-header"><h1>過去案件情報入力</h1></div>', unsafe_allow_html=True)
-    st.write("自社に関連する過去の案件情報を入力してください。このデータが「網羅率」と「ROI」の計算ベースになります。")
     df_cur = load_data()
     valid_df = df_cur[df_cur["自治体名"].notna() & (df_cur["自治体名"] != "")].copy()
     
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     with st.form("entry_form", clear_on_submit=True):
         st.markdown("#### 基本情報")
         c1, c2 = st.columns(2)
-        mun = c1.text_input("自治体名 (必須)", placeholder="例: 東京都", help="発注元の自治体名を入力します。")
+        mun = c1.text_input("自治体名 (必須)", placeholder="例: 東京都、横浜市", help="発注元の自治体名を入力します。")
         smm = c2.text_area("案件概要", placeholder="例: データ分析基盤構築業務", help="どのような案件だったかを簡潔に記載します。")
         
         st.markdown("#### 落札・応札情報")
         c3, c4 = st.columns(2)
-        wnr = c3.text_input("落札企業", placeholder="例: 株式会社ジール", help="最終的に落札した企業名です。")
+        wnr = c3.text_input("落札企業", placeholder="例: 株式会社ジール", help="最終的に落札した企業名です。自社の場合は自社名を入力。")
         wbid = c3.number_input("落札金額 (単位: 千円)", min_value=0, help="この金額の平均値が、利益予測シミュレーションのベースとなります。")
         b1 = c4.text_input("競合企業1", placeholder="例: A社", help="入札に参加していた競合他社を入力します。")
         b2 = c4.text_input("競合企業2", placeholder="例: B社")
@@ -231,75 +251,79 @@ elif page == "過去案件情報入力":
                     st.error("保存に失敗しました。")
             else: 
                 st.error("自治体名は必須項目です。")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if not valid_df.empty:
-        st.markdown("---")
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown("### 登録済みデータ一覧")
         st.dataframe(valid_df, hide_index=True, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "ワード検索数":
     st.markdown('<div class="slds-page-header"><h1>ワード検索数比較</h1></div>', unsafe_allow_html=True)
-    st.write("自社の得意分野のキーワードで検索し、各ツールでのヒット件数を入力・保存してください。")
     
-    # テーブル表示用のデータフレーム作成
-    df_search = pd.DataFrame([
-        {"検索ワード": w, "NJSS (件)": st.session_state.search_counts.get(w, {}).get("NJSS", 0), "入札王 (件)": st.session_state.search_counts.get(w, {}).get("入札王", 0)}
-        for w in st.session_state.search_words
-    ])
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.markdown("#### 比較キーワードの追加")
+    c_add1, c_add2, c_add3 = st.columns([2, 1, 1])
+    new_w = c_add1.text_input("キーワード", placeholder="例: BIツール、DX推進", key="in_new_w", label_visibility="collapsed")
+    if c_add2.button("ワードを追加"):
+        if new_w and new_w not in st.session_state.search_words:
+            st.session_state.search_words.append(new_w); st.rerun()
+    if c_add3.button("リストをクリア"): 
+        st.session_state.search_words = []
+        st.session_state.search_counts = {}
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 編集可能なテーブル
-    edited_df = st.data_editor(df_search, num_rows="dynamic", use_container_width=True, hide_index=True, key="kw_editor")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("設定を保存する"):
-            # テーブルの内容をセッションステートに反映
-            st.session_state.search_words = edited_df["検索ワード"].dropna().tolist()
-            new_counts = {}
-            for _, row in edited_df.iterrows():
-                if pd.notna(row["検索ワード"]):
-                    new_counts[row["検索ワード"]] = {"NJSS": int(row.get("NJSS (件)", 0) or 0), "入札王": int(row.get("入札王 (件)", 0) or 0)}
-            st.session_state.search_counts = new_counts
-            st.success("検索ワードと件数を保存しました。ダッシュボードに反映されます。")
-    with c2:
-        if st.button("リストをクリア"):
-            st.session_state.search_words = []
-            st.session_state.search_counts = {}
-            st.rerun()
+    if st.session_state.search_words:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown("#### ヒット件数の実測値入力")
+        s_data = []
+        for w in st.session_state.search_words:
+            if w not in st.session_state.search_counts: st.session_state.search_counts[w] = {"NJSS": 0, "入札王": 0}
+            cw1, cw2 = st.columns(2)
+            st.session_state.search_counts[w]["NJSS"] = cw1.number_input(f"NJSS: {w}", min_value=0, value=st.session_state.search_counts[w]["NJSS"], key=f"nj_{w}")
+            st.session_state.search_counts[w]["入札王"] = cw2.number_input(f"入札王: {w}", min_value=0, value=st.session_state.search_counts[w]["入札王"], key=f"ki_{w}")
+            s_data.append({"ワード": w, "NJSS": st.session_state.search_counts[w]["NJSS"], "入札王": st.session_state.search_counts[w]["入札王"]})
+        
+        if st.button("検索件数を保存する"):
+            st.success("検索件数を保存しました。ダッシュボードに反映されます。")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "コスト・ROI分析":
     st.markdown('<div class="slds-page-header"><h1>コスト・ROI分析設定</h1></div>', unsafe_allow_html=True)
-    st.write("ツール見積額と自社の営業パフォーマンスを入力し、採算ラインを可視化します。")
     
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("**NJSS 費用見積**")
         n_i = st.number_input("初期費用 (円)", value=st.session_state.costs["n_init"], key="n_i_v")
         n_m = st.number_input("月額費用 (円)", value=st.session_state.costs["n_month"], key="n_m_v")
         n_o = st.number_input("年間オプション (円)", value=st.session_state.costs["n_opt"], key="n_o_v")
+        st.info(f"💡 NJSS 初年度合計: **{n_i + n_m*12 + n_o:,} 円**")
     with c2:
         st.markdown("**入札王 費用見積**")
         k_i = st.number_input("初期費用 (円)", value=st.session_state.costs["k_init"], key="k_i_v")
         k_m = st.number_input("月額費用 (円)", value=st.session_state.costs["k_month"], key="k_m_v")
         k_o = st.number_input("年間オプション (円)", value=st.session_state.costs["k_opt"], key="k_o_v")
+        st.info(f"💡 入札王 初年度合計: **{k_i + k_m*12 + k_o:,} 円**")
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown("---")
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.markdown("**自社営業シミュレーション設定**")
     cs1, cs2, cs3 = st.columns(3)
     wr = cs1.number_input("平均受注率 (%)", value=st.session_state.costs["win_rate"], help="応札に参加した場合、落札できる確率。")
     mg = cs2.number_input("平均粗利率 (%)", value=st.session_state.costs["margin"], help="落札金額に対する、自社の粗利の割合。")
     ab = cs3.number_input("年間想定応札数 (件)", value=st.session_state.costs["annual_bids"], help="1年間に何件の入札に参加するか。")
     
-    if st.button("設定を保存してグラフを更新"):
+    if st.button("設定を保存して反映"):
         st.session_state.costs.update({"n_init": n_i, "n_month": n_m, "n_opt": n_o, "k_init": k_i, "k_month": k_m, "k_opt": k_o, "margin": mg, "win_rate": wr, "annual_bids": ab})
         st.success("設定を更新しました。")
+    st.markdown('</div>', unsafe_allow_html=True)
 
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     p_df, _ = calculate_projections()
-    
-    st.markdown("---")
     st.markdown("### 損益分岐点・5年収益推移シミュレーション")
-    
-    # 損益分岐点グラフ (売上 vs コスト)
     fig_bep = go.Figure()
     fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値", line=dict(color="#10B981", width=4)))
     fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSS累積コスト", line=dict(color="#0176D3", dash='dash')))
@@ -307,13 +331,14 @@ elif page == "コスト・ROI分析":
     fig_bep.update_layout(title="累積コストと売上の交差点（損益分岐点）", template="plotly_white", paper_bgcolor="white")
     st.plotly_chart(fig_bep, use_container_width=True)
 
-    # 5年利益グラフ
     fig_prof = px.bar(p_df, x="年", y=["NJSS利益", "入札王利益"], barmode="group", title="各年の累積利益比較", color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
     fig_prof.update_layout(template="plotly_white", paper_bgcolor="white")
     st.plotly_chart(fig_prof, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "詳細マニュアル":
     st.markdown('<div class="slds-page-header"><h1>自走式 PoC評価マニュアル</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.markdown("""
     本システムは、入札情報サービス（NJSS、入札王等）の導入前検証（PoC）において、感覚ではなく**データに基づいた合理的な決裁**を行うための分析ツールです。
 
@@ -347,16 +372,21 @@ elif page == "詳細マニュアル":
     * **検索精度 (Search Precision)**
       キーワード検索結果の数です。件数が多すぎると「関係ない案件」までヒットし運用負荷が上がり、少なすぎると漏れのリスクがあります。
     """)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-elif page == "データ管理 (一括処理)":
+elif page == "データ管理 (一括処理・初期化)":
     st.markdown('<div class="slds-page-header"><h1>データ一括管理</h1></div>', unsafe_allow_html=True)
-    st.write("大量のデータを登録する場合、サンプルCSVを加工してアップロードしてください。")
     
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.markdown("### サンプルCSVダウンロード")
+    st.write("Excel等で案件データを一括作成するためのフォーマットです。")
     sample_data = [{"ID": 1, "自治体名": "東京都", "案件概要": "案件サンプル", "仕様書": True, "落札金額(千円)": 10000, "NJSS掲載": True, "入札王掲載": False}]
     st.download_button("フォーマットをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="import_format.csv", mime="text/csv")
-    
-    st.markdown("---")
-    up_f = st.file_uploader("CSVインポート", type="csv")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.markdown("### CSVインポート")
+    up_f = st.file_uploader("作成したCSVをアップロード", type="csv")
     if up_f:
         im_df = pd.read_csv(up_f, encoding="utf-8-sig")
         st.write("プレビュー:")
@@ -368,11 +398,23 @@ elif page == "データ管理 (一括処理)":
                 st.success("保存に成功しました！ダッシュボードを確認してください。")
             except: 
                 st.error("保存に失敗しました。")
-                
-    st.markdown("---")
-    if st.button("全データを初期化する"):
-        try:
-            conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
-            st.success("初期化に成功しました。")
-        except: 
-            st.error("初期化に失敗しました。")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- 隠し機能：データの完全初期化 (安全確認付き) ---
+    with st.expander("🚨 危険操作：全データの初期化（消去）"):
+        st.warning("スプレッドシートの全案件データおよび設定を完全に消去し、初期状態（空っぽ）に戻します。テスト完了後などにご利用ください。")
+        confirm = st.checkbox("本当にすべてのデータを消去してよろしいですか？（この操作は取り消せません）")
+        
+        if st.button("全データを初期化する"):
+            if confirm:
+                try:
+                    conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
+                    st.session_state.search_words = []
+                    st.session_state.search_counts = {}
+                    st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
+                    st.success("すべてのデータを消去し、初期状態に戻しました。")
+                    st.rerun()
+                except: 
+                    st.error("初期化に失敗しました。")
+            else:
+                st.error("消去を実行するには、上のチェックボックスにチェックを入れてください。")
