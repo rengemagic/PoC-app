@@ -7,55 +7,33 @@ import io
 import csv
 import traceback
 
-# --- 1. UI & CSS (アイコン・白枠完全消去 & Salesforce風タイトル装飾) ---
+# --- 1. UI & CSS ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
 st.markdown("""
     <style>
-    /* 1. ヘッダーと上部白枠の完全排除 */
     [data-testid="stHeader"] { display: none !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0rem !important; background-color: #FFFFFF !important; }
     [data-testid="block-container"] { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-
-    /* サイドバー配色 (モダンダーク) */
+    .stApp { color: #181818 !important; }
     [data-testid="stSidebar"] { background-color: #1E293B !important; border-right: none !important; }
     [data-testid="stSidebar"] * { color: #CBD5E1 !important; }
     .sidebar-section-header { color: #64748B !important; font-size: 11px !important; font-weight: 700; letter-spacing: 1px; padding: 10px 15px; margin: 20px 0px 5px 0px; text-transform: uppercase; }
-
-    /* ラジオボタンの「丸いボタン」を消去 */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
-    
-    /* メニュー項目をテキストリンク風に */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 6px !important; background-color: transparent; transition: all 0.2s; cursor: pointer; width: 100%; display: block; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #FFFFFF !important; }
     [data-testid="stSidebar"] div.stRadio p { color: #F8FAFC !important; font-size: 14px !important; font-weight: 500 !important; margin: 0 !important; }
-
-    /* 2. ページヘッダー装飾 (Salesforce Lightning風) */
-    .slds-page-header { 
-        background-color: #F8FAFC !important; 
-        padding: 1.2rem 2rem; 
-        border-bottom: 1px solid #E2E8F0; 
-        margin: -2rem -4rem 2.5rem -4rem; 
-        border-left: 8px solid #0284C7; 
-    }
+    .slds-page-header { background-color: #F8FAFC !important; padding: 1.2rem 2rem; border-bottom: 1px solid #E2E8F0; margin: -2rem -4rem 2.5rem -4rem; border-left: 8px solid #0284C7; }
     .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
-    
-    /* ボタン・入力フォームのデザイン */
-    .stButton > button { background-color: #0284C7 !important; color: #FFFFFF !important; border-radius: 6px !important; font-weight: 600 !important; border: none !important; padding: 0.5rem 1.5rem !important; }
-    .stButton > button:hover { background-color: #0369A1 !important; transform: translateY(-1px); }
-    div[data-baseweb="input"], input, textarea { background-color: #F8FAFC !important; color: #0F172A !important; border-radius: 6px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- セッション状態の初期化 ---
+# --- セッション状態 ---
 if 'search_words' not in st.session_state: st.session_state.search_words = ["DX推進", "データ分析基盤"]
 if 'search_counts' not in st.session_state: st.session_state.search_counts = {}
+if 'temp_df' not in st.session_state: st.session_state.temp_df = None
 if 'costs' not in st.session_state: 
-    st.session_state.costs = {
-        "n_init": 0, "n_month": 0, "n_opt": 0,
-        "k_init": 0, "k_month": 0, "k_opt": 0,
-        "margin": 20, "win_rate": 20, "annual_bids": 50
-    }
+    st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
 
 # --- 2. スプレッドシート接続 ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -65,11 +43,9 @@ def load_data():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         df = conn.read(spreadsheet=url, ttl="0s")
-        if "自治体名" not in df.columns: 
-            return pd.DataFrame([{col: "" if col != "ID" else i+1 for col in CORRECT_COLUMNS} for i in range(50)])
+        if "自治体名" not in df.columns: return pd.DataFrame([{col: "" if col != "ID" else i+1 for col in CORRECT_COLUMNS} for i in range(20)])
         return df
-    except:
-        return pd.DataFrame([{col: "" if col != "ID" else i+1 for col in CORRECT_COLUMNS} for i in range(50)])
+    except: return pd.DataFrame([{col: "" if col != "ID" else i+1 for col in CORRECT_COLUMNS} for i in range(20)])
 
 # --- 3. サイドバー ---
 with st.sidebar:
@@ -78,14 +54,6 @@ with st.sidebar:
     menu_options = ["ダッシュボード", "過去案件情報入力", "ワード検索数", "コスト・ROI分析", "マニュアル"]
     if test_mode: menu_options.append("データ管理 (テスト)")
     page = st.radio("メニュー", menu_options, label_visibility="collapsed")
-
-def draw_kpi_card(title, value):
-    st.markdown(f"""
-        <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem;">
-            <p style="color: #64748B; font-size: 13px; font-weight: 600; margin: 0 0 8px 0; text-transform: uppercase;">{title}</p>
-            <p style="color: #0284C7; font-size: 36px; font-weight: 700; margin: 0; line-height: 1;">{value}</p>
-        </div>
-    """, unsafe_allow_html=True)
 
 def calculate_projections():
     df = load_data()
@@ -100,7 +68,7 @@ def calculate_projections():
         data.append({"年": year, "NJSS累積コスト": n_c, "NJSS利益": rev - n_c, "入札王累積コスト": k_c, "入札王利益": rev - k_c, "累積売上": rev})
     return pd.DataFrame(data), annual_profit
 
-# --- 4. コンテンツ表示 ---
+# --- 4. コンテンツ ---
 
 if page == "ダッシュボード":
     st.markdown('<div class="slds-page-header"><h1>ダッシュボード</h1></div>', unsafe_allow_html=True)
@@ -112,14 +80,12 @@ if page == "ダッシュボード":
         k1, k2, k3 = st.columns(3)
         nj_c = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
         ki_c = valid_df["入札王掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
-        with k1: draw_kpi_card("NJSS 網羅率", f"{(nj_c/len(valid_df)*100):.1f}%")
-        with k2: draw_kpi_card("入札王 網羅率", f"{(ki_c/len(valid_df)*100):.1f}%")
-        with k3: draw_kpi_card("検証完了案件", f"{len(valid_df)} 件")
-        
-        proj_df, _ = calculate_projections()
-        st.plotly_chart(px.line(proj_df, x="年", y=["NJSS利益", "入札王利益"], title="5年間の累積利益推移シミュレーション", color_discrete_map={"NJSS利益": "#0284C7", "入札王利益": "#F59E0B"}), use_container_width=True)
+        with k1: st.metric("NJSS 網羅率", f"{(nj_c/len(valid_df)*100):.1f}%")
+        with k2: st.metric("入札王 網羅率", f"{(ki_c/len(valid_df)*100):.1f}%")
+        with k3: st.metric("検証案件数", f"{len(valid_df)} 件")
+        p_df, _ = calculate_projections()
+        st.plotly_chart(px.line(p_df, x="年", y=["NJSS利益", "入札王利益"], title="累積利益予測推移", color_discrete_map={"NJSS利益": "#0284C7", "入札王利益": "#F59E0B"}), use_container_width=True)
 
-        st.markdown('<div class="slds-page-header" style="margin-top: 3rem; margin-bottom: 2rem;"><h1>総合判定・分析レポート</h1></div>', unsafe_allow_html=True)
         if st.button("総合判定を実行する", use_container_width=True):
             nj_cov = (nj_c / len(valid_df) * 100)
             ki_cov = (ki_c / len(valid_df) * 100)
@@ -131,25 +97,36 @@ if page == "ダッシュボード":
             tot = nj_sw + ki_sw
             nj_s = (nj_sw / tot * 100) if tot > 0 else 50
             ki_s = (ki_sw / tot * 100) if tot > 0 else 50
-            n_p5, k_p5 = proj_df.iloc[-1]["NJSS利益"], proj_df.iloc[-1]["入札王利益"]
+            n_p5, k_p5 = p_df.iloc[-1]["NJSS利益"], p_df.iloc[-1]["入札王利益"]
             mx = max(n_p5, k_p5, 1)
             nj_ps, ki_ps = max(0, (n_p5 / mx * 100)), max(0, (k_p5 / mx * 100))
             fig_r = go.Figure()
-            cat = ['網羅率', '検索精度', '収益性(5年)', '網羅率']
+            cat = ['網羅率', '検索精度', '収益性', '網羅率']
             fig_r.add_trace(go.Scatterpolar(r=[nj_cov, nj_s, nj_ps, nj_cov], theta=cat, fill='toself', name='NJSS', line_color='#0284C7'))
             fig_r.add_trace(go.Scatterpolar(r=[ki_cov, ki_s, ki_ps, ki_cov], theta=cat, fill='toself', name='入札王', line_color='#F59E0B'))
-            fig_r.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), margin=dict(t=30, b=30))
             cr1, cr2 = st.columns([1, 1])
             with cr1: st.plotly_chart(fig_r, use_container_width=True)
-            with cr2:
-                st.markdown("### 判定レポート")
-                if (nj_cov+nj_s+nj_ps) > (ki_cov+ki_s+ki_ps): st.success("総合判定：【 NJSS 】が優勢です。")
-                else: st.success("総合判定：【 入札王 】が優勢です。")
+            with cr2: st.markdown("### 判定レポート")
+            if (nj_cov+nj_s+nj_ps) > (ki_cov+ki_s+ki_ps): st.success("【 NJSS 】が推奨されます。")
+            else: st.success("【 入札王 】が推奨されます。")
 
 elif page == "過去案件情報入力":
     st.markdown('<div class="slds-page-header"><h1>過去案件情報入力</h1></div>', unsafe_allow_html=True)
     df_cur = load_data()
     valid_df = df_cur[df_cur["自治体名"].notna() & (df_cur["自治体名"] != "")].copy()
+    
+    # --- 💡 インポート反映処理 ---
+    if st.session_state.temp_df is not None:
+        st.info(f"📥 インポートされた {len(st.session_state.temp_df)} 件のデータがセッションにあります。")
+        if st.button("☁️ クラウドへ一括保存する", use_container_width=True):
+            try:
+                new_all = pd.concat([valid_df, st.session_state.temp_df], ignore_index=True).fillna("")
+                conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=new_all)
+                st.session_state.temp_df = None
+                st.success("スプレッドシートへの一括保存に成功しました！")
+                st.rerun()
+            except: st.error("一括保存に失敗しました。")
+    
     with st.form("entry_form", clear_on_submit=True):
         st.markdown("#### 基本情報")
         c1, c2 = st.columns(2)
@@ -167,20 +144,20 @@ elif page == "過去案件情報入力":
         spc = c5.checkbox("仕様書あり")
         njl = c6.checkbox("NJSS掲載")
         kil = c7.checkbox("入札王掲載")
-        if st.form_submit_button("この案件を保存する", use_container_width=True):
+        if st.form_submit_button("この案件を単体保存する", use_container_width=True):
             if mun:
                 new_rec = pd.DataFrame([{"ID": len(valid_df)+1, "自治体名": mun, "案件概要": smm, "仕様書": spc, "予算(千円)": 0, "落札金額(千円)": wbid, "落札企業": wnr, "応札1": b1, "応札2": b2, "応札3": b3, "NJSS掲載": njl, "入札王掲載": kil}])
                 try:
                     conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.concat([valid_df, new_rec], ignore_index=True).fillna(""))
-                    st.success("スプレッドシートへの保存に成功しました。"); st.rerun()
-                except: st.error("保存に失敗しました。")
+                    st.success("単体保存に成功しました！"); st.rerun()
+                except: st.error("保存失敗")
             else: st.error("自治体名は必須です。")
     if not valid_df.empty: st.dataframe(valid_df, hide_index=True, use_container_width=True)
 
 elif page == "ワード検索数":
     st.markdown('<div class="slds-page-header"><h1>ワード検索数</h1></div>', unsafe_allow_html=True)
     c_add1, c_add2 = st.columns([3, 1])
-    new_w = c_add1.text_input("追加したい検索ワード", placeholder="例：BIツール", key="in_new_w_page", label_visibility="collapsed")
+    new_w = c_add1.text_input("追加したい検索ワード", placeholder="例：BIツール", key="in_new_w_pg", label_visibility="collapsed")
     if c_add2.button("ワードを追加", use_container_width=True):
         if new_w and new_w not in st.session_state.search_words:
             st.session_state.search_words.append(new_w); st.rerun()
@@ -200,54 +177,79 @@ elif page == "コスト・ROI分析":
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("**NJSS設定**")
-        n_i = st.number_input("初期費用 (円)", value=st.session_state.costs["n_init"], step=10000, key="n_init_val")
-        n_m = st.number_input("月額費用 (円)", value=st.session_state.costs["n_month"], step=10000, key="n_month_val")
-        n_o = st.number_input("年間オプション (円)", value=st.session_state.costs["n_opt"], step=10000, key="n_opt_val")
+        n_i = st.number_input("初期費用 (円)", value=st.session_state.costs["n_init"], step=10000, key="n_init_v")
+        n_m = st.number_input("月額費用 (円)", value=st.session_state.costs["n_month"], step=10000, key="n_month_v")
+        n_o = st.number_input("年間オプション (円)", value=st.session_state.costs["n_opt"], step=10000, key="n_opt_v")
     with c2:
         st.markdown("**入札王設定**")
-        k_i = st.number_input("初期費用 (円)", value=st.session_state.costs["k_init"], step=10000, key="k_init_val")
-        k_m = st.number_input("月額費用 (円)", value=st.session_state.costs["k_month"], step=10000, key="k_month_val")
-        k_o = st.number_input("年間オプション (円)", value=st.session_state.costs["k_opt"], step=10000, key="k_opt_val")
-    st.markdown("---")
+        k_i = st.number_input("初期費用 (円)", value=st.session_state.costs["k_init"], step=10000, key="k_init_v")
+        k_m = st.number_input("月額費用 (円)", value=st.session_state.costs["k_month"], step=10000, key="k_month_v")
+        k_o = st.number_input("年間オプション (円)", value=st.session_state.costs["k_opt"], step=10000, key="k_opt_v")
     cs1, cs2, cs3 = st.columns(3)
-    wr = cs1.number_input("受注率 (%)", value=st.session_state.costs["win_rate"], min_value=1, max_value=100, key="win_rate_val")
-    mg = cs2.number_input("粗利率 (%)", value=st.session_state.costs["margin"], min_value=1, max_value=100, key="margin_val")
-    ab = cs3.number_input("年間応札数 (件)", value=st.session_state.costs["annual_bids"], min_value=1, key="annual_bids_val")
+    wr = cs1.number_input("受注率 (%)", value=st.session_state.costs["win_rate"], min_value=1, max_value=100, key="win_r_v")
+    mg = cs2.number_input("粗利率 (%)", value=st.session_state.costs["margin"], min_value=1, max_value=100, key="marg_v")
+    ab = cs3.number_input("年間応札数 (件)", value=st.session_state.costs["annual_bids"], min_value=1, key="an_b_v")
     if st.button("設定を保存", use_container_width=True):
         st.session_state.costs.update({"n_init": n_i, "n_month": n_m, "n_opt": n_o, "k_init": k_i, "k_month": k_m, "k_opt": k_o, "margin": mg, "win_rate": wr, "annual_bids": ab})
-        st.success("シミュレーション設定を更新しました。"); st.rerun()
+        st.success("設定を更新しました！"); st.rerun()
     p_df, _ = calculate_projections()
     fig_b = go.Figure()
-    fig_b.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値", line=dict(color="#10B981", width=4)))
-    fig_b.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSS累積コスト", line=dict(color="#0284C7", dash='dash')))
-    fig_b.add_trace(go.Scatter(x=p_df["年"], y=p_df["入札王累積コスト"], name="入札王累積コスト", line=dict(color="#F59E0B", dash='dash')))
+    fig_b.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="売上期待値", line=dict(color="#10B981", width=4)))
+    fig_b.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSSコスト", line=dict(color="#0284C7", dash='dash')))
+    fig_b.add_trace(go.Scatter(x=p_df["年"], y=p_df["入札王累積コスト"], name="入札王コスト", line=dict(color="#F59E0B", dash='dash')))
     st.plotly_chart(fig_b, use_container_width=True)
 
 elif page == "マニュアル":
     st.markdown('<div class="slds-page-header"><h1>マニュアル</h1></div>', unsafe_allow_html=True)
-    st.markdown("""
-    ### 1. 本ツールの目的
-    本ツールは、入札情報サービス（NJSS、入札王など）の導入検討に向けたPoCにおいて、各ツールの「網羅率」「検索精度」「収益性」を定量的に比較評価するための専用システムです。
-    ### 2. 操作方法
-    * **ダッシュボード**: 全データの集計結果と、5年間の利益シミュレーション、総合判定レポートを表示します。
-    * **過去案件情報入力**: 実際の過去の入札結果を1件ずつ登録し、蓄積します。
-    * **ワード検索数**: 特定のキーワードでのヒット件数を比較記録します。
-    * **コスト・ROI分析**: 各ツールの見積額と、自社の受注率・利益率を入力して損益分岐点を分析します。
-    """)
+    st.markdown("### 1. 目的\n入札サービスのPoC評価ツールです。\n### 2. データ管理\n「データ管理」からサンプルCSVをダウンロードし、必要事項を記入してインポートすると一括設定が可能です。")
 
 elif page == "データ管理 (テスト)":
     st.markdown('<div class="slds-page-header"><h1>データ管理</h1></div>', unsafe_allow_html=True)
-    sm_df = pd.DataFrame([{"ID": 1, "自治体名": "東京都", "案件概要": "サンプル", "仕様書": True, "落札金額(千円)": 50000, "NJSS掲載": True, "入札王掲載": False}])
-    st.download_button(label="サンプルCSVをダウンロード", data=sm_df.to_csv(index=False).encode('utf-8-sig'), file_name="sample_poc.csv", mime="text/csv")
+    
+    # --- 💡 強化されたサンプルCSV生成 ---
+    st.markdown("### サンプルCSVダウンロード")
+    st.write("このCSVは、案件データだけでなく「コスト」や「検索ワード」の設定も一括で行える特別仕様です。")
+    # 特殊な行（ヘッダー識別用）を含める
+    sample_data = [
+        {"ID": "SETTING_COST", "自治体名": "NJSS初期費用", "案件概要": "200000", "仕様書": "", "落札金額(千円)": "", "NJSS掲載": "", "入札王掲載": ""},
+        {"ID": "SETTING_COST", "自治体名": "NJSS月額費用", "案件概要": "50000", "仕様書": "", "落札金額(千円)": "", "NJSS掲載": "", "入札王掲載": ""},
+        {"ID": "SETTING_WORD", "自治体名": "DX推進", "案件概要": "検索ワード追加", "仕様書": "", "落札金額(千円)": "", "NJSS掲載": "", "入札王掲載": ""},
+        {"ID": 1, "自治体名": "東京都", "案件概要": "サンプル案件A", "仕様書": True, "落札金額(千円)": 50000, "NJSS掲載": True, "入札王掲載": False}
+    ]
+    s_df = pd.DataFrame(sample_data)
+    st.download_button(label="万能サンプルCSVをダウンロード", data=s_df.to_csv(index=False).encode('utf-8-sig'), file_name="smart_sample.csv", mime="text/csv")
+    
+    st.markdown("---")
     up_f = st.file_uploader("CSVインポート", type="csv")
     if up_f:
         try:
             im_df = pd.read_csv(up_f, encoding="utf-8-sig")
-            if st.button("反映"): st.session_state.temp_df = im_df; st.success("セッションに反映しました。入力ページから保存してください。")
-        except: st.error("読込に失敗しました。")
+            # --- 💡 万能インポート処理 (行ごとに判別) ---
+            new_projects = []
+            for _, row in im_df.iterrows():
+                tag = str(row['ID'])
+                if tag == "SETTING_COST":
+                    item, val = str(row['自治体名']), int(row['案件概要'])
+                    if "NJSS初期" in item: st.session_state.costs["n_init"] = val
+                    elif "NJSS月額" in item: st.session_state.costs["n_month"] = val
+                    elif "入札王初期" in item: st.session_state.costs["k_init"] = val
+                    elif "入札王月額" in item: st.session_state.costs["k_month"] = val
+                elif tag == "SETTING_WORD":
+                    word = str(row['自治体名'])
+                    if word not in st.session_state.search_words: st.session_state.search_words.append(word)
+                else:
+                    new_projects.append(row)
+            
+            if new_projects:
+                st.session_state.temp_df = pd.DataFrame(new_projects)
+                st.success(f"成功！ {len(new_projects)} 件の案件を読み込み、コスト/ワード設定を更新しました。「過去案件情報入力」画面で保存を確定してください。")
+            else:
+                st.success("コスト・ワード設定の更新に成功しました！")
+        except: st.error("読込失敗")
+    
     st.markdown("---")
     if st.button("スプレッドシートを初期化", use_container_width=True):
         try:
             conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
-            st.success("初期化に成功しました。"); st.rerun()
-        except: st.error("初期化に失敗しました。")
+            st.success("初期化成功！"); st.rerun()
+        except: st.error("失敗しました。")
