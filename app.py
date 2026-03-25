@@ -333,6 +333,24 @@ elif page == "コスト・ROI分析":
     fig_prof.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_prof, use_container_width=True)
 
+    # 💡 新機能：グラフの下にROI結果の自動解説を追加
+    st.markdown("---")
+    st.markdown("### 📊 ROI分析結果の解説")
+    
+    n_p5 = p_df.iloc[-1]["NJSS利益"]
+    k_p5 = p_df.iloc[-1]["入札王利益"]
+    
+    if n_p5 < 0 and k_p5 < 0:
+        st.warning("**【警告】現在の設定では、5年後も両ツールとも赤字（投資回収不可）の予測です。**\n\nツール費用を回収するためには、「想定年間応札数」を増やすか、「平均受注率」「平均粗利率」を改善する必要があります。")
+    elif n_p5 > k_p5:
+        diff = n_p5 - k_p5
+        st.success(f"**【判定】ROI（投資対効果）の観点では、NJSSが有利です。**\n\n現在の営業シミュレーションでは、5年間でNJSSの方が入札王よりも **約 {diff:,.0f} 円** 高い最終利益をもたらす予測となっています。")
+    elif k_p5 > n_p5:
+        diff = k_p5 - n_p5
+        st.success(f"**【判定】ROI（投資対効果）の観点では、入札王が有利です。**\n\n現在の営業シミュレーションでは、コストの低さが利益に直結し、5年間で入札王の方がNJSSよりも **約 {diff:,.0f} 円** 高い最終利益をもたらす予測となっています。")
+    else:
+        st.info("**【判定】両ツールの投資対効果はほぼ同等です。**\n\nコスト面での差が少ないため、ダッシュボードの「網羅率」や「検索精度」など、機能面での優劣を重視して選定してください。")
+
 elif page == "詳細マニュアル":
     st.markdown('<div class="slds-page-header"><h1>自走式 PoC評価マニュアル</h1></div>', unsafe_allow_html=True)
     st.markdown("""
