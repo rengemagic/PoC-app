@@ -7,9 +7,10 @@ import io
 import csv
 import traceback
 
-# --- 1. UI & CSS (白枠原因の完全撤去・見出しのクールな装飾・絵文字排除) ---
+# --- 1. ページ初期設定 (Streamlitの仕様上、必ず一番上に記述します) ---
 st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
 
+# --- 2. UI & CSS (白枠原因の完全撤去・見出し装飾・アイコン排除) ---
 st.markdown("""
     <style>
     /* ヘッダーの非表示と上部余白の調整 */
@@ -42,7 +43,7 @@ st.markdown("""
     }
     .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
     
-    /* サブタイトル(セクション見出し)のクールな装飾 */
+    /* サブタイトル(セクション見出し)の装飾 */
     .section-title {
         font-size: 1.25rem;
         font-weight: 700;
@@ -56,7 +57,7 @@ st.markdown("""
         letter-spacing: 0.05em;
     }
 
-    /* プライマリボタン（保存、追加、クリアなど）を大きく青く強調 */
+    /* プライマリボタン（保存、追加、クリアなど） */
     button[kind="primary"] { 
         background-color: #0176D3 !important; 
         color: #FFFFFF !important; 
@@ -85,7 +86,33 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- カスタムKPIカード関数 (これはHTML完結なので白枠の原因にはなりません) ---
+# --- 3. セキュリティ：ログイン機能ブロック ---
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.markdown("<h2 style='text-align: center; color: #0176D3; margin-top: 50px;'>入札ツール精密評価ボード</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>アクセスにはIDとパスワードが必要です。</p>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            user_id = st.text_input("ユーザーID", placeholder="IDを入力してください")
+            password = st.text_input("パスワード", type="password", placeholder="パスワードを入力してください")
+            
+            submit = st.form_submit_button("システムにログイン", type="primary", use_container_width=True)
+            
+            if submit:
+                # ※ここでIDとパスワードを設定します（自由に変更可能です）
+                if user_id == "zeal_admin" and password == "poc2026!":
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else:
+                    st.error("IDまたはパスワードが間違っています。")
+    # 未ログイン時はここで処理を強制終了
+    st.stop()
+
+# --- 4. カスタム関数・状態初期化 ---
 def draw_kpi_card(title, value):
     st.markdown(f"""
         <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.2rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 1rem;">
@@ -94,13 +121,12 @@ def draw_kpi_card(title, value):
         </div>
     """, unsafe_allow_html=True)
 
-# --- セッション状態の初期化 ---
 if 'search_words' not in st.session_state: st.session_state.search_words = []
 if 'search_counts' not in st.session_state: st.session_state.search_counts = {}
 if 'costs' not in st.session_state: 
     st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 0, "win_rate": 0, "annual_bids": 0}
 
-# --- データ接続と完全上書き保存関数 ---
+# --- 5. データ接続と上書き保存関数 ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 CORRECT_COLUMNS = ["ID", "自治体名", "案件概要", "仕様書", "予算(千円)", "落札金額(千円)", "落札企業", "応札1", "応札2", "応札3", "NJSS掲載", "入札王掲載"]
 
@@ -135,15 +161,20 @@ def calculate_projections():
         data.append({"年": year, "NJSS累積コスト": n_c, "NJSS利益": rev - n_c, "入札王累積コスト": k_c, "入札王利益": rev - k_c, "累積売上": rev})
     return pd.DataFrame(data), annual_profit
 
-# --- サイドバー ---
+# --- 6. サイドバー ---
 with st.sidebar:
     st.markdown('<p class="sidebar-section-header">Menu</p>', unsafe_allow_html=True)
     test_mode = st.toggle("データ管理モード")
     menu_options = ["ダッシュボード", "過去案件情報入力", "ワード検索数", "コスト・ROI分析", "詳細マニュアル"]
     if test_mode: menu_options.append("データ管理 (一括・初期化)")
     page = st.radio("メニュー選択", menu_options, label_visibility="collapsed")
+    
+    st.markdown("---")
+    if st.button("ログアウト", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
 
-# --- コンテンツ表示 ---
+# --- 7. コンテンツ表示 ---
 
 if page == "ダッシュボード":
     st.markdown('<div class="slds-page-header"><h1>PoC分析ダッシュボード</h1></div>', unsafe_allow_html=True)
@@ -392,7 +423,7 @@ elif page == "詳細マニュアル":
     各ツールのトライアルアカウントを使用し、STEP 1で入力した案件が「実際に検索して見つかるか」を確認してチェックを入れます。
     
     **STEP 3: キーワード検索ボリュームの確認**
-    「ワード検索数」画面を開き、得意領域（例：DX推進）で検索した結果のヒット件数を入力し、保存します。
+    「ワード検索数」画面を開き、得意領域で検索した結果のヒット件数を入力し、保存します。
     
     **STEP 4: コストシミュレーションの設定**
     「コスト・ROI分析」画面を開き、見積もり金額と、平均受注率・利益率を設定します。これで「何年目で黒字化するか」が算出されます。
@@ -404,7 +435,7 @@ elif page == "詳細マニュアル":
 elif page == "データ管理 (一括・初期化)":
     st.markdown('<div class="slds-page-header"><h1>データ一括管理・初期化</h1></div>', unsafe_allow_html=True)
     
-    st.markdown('<div class="section-title">万能テスト用 サンプルCSVダウンロード</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">テスト用 サンプルCSVダウンロード</div>', unsafe_allow_html=True)
     st.write("このCSVをアップロードするだけで、「コスト」「検索ワード」「過去案件」のすべてが自動セットアップされ、ダッシュボードが一瞬で完成します。テストやデモにご利用ください。")
     
     sample_data = [
