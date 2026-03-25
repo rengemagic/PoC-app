@@ -42,7 +42,7 @@ st.markdown("""
     }
     .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
     
-    /* 💡 プライマリボタン（保存、追加、クリアなど）を大きく青く強調 */
+    /* プライマリボタン（保存、追加、クリアなど）を大きく青く強調 */
     button[kind="primary"] { 
         background-color: #0176D3 !important; 
         color: #FFFFFF !important; 
@@ -55,7 +55,7 @@ st.markdown("""
     }
     button[kind="primary"]:hover { background-color: #014486 !important; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(1, 118, 211, 0.3); }
     
-    /* セカンダリボタン（通常のボタン） */
+    /* セカンダリボタン */
     button[kind="secondary"] {
         background-color: #FFFFFF !important;
         color: #0F172A !important;
@@ -127,7 +127,7 @@ if page == "ダッシュボード":
     valid_df = df[df["自治体名"].notna() & (df["自治体名"] != "")]
     
     if valid_df.empty:
-        st.info("データがありません。「過去案件情報入力」からデータを登録してください。")
+        st.info("データがありません。「過去案件情報入力」または「データ管理」からデータを登録してください。")
     else:
         st.markdown("### 全体カバレッジ（網羅率）")
         k1, k2, k3 = st.columns(3)
@@ -180,7 +180,6 @@ if page == "ダッシュボード":
         st.markdown("---")
         st.markdown("### 総合判定・分析レポート")
         
-        # 判定ロジック
         nj_cov = (nj_c / len(valid_df) * 100)
         ki_cov = (ki_c / len(valid_df) * 100)
         nj_sw, ki_sw = 0, 0
@@ -196,7 +195,7 @@ if page == "ダッシュボード":
         nj_ps, ki_ps = max(0, (n_p5 / mx * 100)), max(0, (k_p5 / mx * 100))
         
         fig_r = go.Figure()
-        cat = ['網羅率(過去案件)', '検索精度(キーワード)', '中長期収益性(5年ROI)', '網羅率(過去案件)']
+        cat = ['網羅率(過去案件)', '検索精度(ワード)', '収益性(5年ROI)', '網羅率(過去案件)']
         fig_r.add_trace(go.Scatterpolar(r=[nj_cov, nj_s, nj_ps, nj_cov], theta=cat, fill='toself', name='NJSS', line_color='#0176D3'))
         fig_r.add_trace(go.Scatterpolar(r=[ki_cov, ki_s, ki_ps, ki_cov], theta=cat, fill='toself', name='入札王', line_color='#1B96FF'))
         fig_r.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), margin=dict(t=30, b=30), paper_bgcolor="rgba(0,0,0,0)")
@@ -212,7 +211,7 @@ if page == "ダッシュボード":
 
 elif page == "過去案件情報入力":
     st.markdown('<div class="slds-page-header"><h1>過去案件情報入力</h1></div>', unsafe_allow_html=True)
-    st.write("自社に関連する過去の案件情報を入力してください。このデータが「網羅率」と「ROI」の計算ベースになります。")
+    st.write("関連する過去の案件情報を入力してください。このデータが「網羅率」と「ROI」の計算ベースになります。")
     df_cur = load_data()
     valid_df = df_cur[df_cur["自治体名"].notna() & (df_cur["自治体名"] != "")].copy()
     
@@ -236,7 +235,6 @@ elif page == "過去案件情報入力":
         njl = c6.checkbox("NJSSに掲載あり")
         kil = c7.checkbox("入札王に掲載あり")
         
-        # 💡 ここを primary 指定にすることで大きく青いボタンになります
         if st.form_submit_button("この案件を保存する", type="primary", use_container_width=True):
             if mun:
                 new_rec = pd.DataFrame([{"ID": len(valid_df)+1, "自治体名": mun, "案件概要": smm, "仕様書": spc, "予算(千円)": 0, "落札金額(千円)": wbid, "落札企業": wnr, "応札1": b1, "応札2": b2, "応札3": "", "NJSS掲載": njl, "入札王掲載": kil}])
@@ -255,7 +253,7 @@ elif page == "過去案件情報入力":
 
 elif page == "ワード検索数":
     st.markdown('<div class="slds-page-header"><h1>ワード検索数比較</h1></div>', unsafe_allow_html=True)
-    st.write("自社の得意分野のキーワードで検索し、各ツールでのヒット件数を入力・保存してください。")
+    st.write("得意分野のキーワードで検索し、各ツールでのヒット件数を入力・保存してください。")
     
     st.markdown("#### 比較キーワードの操作")
     c_add1, c_add2, c_add3 = st.columns([2, 1, 1])
@@ -271,7 +269,6 @@ elif page == "ワード検索数":
     st.markdown("---")
     st.markdown("#### ヒット件数の実測値テーブル")
     if st.session_state.search_words:
-        # テーブル編集用のデータフレーム作成
         df_search = pd.DataFrame([
             {"検索ワード": w, "NJSS (件)": st.session_state.search_counts.get(w, {}).get("NJSS", 0), "入札王 (件)": st.session_state.search_counts.get(w, {}).get("入札王", 0)}
             for w in st.session_state.search_words
@@ -292,7 +289,7 @@ elif page == "ワード検索数":
 
 elif page == "コスト・ROI分析":
     st.markdown('<div class="slds-page-header"><h1>コスト・ROI分析設定</h1></div>', unsafe_allow_html=True)
-    st.write("ツール見積額と自社の営業パフォーマンスを入力し、採算ラインを可視化します。")
+    st.write("ツール見積額と営業パフォーマンスを入力し、採算ラインを可視化します。")
     
     c1, c2 = st.columns(2)
     with c1:
@@ -325,7 +322,6 @@ elif page == "コスト・ROI分析":
     st.markdown("### 損益分岐点・5年収益推移シミュレーション")
     st.info("💡 以下のグラフは上記で入力された値を元に計算されています。（すべて0円・データ無しの場合は平坦になります）")
     
-    # 損益分岐点グラフ
     fig_bep = go.Figure()
     fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値", line=dict(color="#10B981", width=4)))
     fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSS累積コスト", line=dict(color="#0176D3", dash='dash')))
@@ -333,7 +329,6 @@ elif page == "コスト・ROI分析":
     fig_bep.update_layout(title="累積コストと売上の交差点（損益分岐点）", template="plotly_white", paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_bep, use_container_width=True)
 
-    # 5年利益グラフ
     fig_prof = px.bar(p_df, x="年", y=["NJSS利益", "入札王利益"], barmode="group", title="各年の累積利益比較", color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
     fig_prof.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_prof, use_container_width=True)
@@ -346,64 +341,95 @@ elif page == "詳細マニュアル":
     ### 1. 検証の全体フロー（自走手順）
     
     **STEP 1: 過去データの準備**
-    「過去案件情報入力」画面に、過去1〜2年で自社が関連した案件、または落札したかったターゲット案件を10〜20件入力します。この件数が多いほどシミュレーションの精度が上がります。
+    「過去案件情報入力」画面に、関連する過去案件を10〜20件入力します。件数が多いほどシミュレーション精度が上がります。
     
     **STEP 2: ツールでの検索実測**
-    NJSSおよび入札王のトライアルアカウントを使用し、STEP 1で入力した案件が「実際に検索して見つかるか」を確認します。見つかったものにチェックを入れて保存します。
+    各ツールのトライアルアカウントを使用し、STEP 1で入力した案件が「実際に検索して見つかるか」を確認してチェックを入れます。
     
     **STEP 3: キーワード検索ボリュームの確認**
-    「ワード検索数」画面を開き、自社の得意領域（例：DX推進、データ分析）で検索した結果のヒット件数を入力し、保存します。
+    「ワード検索数」画面を開き、得意領域（例：DX推進）で検索した結果のヒット件数を入力し、保存します。
     
     **STEP 4: コストシミュレーションの設定**
-    「コスト・ROI分析」画面を開き、営業担当から提示された見積もり金額と、自社の平均受注率・利益率を設定します。これにより「何年目で黒字化するか」が算出されます。
+    「コスト・ROI分析」画面を開き、見積もり金額と、平均受注率・利益率を設定します。これで「何年目で黒字化するか」が算出されます。
     
     **STEP 5: 最終判断と稟議**
-    「ダッシュボード」画面を確認してください。入力したすべてのデータが統合され、レーダーチャートと推奨テキストが出力されます。この画面をキャプチャし、稟議書に添付してください。
-
-    ---
-
-    ### 2. 重要指標（KPI）の読み方
-    
-    * **網羅率 (Coverage Rate)**
-      最も重要な指標です。過去の有望案件が掲載されていなければ、導入しても見逃すことになります。80%以上が理想的です。
-    
-    * **累積利益予測 (5年ROI)**
-      単なる利用料の安さではなく、「平均落札額 × 粗利率 × 受注率」から導かれる期待利益とコストを差し引き、中長期でどちらが黒字になるかを示します。
-      
-    * **検索精度 (Search Precision)**
-      キーワード検索結果の数です。件数が多すぎると「関係ない案件」までヒットし運用負荷が上がり、少なすぎると漏れのリスクがあります。
+    「ダッシュボード」画面を確認してください。入力した全データが統合され、レーダーチャートと推奨テキストが出力されます。この画面をキャプチャし稟議書に添付してください。
     """)
 
 elif page == "データ管理 (一括・初期化)":
     st.markdown('<div class="slds-page-header"><h1>データ一括管理・初期化</h1></div>', unsafe_allow_html=True)
     
-    st.markdown("### サンプルCSVダウンロード")
-    st.write("Excel等で案件データを一括作成するためのフォーマットです。")
-    sample_data = [{"ID": 1, "自治体名": "東京都", "案件概要": "案件サンプル", "仕様書": True, "落札金額(千円)": 10000, "NJSS掲載": True, "入札王掲載": False}]
-    st.download_button("フォーマットをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="import_format.csv", mime="text/csv")
+    st.markdown("### 🏆 万能テスト用 サンプルCSVダウンロード")
+    st.write("このCSVをアップロードするだけで、**「コスト」「検索ワード」「過去案件」のすべてが自動セットアップ**され、ダッシュボードが一瞬で完成します。テストやデモにご利用ください。")
+    
+    # 全データ入り最強サンプルCSVデータ
+    sample_data = [
+        {"ID": "SETTING_COST", "自治体名": "NJSS初期費用", "落札金額(千円)": 100000},
+        {"ID": "SETTING_COST", "自治体名": "NJSS月額費用", "落札金額(千円)": 50000},
+        {"ID": "SETTING_COST", "自治体名": "入札王初期費用", "落札金額(千円)": 0},
+        {"ID": "SETTING_COST", "自治体名": "入札王月額費用", "落札金額(千円)": 30000},
+        {"ID": "SETTING_COST", "自治体名": "平均受注率", "落札金額(千円)": 25},
+        {"ID": "SETTING_COST", "自治体名": "平均粗利率", "落札金額(千円)": 30},
+        {"ID": "SETTING_COST", "自治体名": "年間想定応札数", "落札金額(千円)": 50},
+        {"ID": "SETTING_WORD", "自治体名": "データ分析基盤", "案件概要": "150", "落札企業": "120"},
+        {"ID": "SETTING_WORD", "自治体名": "BIツール", "案件概要": "80", "落札企業": "90"},
+        {"ID": 1, "自治体名": "東京都", "案件概要": "ダッシュボード構築", "仕様書": True, "予算(千円)": 0, "落札金額(千円)": 15000, "落札企業": "株式会社ジール", "応札1": "A社", "応札2": "B社", "応札3": "", "NJSS掲載": True, "入札王掲載": False},
+        {"ID": 2, "自治体名": "大阪府", "案件概要": "BIツールライセンス更新", "仕様書": True, "予算(千円)": 0, "落札金額(千円)": 8000, "落札企業": "C社", "応札1": "株式会社ジール", "応札2": "", "応札3": "", "NJSS掲載": True, "入札王掲載": True}
+    ]
+    st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="all_in_one_sample.csv", mime="text/csv", type="primary")
     
     st.markdown("---")
-    st.markdown("### CSVインポート")
-    up_f = st.file_uploader("作成したCSVをアップロード", type="csv")
+    st.markdown("### CSV一括インポート")
+    up_f = st.file_uploader("作成またはダウンロードしたCSVをアップロード", type="csv")
     if up_f:
         im_df = pd.read_csv(up_f, encoding="utf-8-sig")
-        st.write("プレビュー:")
+        st.write("プレビュー (先頭5件):")
         st.dataframe(im_df.head())
-        if st.button("このデータをスプレッドシートへ書き込む", type="primary"):
+        
+        if st.button("このデータをシステムとスプレッドシートへ書き込む", type="primary", use_container_width=True):
             try:
-                final_df = pd.concat([load_data(), im_df], ignore_index=True).fillna("")
-                conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=final_df)
-                st.success("✅ 保存に成功しました！ダッシュボードを確認してください。")
-            except: 
-                st.error("保存に失敗しました。")
+                new_projects = []
+                for _, row in im_df.iterrows():
+                    tag = str(row.get('ID', ''))
+                    if tag == "SETTING_COST":
+                        item = str(row.get('自治体名', ''))
+                        val = int(pd.to_numeric(row.get('落札金額(千円)', 0), errors='coerce'))
+                        if pd.isna(val): val = 0
+                        
+                        if "NJSS初期" in item: st.session_state.costs["n_init"] = val
+                        elif "NJSS月額" in item: st.session_state.costs["n_month"] = val
+                        elif "入札王初期" in item: st.session_state.costs["k_init"] = val
+                        elif "入札王月額" in item: st.session_state.costs["k_month"] = val
+                        elif "受注率" in item: st.session_state.costs["win_rate"] = val
+                        elif "粗利率" in item: st.session_state.costs["margin"] = val
+                        elif "応札数" in item: st.session_state.costs["annual_bids"] = val
+                    
+                    elif tag == "SETTING_WORD":
+                        word = str(row.get('自治体名', ''))
+                        if word:
+                            if word not in st.session_state.search_words: st.session_state.search_words.append(word)
+                            nj_val = int(pd.to_numeric(row.get('案件概要', 0), errors='coerce'))
+                            ki_val = int(pd.to_numeric(row.get('落札企業', 0), errors='coerce'))
+                            st.session_state.search_counts[word] = {"NJSS": nj_val if pd.notna(nj_val) else 0, "入札王": ki_val if pd.notna(ki_val) else 0}
+                    else:
+                        if pd.notna(row.get('自治体名')) and str(row.get('自治体名')).strip() != "":
+                            new_projects.append(row)
+                
+                if new_projects:
+                    final_df = pd.concat([load_data(), pd.DataFrame(new_projects)], ignore_index=True).fillna("")
+                    conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=final_df)
+                
+                st.success("✅ コスト設定、検索ワード、過去案件データのすべてを正常に読み込み・保存しました！ダッシュボードを確認してください。")
+            except Exception as e: 
+                st.error(f"保存に失敗しました。詳細: {e}")
                 
     st.markdown("---")
     # 💡 隠し機能：データの完全初期化 (安全確認付き)
-    with st.expander("🚨 危険操作：全データの初期化（テスト完了後リセット）"):
+    with st.expander("🚨 危険操作：全データの初期化（テスト完了後のリセット用）"):
         st.warning("スプレッドシートの全案件データ、コスト設定、検索ワードを完全に消去し、空っぽの初期状態に戻します。")
         confirm = st.checkbox("本当にすべてのデータを消去してよろしいですか？（この操作は元に戻せません）")
         
-        if st.button("全データを初期化する", type="primary", use_container_width=True):
+        if st.button("全データを初期化して空っぽにする", type="primary", use_container_width=True):
             if confirm:
                 try:
                     conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
