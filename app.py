@@ -6,94 +6,75 @@ from streamlit_gsheets import GSheetsConnection
 import io
 import csv
 import traceback
+import datetime
 
-# --- 1. UI & CSS (全画面統一のカードデザイン・モダン装飾) ---
-st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide")
+# --- 1. UI & CSS ---
+st.set_page_config(page_title="入札ツール精密評価ボード", layout="wide", initial_sidebar_state="expanded")
 
+# --- 🔒 ログイン機能 (ID / PW形式) ---
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.markdown("""
+        <style>
+        .login-card { background-color: #FFFFFF; border-radius: 8px; padding: 2.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-width: 420px; margin: 4rem auto; text-align: center; border: 1px solid #E2E8F0; }
+        .stApp { background-color: #F8FAFC !important; }
+        /* ログイン画面の入力フィールド装飾 */
+        div[data-baseweb="input"] > div { border-radius: 6px !important; border: 1px solid #CBD5E1 !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important; }
+        div[data-baseweb="input"] > div:focus-within { border-color: #0176D3 !important; box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2) !important; }
+        button[kind="primary"] { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 1.1rem !important; margin-top: 1.5rem !important; padding: 0.75rem !important; transition: all 0.2s ease; }
+        button[kind="primary"]:hover { background-color: #014486 !important; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(1, 118, 211, 0.3); }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    # 💡 ログイン画面にもロゴを表示したい場合は以下のコメントアウトを外してください
+    # st.image("image_2.png", width=200)
+    st.markdown("### 🔐 システムログイン")
+    st.markdown("<p style='color: #64748B; margin-bottom: 2rem; font-size: 14px;'>IDとパスワードを入力してください。</p>", unsafe_allow_html=True)
+    
+    user_id = st.text_input("ログインID", placeholder="IDを入力")
+    pwd = st.text_input("パスワード", type="password", placeholder="パスワードを入力")
+    
+    if st.button("ログイン", type="primary", use_container_width=True):
+        # 💡 ここで以前設定したIDとパスワードに書き換えてください（現在は admin / admin）
+        if user_id == "admin" and pwd == "admin":
+            st.session_state.logged_in = True
+            st.rerun()
+        else:
+            st.error("IDまたはパスワードが間違っています。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop() # ログインするまでこれより下の処理を実行しない
+
+# --- アプリ本体のCSS ---
 st.markdown("""
     <style>
-    /* ヘッダーの非表示と上部余白の調整 */
-    [data-testid="stHeader"] { display: none !important; }
-    [data-testid="stAppViewContainer"] { padding-top: 0rem !important; background-color: #F4F7FA !important; }
-    [data-testid="block-container"] { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-
-    /* 文字色設定 */
+    [data-testid="stAppViewContainer"] { background-color: #F4F7FA !important; }
+    [data-testid="block-container"] { padding-top: 1rem !important; padding-bottom: 2rem !important; }
     .stApp { color: #1E293B !important; }
     
-    /* サイドバー配色 */
     [data-testid="stSidebar"] { background-color: #1E293B !important; border-right: none !important; }
     [data-testid="stSidebar"] * { color: #CBD5E1 !important; }
-    .sidebar-section-header { color: #64748B !important; font-size: 11px !important; font-weight: 700; letter-spacing: 1px; padding: 10px 15px; margin: 20px 0px 5px 0px; text-transform: uppercase; }
+    .sidebar-section-header { color: #64748B !important; font-size: 11px !important; font-weight: 700; letter-spacing: 1px; padding: 10px 15px; margin: 10px 0px 5px 0px; text-transform: uppercase; }
 
-    /* ラジオボタンをリンク風に */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 6px !important; background-color: transparent; transition: all 0.2s; cursor: pointer; width: 100%; display: block; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #FFFFFF !important; }
     [data-testid="stSidebar"] div.stRadio p { color: #F8FAFC !important; font-size: 14px !important; font-weight: 500 !important; margin: 0 !important; }
 
-    /* ページヘッダー装飾 */
-    .slds-page-header { 
-        background-color: #FFFFFF !important; 
-        padding: 1.5rem 2rem; 
-        border-bottom: 1px solid #E2E8F0; 
-        margin: -2rem -4rem 2rem -4rem; 
-        border-left: 8px solid #0176D3; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    }
+    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 1px solid #E2E8F0; margin: -1rem -4rem 2rem -4rem; border-left: 8px solid #0176D3; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
     .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
     
-    /* 💡 全画面共通の「カード」デザイン（影と枠） */
-    .custom-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 1.8rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
-        margin-bottom: 1.5rem;
-    }
+    .custom-card { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.8rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03); margin-bottom: 1.5rem; }
 
-    /* 💡 セクションタイトルのモダン装飾（アイコンなし） */
-    .form-section-header {
-        color: #0F172A;
-        font-size: 1.15rem;
-        font-weight: 700;
-        border-left: 5px solid #0176D3;
-        background-color: #F8FAFC;
-        padding: 0.6rem 1rem;
-        margin-top: 2rem;
-        margin-bottom: 1.2rem;
-        border-radius: 0 4px 4px 0;
-    }
+    .form-section-header { color: #0F172A; font-size: 1.15rem; font-weight: 700; border-left: 5px solid #0176D3; background-color: #F8FAFC; padding: 0.6rem 1rem; margin-top: 2rem; margin-bottom: 1.2rem; border-radius: 0 4px 4px 0; }
     
-    /* プライマリボタン（保存、追加、クリアなど） */
-    button[kind="primary"] { 
-        background-color: #0176D3 !important; 
-        color: #FFFFFF !important; 
-        border-radius: 6px !important; 
-        font-weight: 700 !important; 
-        font-size: 1.1rem !important;
-        border: none !important; 
-        padding: 0.75rem 1.5rem !important; 
-        transition: all 0.2s ease;
-    }
+    button[kind="primary"] { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 1.1rem !important; border: none !important; padding: 0.75rem 1.5rem !important; transition: all 0.2s ease; }
     button[kind="primary"]:hover { background-color: #014486 !important; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(1, 118, 211, 0.3); }
     
-    /* 入力フィールドの影とフォーカス効果 */
-    div[data-baseweb="input"] > div, 
-    div[data-baseweb="textarea"] > div, 
-    div[data-baseweb="select"] > div {
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 6px !important;
-        background-color: #FFFFFF !important;
-        transition: all 0.2s ease !important;
-    }
-    div[data-baseweb="input"] > div:focus-within, 
-    div[data-baseweb="textarea"] > div:focus-within, 
-    div[data-baseweb="select"] > div:focus-within {
-        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2) !important;
-        border-color: #0176D3 !important;
-    }
+    div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important; border: 1px solid #E2E8F0 !important; border-radius: 6px !important; background-color: #FFFFFF !important; transition: all 0.2s ease !important; }
+    div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div:focus-within, div[data-baseweb="select"] > div:focus-within { box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2) !important; border-color: #0176D3 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -106,7 +87,6 @@ def draw_kpi_card(title, value):
         </div>
     """, unsafe_allow_html=True)
 
-# 💡 赤文字の「※必須」ラベルを描画するヘルパー関数
 def required_label(text):
     st.markdown(f'<div style="font-size: 14px; font-weight: 600; color: #0F172A; margin-bottom: 4px;">{text} <span style="color: #E02424; font-size: 12px; margin-left: 4px;">※必須</span></div>', unsafe_allow_html=True)
 
@@ -116,7 +96,7 @@ if 'search_counts' not in st.session_state: st.session_state.search_counts = {}
 if 'costs' not in st.session_state: 
     st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
 
-# --- 💡 データ接続（URL1〜5を追加） ---
+# --- データ接続 ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 CORRECT_COLUMNS = [
     "ID", "自治体名", "担当部署名", "案件概要", "公示日", "入札日", "履行期間", 
@@ -154,11 +134,25 @@ def calculate_projections():
 
 # --- サイドバー ---
 with st.sidebar:
+    # 💡 指定いただいた画像ロゴを表示
+    st.markdown('<div style="padding: 10px 15px 20px 15px; text-align: center;">', unsafe_allow_html=True)
+    try:
+        st.image("image_2.png", use_container_width=True)
+    except:
+        # 画像が見つからない場合のエラー回避用プレースホルダー
+        st.markdown('<div style="color: red; font-size: 12px;">※ image_2.png が見つかりません。同じフォルダに配置してください。</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     st.markdown('<p class="sidebar-section-header">Menu</p>', unsafe_allow_html=True)
     test_mode = st.toggle("データ管理モード")
     menu_options = ["ダッシュボード", "過去案件情報入力", "ワード検索数", "コスト・ROI分析", "詳細マニュアル"]
     if test_mode: menu_options.append("データ管理 (一括・初期化)")
     page = st.radio("メニュー選択", menu_options, label_visibility="collapsed")
+    
+    st.markdown("---")
+    if st.button("ログアウト", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
 
 # --- コンテンツ表示 ---
 
@@ -273,12 +267,12 @@ elif page == "過去案件情報入力":
             dep = st.text_input("dep", label_visibility="collapsed", placeholder="例: デジタル統括本部")
         
         required_label("案件名・案件概要")
-        smm = st.text_input("smm", label_visibility="collapsed", placeholder="例: 交通データ連携（ETL）基盤構築業務")
+        smm = st.text_input("smm", label_visibility="collapsed", placeholder="例: 交通データ連携基盤構築業務")
 
         st.markdown('<div class="form-section-header">スケジュール・要件</div>', unsafe_allow_html=True)
         c3, c4, c5 = st.columns(3)
-        pub_d = c3.text_input("公示日", placeholder="例: 2025-04-01")
-        bid_d = c4.text_input("入札日（提出日）", placeholder="例: 2025-05-15")
+        pub_d_obj = c3.date_input("公示日", value=None)
+        bid_d_obj = c4.date_input("入札日（提出日）", value=None)
         per_d = c5.text_input("履行期間（委託期間）", placeholder="例: 2025-06-01 〜 2026-03-31")
         
         c6, c7 = st.columns(2)
@@ -294,10 +288,10 @@ elif page == "過去案件情報入力":
         our_res = c10.selectbox("自社結果", ["", "受注", "失注", "見送り", "辞退"])
 
         c11, c12 = st.columns(2)
-        wnr = c11.text_input("落札企業", placeholder="例: 株式会社ジール")
-        b1 = c12.text_input("競合企業1", placeholder="例: A社")
-        b2 = c11.text_input("競合企業2", placeholder="例: B社")
-        b3 = c12.text_input("競合企業3", placeholder="例: C社")
+        wnr = c11.text_input("落札企業", placeholder="例: 株式会社テクノサンプル")
+        b1 = c12.text_input("競合企業1", placeholder="例: 株式会社ミライデータ")
+        b2 = c11.text_input("競合企業2", placeholder="例: システム開発株式会社")
+        b3 = c12.text_input("競合企業3", placeholder="例: 合同会社クラウドX")
 
         st.markdown('<div class="form-section-header">ツール掲載確認 (PoC用)</div>', unsafe_allow_html=True)
         c13, c14, c15 = st.columns(3)
@@ -317,9 +311,12 @@ elif page == "過去案件情報入力":
         st.markdown("<br>", unsafe_allow_html=True)
         if st.form_submit_button("この案件を保存する", type="primary", use_container_width=True):
             if mun and smm and wbid > 0:
+                pub_d_str = pub_d_obj.strftime("%Y-%m-%d") if pub_d_obj else ""
+                bid_d_str = bid_d_obj.strftime("%Y-%m-%d") if bid_d_obj else ""
+                
                 new_rec = pd.DataFrame([{
                     "ID": len(valid_df)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm, 
-                    "公示日": pub_d, "入札日": bid_d, "履行期間": per_d, "入札方式": method, "参加資格": qual, 
+                    "公示日": pub_d_str, "入札日": bid_d_str, "履行期間": per_d, "入札方式": method, "参加資格": qual, 
                     "予算(千円)": budget, "落札金額(千円)": wbid, "自社結果": our_res, "落札企業": wnr, 
                     "競合1": b1, "競合2": b2, "競合3": b3, "仕様書": spc, "NJSS掲載": njl, "入札王掲載": kil,
                     "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5
@@ -446,9 +443,9 @@ elif page == "詳細マニュアル":
     本システムは、入札情報サービス（NJSS、入札王等）の導入前検証（PoC）において、感覚ではなく**データに基づいた合理的な決裁**を行うための分析ツール、兼**営業データベース**です。
 
     ### 1. 営業データベースとしての活用
-    今回より、過去案件入力に「担当部署」「入札方式」「スケジュール」などを記録できるようになりました。
-    * **プロポーザル方式の勝率分析**: 自社が企画重視の案件に強いのか、価格競争に強いのかが分析できます。
-    * **次期更新の事前営業**: 履行期間から逆算し、次回の入札公示前に担当部署へ直接アプローチする（仕様に食い込む）ことが可能になります。
+    過去案件入力に「担当部署」「入札方式」「スケジュール」などを記録できます。
+    * **プロポーザル方式の勝率分析**: 企画重視の案件に強いのか、価格競争に強いのかが分析できます。
+    * **次期更新の事前営業**: 履行期間から逆算し、次回の入札公示前に担当部署へ直接アプローチすることが可能になります。
 
     ### 2. PoC検証の全体フロー
     **STEP 1: 過去データの準備**
@@ -461,7 +458,7 @@ elif page == "詳細マニュアル":
     「ワード検索数」画面を開き、得意領域（例：DX推進）で検索した結果のヒット件数を入力し、保存します。
     
     **STEP 4: コストシミュレーションの設定**
-    「コスト・ROI分析」画面を開き、見積もり金額と、平均受注率・利益率を設定します。これで「何年目で黒字化するか」が算出されます。
+    「コスト・ROI分析」画面を開き、見積もり金額と、平均受注率・利益率を設定します。
     
     **STEP 5: 最終判断と稟議**
     「ダッシュボード」画面を確認してください。入力した全データが統合され、レーダーチャートと推奨テキストが出力されます。この画面をキャプチャし稟議書に添付してください。
@@ -473,7 +470,7 @@ elif page == "データ管理 (一括・初期化)":
     
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.markdown("### 🏆 万能テスト用 サンプルCSVダウンロード")
-    st.write("このCSVをアップロードするだけで、**「コスト」「検索ワード」「過去案件（URL含む全項目）」のすべてが自動セットアップ**され、ダッシュボードが一瞬で完成します。")
+    st.write("このCSVをアップロードするだけで、**「コスト」「検索ワード」「過去案件」のすべてが自動セットアップ**され、ダッシュボードが一瞬で完成します。")
     
     sample_data = [
         {"ID": "SETTING_COST", "自治体名": "NJSS初期費用", "落札金額(千円)": 100000},
@@ -485,8 +482,8 @@ elif page == "データ管理 (一括・初期化)":
         {"ID": "SETTING_COST", "自治体名": "年間想定応札数", "落札金額(千円)": 50},
         {"ID": "SETTING_WORD", "自治体名": "データ分析基盤", "案件概要": "150", "落札企業": "120"},
         {"ID": "SETTING_WORD", "自治体名": "BIツール", "案件概要": "80", "落札企業": "90"},
-        {"ID": 1, "自治体名": "東京都", "担当部署名": "デジタルサービス局", "案件概要": "ダッシュボード構築業務", "公示日": "2025-04-01", "入札日": "2025-05-10", "履行期間": "2026-03-31まで", "入札方式": "公募型プロポーザル", "参加資格": "Aランク", "予算(千円)": 20000, "落札金額(千円)": 15000, "自社結果": "受注", "落札企業": "株式会社ジール", "競合1": "A社", "競合2": "B社", "競合3": "", "仕様書": True, "NJSS掲載": True, "入札王掲載": False, "URL1": "https://example.com/spec1", "URL2": "", "URL3": "", "URL4": "", "URL5": ""},
-        {"ID": 2, "自治体名": "大阪府", "担当部署名": "スマートシティ戦略部", "案件概要": "BIツールライセンス更新", "公示日": "2025-06-01", "入札日": "2025-07-15", "履行期間": "1年間", "入札方式": "一般競争入札", "参加資格": "情報処理", "予算(千円)": 10000, "落札金額(千円)": 8000, "自社結果": "失注", "落札企業": "C社", "競合1": "株式会社ジール", "競合2": "", "競合3": "", "仕様書": True, "NJSS掲載": True, "入札王掲載": True, "URL1": "https://example.com/spec2", "URL2": "", "URL3": "", "URL4": "", "URL5": ""}
+        {"ID": 1, "自治体名": "東京都", "担当部署名": "デジタルサービス局", "案件概要": "ダッシュボード構築業務", "公示日": "2025-04-01", "入札日": "2025-05-10", "履行期間": "2026-03-31まで", "入札方式": "公募型プロポーザル", "参加資格": "Aランク", "予算(千円)": 20000, "落札金額(千円)": 15000, "自社結果": "受注", "落札企業": "株式会社テクノサンプル", "競合1": "株式会社ミライデータ", "競合2": "B社", "競合3": "", "仕様書": True, "NJSS掲載": True, "入札王掲載": False, "URL1": "https://example.com/spec1", "URL2": "", "URL3": "", "URL4": "", "URL5": ""},
+        {"ID": 2, "自治体名": "大阪府", "担当部署名": "スマートシティ戦略部", "案件概要": "BIツールライセンス更新", "公示日": "2025-06-01", "入札日": "2025-07-15", "履行期間": "1年間", "入札方式": "一般競争入札", "参加資格": "情報処理", "予算(千円)": 10000, "落札金額(千円)": 8000, "自社結果": "失注", "落札企業": "C社", "競合1": "株式会社テクノサンプル", "競合2": "", "競合3": "", "仕様書": True, "NJSS掲載": True, "入札王掲載": True, "URL1": "https://example.com/spec2", "URL2": "", "URL3": "", "URL4": "", "URL5": ""}
     ]
     st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="database_sample.csv", mime="text/csv", type="primary")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -532,7 +529,7 @@ elif page == "データ管理 (一括・初期化)":
                     final_df = pd.concat([load_data(), pd.DataFrame(new_projects)], ignore_index=True).fillna("")
                     conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=final_df)
                 
-                st.success("✅ コスト設定、検索ワード、過去案件データのすべてを正常に読み込み・保存しました！ダッシュボードを確認してください。")
+                st.success("✅ コスト設定、検索ワード、過去案件データのすべてを正常に読み込み・保存しました！")
             except Exception as e: 
                 st.error(f"保存に失敗しました。詳細: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -550,7 +547,6 @@ elif page == "データ管理 (一括・初期化)":
                     st.session_state.search_counts = {}
                     st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
                     st.success("✅ すべてのデータを消去し、初期状態に戻しました。")
-                    st.rerun()
                 except Exception as e: 
                     st.error(f"初期化に失敗しました。詳細: {e}")
             else:
