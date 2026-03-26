@@ -45,24 +45,22 @@ st.markdown("""
     /* セクションタイトル */
     .form-section-header { color: #0F172A; font-size: 1.15rem; font-weight: 700; border-left: 5px solid #0176D3; background-color: #F8FAFC; padding: 0.6rem 1rem; margin-top: 1.5rem; margin-bottom: 1.2rem; border-radius: 0 4px 4px 0; }
     
-    /* 💡 Streamlitネイティブコンテナの背景を白にするためのCSS */
+    /* Streamlitネイティブコンテナの背景を白にするためのCSS */
     [data-testid="stVerticalBlockBorderWrapper"] { background-color: #FFFFFF !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 🔒 ログイン機能 (かっこいい中央配置デザイン) ---
+# --- 🔒 ログイン機能 (中央配置デザイン) ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # 画面を3分割して中央にログインフォームを配置
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        st.write("") # 上部の余白
+        st.write("") 
         st.write("")
         st.write("")
-        # 💡 HTMLのdivではなく、Streamlit純正の枠付きコンテナを使用（白枠バグが起きない）
         with st.container(border=True):
             st.markdown("<br>", unsafe_allow_html=True)
             
@@ -89,12 +87,11 @@ if not st.session_state.logged_in:
                 else:
                     st.error("IDまたはパスワードが間違っています。")
             st.markdown("<br>", unsafe_allow_html=True)
-    st.stop() # ログインするまでこれより下の処理を実行しない
+    st.stop()
 
 
 # --- カスタム関数群 ---
 def draw_kpi_card(title, value):
-    # 中にStreamlitの部品を入れない単なるテキストならHTMLでも白枠バグは起きません
     st.markdown(f"""
         <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem;">
             <p style="color: #64748B; font-size: 14px; font-weight: 700; margin: 0 0 8px 0;">{title}</p>
@@ -177,7 +174,6 @@ if page == "ダッシュボード":
     if valid_df.empty:
         st.info("データがありません。「過去案件情報入力」または「データ管理」からデータを登録してください。")
     else:
-        # 💡 HTMLのdivを使わず、ネイティブコンテナを使用！
         with st.container(border=True):
             st.markdown("### 全体カバレッジ（網羅率）")
             k1, k2, k3 = st.columns(3)
@@ -263,7 +259,6 @@ elif page == "過去案件情報入力":
     valid_df = df_cur[df_cur["自治体名"].notna() & (df_cur["自治体名"] != "")].copy()
     
     with st.container(border=True):
-        # formも標準で枠があるので、デザインが崩れません
         with st.form("entry_form", clear_on_submit=True):
             
             st.markdown('<div class="form-section-header">基本情報</div>', unsafe_allow_html=True)
@@ -504,5 +499,57 @@ elif page == "データ管理 (一括・初期化)":
                         tag = str(row.get('ID', ''))
                         if tag == "SETTING_COST":
                             item = str(row.get('自治体名', ''))
-                            val = int(pd.to_numeric(row.get('落札金額(千円)', 0), errors='coerce'))
-                            if pd.isna(val
+                            
+                            # 💡 より安全な数値変換処理に変更
+                            raw_val = pd.to_numeric(row.get('落札金額(千円)', 0), errors='coerce')
+                            val = 0 if pd.isna(raw_val) else int(raw_val)
+                            
+                            if "NJSS初期" in item: st.session_state.costs["n_init"] = val
+                            elif "NJSS月額" in item: st.session_state.costs["n_month"] = val
+                            elif "入札王初期" in item: st.session_state.costs["k_init"] = val
+                            elif "入札王月額" in item: st.session_state.costs["k_month"] = val
+                            elif "受注率" in item: st.session_state.costs["win_rate"] = val
+                            elif "粗利率" in item: st.session_state.costs["margin"] = val
+                            elif "応札数" in item: st.session_state.costs["annual_bids"] = val
+                        
+                        elif tag == "SETTING_WORD":
+                            word = str(row.get('自治体名', ''))
+                            if word:
+                                if word not in st.session_state.search_words: st.session_state.search_words.append(word)
+                                
+                                # 💡 より安全な数値変換処理に変更
+                                raw_nj = pd.to_numeric(row.get('案件概要', 0), errors='coerce')
+                                raw_ki = pd.to_numeric(row.get('落札企業', 0), errors='coerce')
+                                nj_val = 0 if pd.isna(raw_nj) else int(raw_nj)
+                                ki_val = 0 if pd.isna(raw_ki) else int(raw_ki)
+                                
+                                st.session_state.search_counts[word] = {"NJSS": nj_val, "入札王": ki_val}
+                        else:
+                            if pd.notna(row.get('自治体名')) and str(row.get('自治体名')).strip() != "":
+                                new_projects.append(row)
+                    
+                    if new_projects:
+                        final_df = pd.concat([load_data(), pd.DataFrame(new_projects)], ignore_index=True).fillna("")
+                        conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=final_df)
+                    
+                    st.success("✅ コスト設定、検索ワード、過去案件データのすべてを正常に読み込み・保存しました！")
+                except Exception as e: 
+                    st.error(f"保存に失敗しました。詳細: {e}")
+                
+    with st.container(border=True):
+        with st.expander("🚨 危険操作：全データの初期化（テスト完了後のリセット用）"):
+            st.warning("スプレッドシートの全案件データ、コスト設定、検索ワードを完全に消去し、空っぽの初期状態に戻します。")
+            confirm = st.checkbox("本当にすべてのデータを消去してよろしいですか？（この操作は元に戻せません）")
+            
+            if st.button("全データを初期化して空っぽにする", type="primary", use_container_width=True):
+                if confirm:
+                    try:
+                        conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
+                        st.session_state.search_words = []
+                        st.session_state.search_counts = {}
+                        st.session_state.costs = {"n_init": 0, "n_month": 0, "n_opt": 0, "k_init": 0, "k_month": 0, "k_opt": 0, "margin": 20, "win_rate": 20, "annual_bids": 50}
+                        st.success("✅ すべてのデータを消去し、初期状態に戻しました。")
+                    except Exception as e: 
+                        st.error(f"初期化に失敗しました。詳細: {e}")
+                else:
+                    st.error("※消去を実行するには、上の確認チェックボックスにチェックを入れてください。")
