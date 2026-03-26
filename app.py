@@ -45,33 +45,35 @@ st.markdown("""
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #FFFFFF !important; }
     [data-testid="stSidebar"] div.stRadio p { color: #F8FAFC !important; font-size: 15px !important; font-weight: 500 !important; margin: 0 !important; }
 
-    /* ページタイトル装飾（ボーダーレス） */
-    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; margin: -1.5rem -4rem 2.5rem -4rem; border-left: 8px solid #0176D3; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    /* 💡 ページタイトル装飾（境界線を完全撤去し、シャドウのみに） */
+    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; margin: -1.5rem -4rem 2.5rem -4rem; border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
     .slds-page-header h1 { color: #0F172A !important; margin: 0; }
     
-    /* 💡 全ボタンの青色・白文字統一とホバーアクション */
+    /* 💡 全ボタンの青色・白文字強制適用 */
     div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
         background-color: #0176D3 !important;
-        color: #FFFFFF !important;
-        border-radius: 6px !important;
-        font-weight: 700 !important;
-        font-size: 1.1rem !important;
         border: none !important; /* 枠線を完全に消す */
+        border-radius: 6px !important;
         padding: 0.75rem 1.5rem !important;
         transition: all 0.3s ease !important;
         width: 100%;
-        box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2) !important; /* ボタンにも影をつける */
+        box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2) !important;
+    }
+    /* ボタン内部のテキスト要素(pタグなど)を強制的に白にする */
+    div.stButton > button *, div[data-testid="stFormSubmitButton"] > button * {
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
     }
     div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
         background-color: #014486 !important;
         transform: translateY(-2px) !important;
         box-shadow: 0 8px 15px rgba(1, 118, 211, 0.3) !important;
-        color: #FFFFFF !important;
     }
     
-    /* 💡 入力枠の枠線撤去と影の付与 */
+    /* 💡 入力枠の境界線撤去 */
     div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { 
-        border: none !important; /* 枠線なし */
+        border: 0px solid transparent !important; /* 枠線なし */
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important; 
         border-radius: 6px !important; 
         background-color: #FFFFFF !important; 
@@ -81,13 +83,13 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(1, 118, 211, 0.15) !important; 
     }
 
-    /* フォーム内のセクションタイトル */
-    .form-section-header { color: #0F172A; font-size: 1.25rem; font-weight: 700; border-left: 5px solid #0176D3; background-color: #F8FAFC; padding: 0.6rem 1rem; margin-top: 1.5rem; margin-bottom: 1.2rem; border-radius: 0 4px 4px 0; }
+    /* 💡 フォーム内のセクションタイトル（境界線撤去） */
+    .form-section-header { color: #0F172A; font-size: 1.25rem; font-weight: 700; border: none !important; background-color: #F8FAFC; padding: 0.6rem 1rem; margin-top: 1.5rem; margin-bottom: 1.2rem; border-radius: 6px; }
     
-    /* 💡 全コンテナの枠線撤去とドロップシャドウ化 */
+    /* 💡 全コンテナの境界線撤去とドロップシャドウ化 */
     [data-testid="stVerticalBlockBorderWrapper"] { 
         background-color: #FFFFFF !important; 
-        border: none !important; /* 枠線なし */
+        border: 0px solid transparent !important; /* 枠線完全撤去 */
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05) !important; 
         border-radius: 12px !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
@@ -98,9 +100,10 @@ st.markdown("""
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* 💡 KPIカード専用のデザイン */
+    /* KPIカードのデザイン（境界線なし） */
     .kpi-card {
         background-color: #FFFFFF;
+        border: none !important;
         border-radius: 12px;
         padding: 1.5rem 0.5rem;
         text-align: center;
@@ -138,7 +141,7 @@ if not st.session_state.logged_in:
             pwd = st.text_input("パスワード", type="password", placeholder="パスワードを入力")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("ログイン"):
+            if st.button("ログイン", type="primary", use_container_width=True):
                 # ここで以前設定したIDとパスワードに書き換えてください
                 if user_id == "admin" and pwd == "admin":
                     st.session_state.logged_in = True
@@ -151,7 +154,6 @@ if not st.session_state.logged_in:
 
 # --- カスタム関数群 ---
 def draw_kpi_card(title, value):
-    # カードとして独立させるHTML
     st.markdown(f"""
         <div class="kpi-card">
             <p style="color: #64748B; font-size: 0.95rem; font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase;">{title}</p>
@@ -220,7 +222,7 @@ with st.sidebar:
     page = st.radio("メニュー選択", menu_options, label_visibility="collapsed")
     
     st.markdown("---")
-    if st.button("ログアウト"):
+    if st.button("ログアウト", type="primary", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
@@ -235,7 +237,6 @@ if page == "ダッシュボード":
         with st.container(border=True):
             st.info("データがありません。「過去案件情報入力」または「データ管理」からデータを登録してください。")
     else:
-        # サマリーセクション（それぞれを独立したカードとして描画）
         st.markdown("<h3 style='margin-top:0;'>全体サマリー</h3>", unsafe_allow_html=True)
         k1, k2, k3, k4, k5 = st.columns(5)
         nj_c = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
@@ -302,7 +303,6 @@ if page == "ダッシュボード":
         with st.container(border=True):
             st.markdown("### 項目別評価および総合判定レポート")
             
-            # 各項目の勝敗判定ロジック
             cov_diff = nj_c - ki_c
             cov_winner = "NJSS" if cov_diff > 0 else "入札王" if cov_diff < 0 else "同等（引き分け）"
             
@@ -318,7 +318,6 @@ if page == "ダッシュボード":
             nj_score = (cov_winner == "NJSS") + (sw_winner == "NJSS") + (roi_winner == "NJSS")
             ki_score = (cov_winner == "入札王") + (sw_winner == "入札王") + (roi_winner == "入札王")
             
-            # 💡 レーダーチャート用のデータ生成
             nj_cov = (nj_c / len(valid_df) * 100) if len(valid_df) > 0 else 0
             ki_cov = (ki_c / len(valid_df) * 100) if len(valid_df) > 0 else 0
             tot_sw = nj_sw + ki_sw
@@ -356,7 +355,6 @@ if page == "ダッシュボード":
                     st.info("最終推奨：両者引き分け\n\n定量的なデータからは両ツールの実力は拮抗しています。UIの使いやすさや、営業担当者のサポート体制など、定性的な要素を加味して最終決定を行ってください。")
             
             with col_eval2:
-                # 💡 右側にレーダーチャートを描画
                 st.plotly_chart(fig_r, use_container_width=True)
 
 elif page == "過去案件情報入力":
@@ -420,7 +418,7 @@ elif page == "過去案件情報入力":
             url5 = st.text_input("URL 5")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("この案件を保存する"):
+            if st.form_submit_button("この案件を保存する", type="primary", use_container_width=True):
                 if mun and smm and wbid > 0:
                     pub_d_str = pub_d_obj.strftime("%Y-%m-%d") if pub_d_obj else ""
                     bid_d_str = bid_d_obj.strftime("%Y-%m-%d") if bid_d_obj else ""
@@ -452,10 +450,10 @@ elif page == "ワード検索数":
         st.markdown("### 比較キーワードの操作")
         c_add1, c_add2, c_add3 = st.columns([2, 1, 1])
         new_w = c_add1.text_input("キーワード", placeholder="例: BIツール、DX推進", key="in_new_w", label_visibility="collapsed")
-        if c_add2.button("追加"):
+        if c_add2.button("追加", type="primary", use_container_width=True):
             if new_w and new_w not in st.session_state.search_words:
                 st.session_state.search_words.append(new_w); st.rerun()
-        if c_add3.button("リストをクリア"): 
+        if c_add3.button("リストをクリア", type="primary", use_container_width=True): 
             st.session_state.search_words = []
             st.session_state.search_counts = {}
             st.rerun()
@@ -471,7 +469,7 @@ elif page == "ワード検索数":
             edited_df = st.data_editor(df_search, num_rows="dynamic", use_container_width=True, hide_index=True, key="kw_editor")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("テーブルの検索件数を保存する"):
+            if st.button("テーブルの検索件数を保存する", type="primary", use_container_width=True):
                 st.session_state.search_words = edited_df["検索ワード"].dropna().tolist()
                 new_counts = {}
                 for _, row in edited_df.iterrows():
@@ -509,7 +507,7 @@ elif page == "コスト・ROI分析":
         ab = cs3.number_input("年間想定応札数 (件)", value=st.session_state.costs["annual_bids"], help="1年間に何件の入札に参加するか。")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("設定を保存してグラフを更新"):
+        if st.button("設定を保存してグラフを更新", type="primary", use_container_width=True):
             st.session_state.costs.update({"n_init": n_i, "n_month": n_m, "n_opt": n_o, "k_init": k_i, "k_month": k_m, "k_opt": k_o, "margin": mg, "win_rate": wr, "annual_bids": ab})
             st.success("設定を更新しました。")
 
@@ -582,7 +580,7 @@ elif page == "データ管理 (一括・初期化)":
             {"ID": 1, "自治体名": "東京都", "担当部署名": "デジタルサービス局", "案件概要": "ダッシュボード構築業務", "公示日": "2025-04-01", "入札日": "2025-05-10", "履行期間": "2026-03-31まで", "入札方式": "公募型プロポーザル", "参加資格": "Aランク", "予算(千円)": 20000, "落札金額(千円)": 15000, "自社結果": "受注", "落札企業": "株式会社テクノサンプル", "競合1": "株式会社ミライデータ", "競合2": "B社", "競合3": "", "仕様書": True, "NJSS掲載": True, "入札王掲載": False, "URL1": "https://example.com/spec1", "URL2": "", "URL3": "", "URL4": "", "URL5": ""},
             {"ID": 2, "自治体名": "大阪府", "担当部署名": "スマートシティ戦略部", "案件概要": "BIツールライセンス更新", "公示日": "2025-06-01", "入札日": "2025-07-15", "履行期間": "1年間", "入札方式": "一般競争入札", "参加資格": "情報処理", "予算(千円)": 10000, "落札金額(千円)": 8000, "自社結果": "失注", "落札企業": "C社", "競合1": "株式会社テクノサンプル", "競合2": "", "競合3": "", "仕様書": True, "NJSS掲載": True, "入札王掲載": True, "URL1": "https://example.com/spec2", "URL2": "", "URL3": "", "URL4": "", "URL5": ""}
         ]
-        st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="database_sample.csv", mime="text/csv")
+        st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample_data).to_csv(index=False).encode('utf-8-sig'), file_name="database_sample.csv", mime="text/csv", type="primary")
     
     with st.container(border=True):
         st.markdown("### CSV一括インポート")
@@ -593,7 +591,7 @@ elif page == "データ管理 (一括・初期化)":
             st.dataframe(im_df.head())
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("このデータをシステムとスプレッドシートへ書き込む"):
+            if st.button("このデータをシステムとスプレッドシートへ書き込む", type="primary", use_container_width=True):
                 try:
                     new_projects = []
                     for _, row in im_df.iterrows():
@@ -641,7 +639,7 @@ elif page == "データ管理 (一括・初期化)":
             confirm = st.checkbox("本当にすべてのデータを消去してよろしいですか？（この操作は元に戻せません）")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("全データを初期化して空っぽにする"):
+            if st.button("全データを初期化して空っぽにする", type="primary", use_container_width=True):
                 if confirm:
                     try:
                         conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=pd.DataFrame(columns=CORRECT_COLUMNS))
