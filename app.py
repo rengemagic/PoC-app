@@ -15,36 +15,40 @@ st.set_page_config(page_title="入札ツール精密評価ボード", layout="wi
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# ログイン状態に応じて背景色を切り替えるCSS
+# 背景色切り替え
 if not st.session_state.logged_in:
-    # ログイン前：真っ白な背景
     st.markdown("""<style>[data-testid="stAppViewContainer"] { background-color: #FFFFFF !important; }</style>""", unsafe_allow_html=True)
 else:
-    # ログイン後：カードが映える薄いグレー背景
     st.markdown("""<style>[data-testid="stAppViewContainer"] { background-color: #F8FAFC !important; }</style>""", unsafe_allow_html=True)
 
-# --- アプリ全体の基本CSS ---
+# --- アプリ全体の基本CSS（文字拡大・ホバーアクション・メニュー復活） ---
 st.markdown("""
     <style>
-    /* ヘッダー非表示 */
-    [data-testid="stHeader"] { display: none !important; }
-    [data-testid="block-container"] { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-    .stApp { color: #1E293B !important; }
+    /* 💡 ヘッダー（ハンバーガーメニュー）は残し、背景を透明にして馴染ませる */
+    [data-testid="stHeader"] { background-color: transparent !important; }
+    [data-testid="block-container"] { padding-top: 1.5rem !important; padding-bottom: 3rem !important; max-width: 1400px; }
+    
+    /* 💡 全体の文字サイズを大きく、視認性を高くする */
+    html, body, [class*="st-"] { font-size: 16px !important; color: #1E293B !important; }
+    .stMarkdown p { font-size: 1.05rem !important; line-height: 1.6; }
+    h1 { font-size: 1.8rem !important; font-weight: 800 !important; }
+    h3 { font-size: 1.4rem !important; font-weight: 700 !important; border-bottom: 2px solid #E2E8F0; padding-bottom: 0.5rem; margin-bottom: 1rem; color: #0F172A !important; }
+    h4 { font-size: 1.15rem !important; font-weight: 700 !important; margin-top: 1rem; color: #0176D3 !important; }
     
     /* サイドバー配色 */
     [data-testid="stSidebar"] { background-color: #1E293B !important; border-right: none !important; }
     [data-testid="stSidebar"] * { color: #CBD5E1 !important; }
-    .sidebar-section-header { color: #64748B !important; font-size: 11px !important; font-weight: 700; letter-spacing: 1px; padding: 10px 15px; margin: 10px 0px 5px 0px; text-transform: uppercase; }
+    .sidebar-section-header { color: #64748B !important; font-size: 12px !important; font-weight: 700; letter-spacing: 1px; padding: 10px 15px; margin: 10px 0px 5px 0px; text-transform: uppercase; }
 
     /* サイドバーのラジオボタン */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 6px !important; background-color: transparent; transition: all 0.2s; cursor: pointer; width: 100%; display: block; }
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #FFFFFF !important; }
-    [data-testid="stSidebar"] div.stRadio p { color: #F8FAFC !important; font-size: 14px !important; font-weight: 500 !important; margin: 0 !important; }
+    [data-testid="stSidebar"] div.stRadio p { color: #F8FAFC !important; font-size: 15px !important; font-weight: 500 !important; margin: 0 !important; }
 
     /* ページタイトル装飾 */
-    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 1px solid #E2E8F0; margin: -2rem -4rem 2rem -4rem; border-left: 8px solid #0176D3; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .slds-page-header h1 { color: #0F172A !important; font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .slds-page-header { background-color: #FFFFFF !important; padding: 1.5rem 2rem; border-bottom: 1px solid #E2E8F0; margin: -1.5rem -4rem 2.5rem -4rem; border-left: 8px solid #0176D3; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .slds-page-header h1 { color: #0F172A !important; margin: 0; }
     
     /* ボタンと入力枠のデザイン */
     button[kind="primary"] { background-color: #0176D3 !important; color: #FFFFFF !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 1.1rem !important; border: none !important; padding: 0.75rem 1.5rem !important; transition: all 0.2s ease; }
@@ -53,15 +57,23 @@ st.markdown("""
     div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important; border: 1px solid #E2E8F0 !important; border-radius: 6px !important; background-color: #FFFFFF !important; transition: all 0.2s ease !important; }
     div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div:focus-within, div[data-baseweb="select"] > div:focus-within { box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2) !important; border-color: #0176D3 !important; }
 
-    /* セクションタイトル */
-    .form-section-header { color: #0F172A; font-size: 1.15rem; font-weight: 700; border-left: 5px solid #0176D3; background-color: #F8FAFC; padding: 0.6rem 1rem; margin-top: 1.5rem; margin-bottom: 1.2rem; border-radius: 0 4px 4px 0; }
+    /* フォーム内のセクションタイトル */
+    .form-section-header { color: #0F172A; font-size: 1.25rem; font-weight: 700; border-left: 5px solid #0176D3; background-color: #F8FAFC; padding: 0.6rem 1rem; margin-top: 1.5rem; margin-bottom: 1.2rem; border-radius: 0 4px 4px 0; }
     
-    /* 💡 全てのカード（コンテナ）にドロップシャドウを適用 */
+    /* 💡 カードコンテナ全体のデザインと、ホバー時の浮き上がりアクション */
     [data-testid="stVerticalBlockBorderWrapper"] { 
         background-color: #FFFFFF !important; 
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important; 
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04) !important; 
         border: 1px solid #E2E8F0 !important;
         border-radius: 8px !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important; /* なめらかなアニメーション */
+        padding: 0.5rem;
+    }
+    /* カーソルを合わせたとき（ホバー）のアクション */
+    [data-testid="stVerticalBlockBorderWrapper"]:hover {
+        transform: translateY(-5px) !important; /* 少し上に浮く */
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1) !important; /* 影が大きく、濃くなる */
+        border-color: #CBD5E1 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -85,7 +97,7 @@ if not st.session_state.logged_in:
                 except:
                     st.markdown('<div style="color: red; font-size: 12px; text-align: center;">※ image_2.png を同じフォルダに配置してください。</div>', unsafe_allow_html=True)
             
-            st.markdown("<h3 style='text-align: center; color: #0F172A; margin-top: 1rem;'>システムログイン</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align: center; color: #0F172A; margin-top: 1rem; border: none;'>システムログイン</h3>", unsafe_allow_html=True)
             st.markdown("<p style='text-align: center; color: #64748B; margin-bottom: 2rem; font-size: 14px;'>IDとパスワードを入力してください。</p>", unsafe_allow_html=True)
             
             user_id = st.text_input("ログインID", placeholder="IDを入力")
@@ -93,6 +105,7 @@ if not st.session_state.logged_in:
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("ログイン", type="primary", use_container_width=True):
+                # ここで以前設定したIDとパスワードに書き換えてください
                 if user_id == "admin" and pwd == "admin":
                     st.session_state.logged_in = True
                     st.rerun()
@@ -104,15 +117,16 @@ if not st.session_state.logged_in:
 
 # --- カスタム関数群 ---
 def draw_kpi_card(title, value):
+    # カードの中の要素はあえて枠線を消し、シンプルなテキストのみにする
     st.markdown(f"""
-        <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
-            <p style="color: #64748B; font-size: 14px; font-weight: 700; margin: 0 0 8px 0;">{title}</p>
-            <p style="color: #0176D3; font-size: 38px; font-weight: 700; margin: 0; line-height: 1.2;">{value}</p>
+        <div style="text-align: center; padding: 0.5rem 0;">
+            <p style="color: #64748B; font-size: 0.95rem; font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase;">{title}</p>
+            <p style="color: #0176D3; font-size: 2.2rem; font-weight: 800; margin: 0; line-height: 1.1;">{value}</p>
         </div>
     """, unsafe_allow_html=True)
 
 def required_label(text):
-    st.markdown(f'<div style="font-size: 14px; font-weight: 600; color: #0F172A; margin-bottom: 4px;">{text} <span style="color: #E02424; font-size: 12px; margin-left: 4px;">※必須</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 4px;">{text} <span style="color: #E02424; font-size: 12px; margin-left: 4px;">※必須</span></div>', unsafe_allow_html=True)
 
 # --- 状態変数の初期化 ---
 if 'search_words' not in st.session_state: st.session_state.search_words = []
@@ -172,7 +186,6 @@ with st.sidebar:
     page = st.radio("メニュー選択", menu_options, label_visibility="collapsed")
     
     st.markdown("---")
-    # 💡 ログアウトボタンをプライマリカラー（青）に変更
     if st.button("ログアウト", type="primary", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
@@ -188,29 +201,42 @@ if page == "ダッシュボード":
         with st.container(border=True):
             st.info("データがありません。「過去案件情報入力」または「データ管理」からデータを登録してください。")
     else:
+        # 💡 KPIカードを5つに増強して上部に配置
         with st.container(border=True):
-            st.markdown("### 全体カバレッジ（網羅率）")
-            k1, k2, k3 = st.columns(3)
+            st.markdown("### 全体サマリー")
+            k1, k2, k3, k4, k5 = st.columns(5)
             nj_c = valid_df["NJSS掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
             ki_c = valid_df["入札王掲載"].astype(str).str.upper().isin(["TRUE", "1", "1.0", "YES"]).sum()
-            with k1: draw_kpi_card("NJSS 網羅率", f"{(nj_c/len(valid_df)*100):.1f}%")
-            with k2: draw_kpi_card("入札王 網羅率", f"{(ki_c/len(valid_df)*100):.1f}%")
-            with k3: draw_kpi_card("分析対象案件数", f"{len(valid_df)} 件")
+            
+            p_df, _ = calculate_projections()
+            n_p5 = p_df.iloc[-1]["NJSS利益"] if not p_df.empty else 0
+            k_p5 = p_df.iloc[-1]["入札王利益"] if not p_df.empty else 0
+            
+            with k1: draw_kpi_card("分析対象案件数", f"{len(valid_df)} 件")
+            with k2: draw_kpi_card("NJSS 網羅率", f"{(nj_c/len(valid_df)*100):.1f}%" if len(valid_df)>0 else "0%")
+            with k3: draw_kpi_card("入札王 網羅率", f"{(ki_c/len(valid_df)*100):.1f}%" if len(valid_df)>0 else "0%")
+            with k4: draw_kpi_card("NJSS 5年後利益", f"{int(n_p5/10000):,} 万円")
+            with k5: draw_kpi_card("入札王 5年後利益", f"{int(k_p5/10000):,} 万円")
 
         col_l, col_r = st.columns(2)
         with col_l:
             with st.container(border=True):
-                fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_c, ki_c], title="案件捕捉数の比較", color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
-                fig_hits.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+                st.markdown("### 案件捕捉数の比較")
+                fig_hits = px.bar(x=["NJSS", "入札王"], y=[nj_c, ki_c], color=["NJSS", "入札王"], color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
+                fig_hits.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
+                fig_hits.update_yaxes(title="捕捉件数")
+                fig_hits.update_xaxes(title="")
                 st.plotly_chart(fig_hits, use_container_width=True)
         with col_r:
             with st.container(border=True):
+                st.markdown("### 競合出現シェア")
                 comp_df = pd.concat([valid_df["落札企業"], valid_df["競合1"], valid_df["競合2"], valid_df["競合3"]])
                 pres_df = comp_df[comp_df != ""].value_counts().reset_index().head(6)
                 pres_df.columns = ["企業名", "出現回数"]
-                fig_p = px.bar(pres_df, x="出現回数", y="企業名", orientation='h', title="競合出現シェア")
+                fig_p = px.bar(pres_df, x="出現回数", y="企業名", orientation='h')
                 fig_p.update_traces(marker_color='#0176D3')
-                fig_p.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+                fig_p.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)")
+                fig_p.update_yaxes(title="")
                 st.plotly_chart(fig_p, use_container_width=True)
 
         with st.container(border=True):
@@ -224,48 +250,63 @@ if page == "ダッシュボード":
                 df_sw = pd.DataFrame(s_data)
                 if not df_sw.empty:
                     fig_sw = px.bar(df_sw, x="ワード", y=["NJSS", "入札王"], barmode="group", color_discrete_map={"NJSS": "#0176D3", "入札王": "#1B96FF"})
-                    fig_sw.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)")
+                    fig_sw.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)", legend_title_text="ツール")
+                    fig_sw.update_xaxes(title="")
+                    fig_sw.update_yaxes(title="ヒット件数")
                     st.plotly_chart(fig_sw, use_container_width=True)
             else:
                 st.write("検索ワードのデータがありません。「ワード検索数」画面からデータを追加してください。")
 
         with st.container(border=True):
             st.markdown("### 累積期待利益の予測推移（5カ年）")
-            p_df, _ = calculate_projections()
             fig_proj = px.line(p_df, x="年", y=["NJSS利益", "入札王利益"], color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
-            fig_proj.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)")
+            fig_proj.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)", legend_title_text="ツール")
+            fig_proj.update_yaxes(title="累積利益 (円)")
             st.plotly_chart(fig_proj, use_container_width=True)
 
+        # 💡 詳細な項目別評価と総合判定レポート
         with st.container(border=True):
-            st.markdown("### 総合判定・分析レポート")
-            nj_cov = (nj_c / len(valid_df) * 100)
-            ki_cov = (ki_c / len(valid_df) * 100)
+            st.markdown("### 項目別評価および総合判定レポート")
+            
+            # 各項目の勝敗判定ロジック
+            cov_diff = nj_c - ki_c
+            cov_winner = "NJSS" if cov_diff > 0 else "入札王" if cov_diff < 0 else "同等（引き分け）"
+            
             nj_sw, ki_sw = 0, 0
             for cts in st.session_state.search_counts.values():
                 if cts["NJSS"] > cts["入札王"]: nj_sw += 1
                 elif cts["入札王"] > cts["NJSS"]: ki_sw += 1
-                else: nj_sw += 0.5; ki_sw += 0.5
-            tot = nj_sw + ki_sw
-            nj_s = (nj_sw / tot * 100) if tot > 0 else 50
-            ki_s = (ki_sw / tot * 100) if tot > 0 else 50
-            n_p5, k_p5 = p_df.iloc[-1]["NJSS利益"], p_df.iloc[-1]["入札王利益"]
-            mx = max(n_p5, k_p5, 1)
-            nj_ps, ki_ps = max(0, (n_p5 / mx * 100)), max(0, (k_p5 / mx * 100))
+            sw_winner = "NJSS" if nj_sw > ki_sw else "入札王" if ki_sw > nj_sw else "同等（引き分け）"
             
-            fig_r = go.Figure()
-            cat = ['網羅率(過去案件)', '検索精度(ワード)', '収益性(5年ROI)', '網羅率(過去案件)']
-            fig_r.add_trace(go.Scatterpolar(r=[nj_cov, nj_s, nj_ps, nj_cov], theta=cat, fill='toself', name='NJSS', line_color='#0176D3'))
-            fig_r.add_trace(go.Scatterpolar(r=[ki_cov, ki_s, ki_ps, ki_cov], theta=cat, fill='toself', name='入札王', line_color='#1B96FF'))
-            fig_r.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), margin=dict(t=30, b=30), paper_bgcolor="rgba(0,0,0,0)")
+            roi_diff = n_p5 - k_p5
+            roi_winner = "NJSS" if roi_diff > 0 else "入札王" if roi_diff < 0 else "同等（引き分け）"
             
-            cr1, cr2 = st.columns([1, 1])
-            with cr1: st.plotly_chart(fig_r, use_container_width=True)
-            with cr2:
-                st.markdown("#### データに基づく推奨事項")
-                if (nj_cov+nj_s+nj_ps) > (ki_cov+ki_s+ki_ps):
-                    st.success("【結論】 NJSSの導入を推奨します。\n\n網羅率が高く、過去のターゲット案件を確実に取りこぼさず捕捉できています。中長期的に見て機会損失を防ぐことで、費用対効果を最大化できる可能性が高いです。")
+            # 総合判定スコア
+            nj_score = (cov_winner == "NJSS") + (sw_winner == "NJSS") + (roi_winner == "NJSS")
+            ki_score = (cov_winner == "入札王") + (sw_winner == "入札王") + (roi_winner == "入札王")
+            
+            col_eval1, col_eval2 = st.columns([1.2, 1])
+            with col_eval1:
+                st.markdown("#### 1. 過去案件の網羅率（カバレッジ）評価")
+                st.markdown(f"判定結果: **{cov_winner}** の優位")
+                st.markdown("<p style='font-size: 14px; color: #64748B;'>過去の自社ターゲット案件をどれだけ取りこぼさず捕捉できているかの評価です。</p>", unsafe_allow_html=True)
+                
+                st.markdown("#### 2. キーワード検索精度評価")
+                st.markdown(f"判定結果: **{sw_winner}** の優位")
+                st.markdown("<p style='font-size: 14px; color: #64748B;'>得意領域のキーワードで検索した際の、ヒット件数と情報収集能力の広さの評価です。</p>", unsafe_allow_html=True)
+                
+                st.markdown("#### 3. 中長期の投資対効果（ROI）評価")
+                st.markdown(f"判定結果: **{roi_winner}** の優位")
+                st.markdown("<p style='font-size: 14px; color: #64748B;'>システム利用料と自社の想定受注率・粗利率を加味した、5年後の最終的な利益予測の評価です。</p>", unsafe_allow_html=True)
+                
+            with col_eval2:
+                st.markdown("#### 総合判定に基づく推奨事項")
+                if nj_score > ki_score:
+                    st.success("**最終推奨ツール：NJSS**\n\n各項目の検証データを総合的に比較した結果、NJSSの導入を推奨します。過去のターゲット案件を確実に取りこぼさず捕捉できている点や、網羅性の高さから、機会損失を防ぎ事業成長に最も寄与する可能性が高いと判断されます。")
+                elif ki_score > nj_score:
+                    st.success("**最終推奨ツール：入札王**\n\n各項目の検証データを総合的に比較した結果、入札王の導入を推奨します。機能面でのカバレッジを満たしつつ、圧倒的なコストパフォーマンスにより損益分岐点を早期に超えることができ、投資対効果（ROI）を最大化できる運用に最適と判断されます。")
                 else:
-                    st.success("【結論】 入札王の導入を推奨します。\n\nコストパフォーマンスが非常に高く、損益分岐点を早く超えることができます。ROI（投資対効果）を重視した運用に最適です。")
+                    st.info("**最終推奨：両者引き分け**\n\n定量的なデータからは両ツールの実力は拮抗しています。UIの使いやすさや、営業担当者のサポート体制など、定性的な要素を加味して最終決定を行ってください。")
 
 elif page == "過去案件情報入力":
     st.markdown('<div class="slds-page-header"><h1>過去案件情報入力（営業データベース）</h1></div>', unsafe_allow_html=True)
@@ -281,7 +322,7 @@ elif page == "過去案件情報入力":
                 required_label("自治体名・発注機関")
                 mun = st.text_input("mun", label_visibility="collapsed", placeholder="例: 横浜市")
             with c2:
-                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #0F172A; margin-bottom: 4px;">担当部署名</div>', unsafe_allow_html=True)
+                st.markdown('<div style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 4px;">担当部署名</div>', unsafe_allow_html=True)
                 dep = st.text_input("dep", label_visibility="collapsed", placeholder="例: デジタル統括本部")
             
             required_label("案件名・案件概要")
@@ -312,6 +353,7 @@ elif page == "過去案件情報入力":
             b3 = c12.text_input("競合企業3", placeholder="例: 合同会社クラウドX")
 
             st.markdown('<div class="form-section-header">ツール掲載確認 (PoC用)</div>', unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 14px; color: #64748B;'>※両方のツールで見つかった場合は、両方にチェックを入れてください。</p>", unsafe_allow_html=True)
             c13, c14, c15 = st.columns(3)
             spc = c13.checkbox("仕様書あり")
             njl = c14.checkbox("NJSSに掲載あり")
@@ -356,7 +398,7 @@ elif page == "ワード検索数":
     st.markdown('<div class="slds-page-header"><h1>ワード検索数比較</h1></div>', unsafe_allow_html=True)
     
     with st.container(border=True):
-        st.markdown("#### 比較キーワードの操作")
+        st.markdown("### 比較キーワードの操作")
         c_add1, c_add2, c_add3 = st.columns([2, 1, 1])
         new_w = c_add1.text_input("キーワード", placeholder="例: BIツール、DX推進", key="in_new_w", label_visibility="collapsed")
         if c_add2.button("追加", type="primary", use_container_width=True):
@@ -368,7 +410,7 @@ elif page == "ワード検索数":
             st.rerun()
 
     with st.container(border=True):
-        st.markdown("#### ヒット件数の実測値テーブル")
+        st.markdown("### ヒット件数の実測値テーブル")
         if st.session_state.search_words:
             df_search = pd.DataFrame([
                 {"検索ワード": w, "NJSS (件)": st.session_state.search_counts.get(w, {}).get("NJSS", 0), "入札王 (件)": st.session_state.search_counts.get(w, {}).get("入札王", 0)}
@@ -377,6 +419,7 @@ elif page == "ワード検索数":
 
             edited_df = st.data_editor(df_search, num_rows="dynamic", use_container_width=True, hide_index=True, key="kw_editor")
             
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("テーブルの検索件数を保存する", type="primary", use_container_width=True):
                 st.session_state.search_words = edited_df["検索ワード"].dropna().tolist()
                 new_counts = {}
@@ -392,27 +435,29 @@ elif page == "コスト・ROI分析":
     st.markdown('<div class="slds-page-header"><h1>コスト・ROI分析設定</h1></div>', unsafe_allow_html=True)
     
     with st.container(border=True):
+        st.markdown("### 費用と営業指標の設定")
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("**NJSS 費用見積**")
+            st.markdown("#### NJSS 費用見積")
             n_i = st.number_input("初期費用 (円)", value=st.session_state.costs["n_init"], key="n_i_v")
             n_m = st.number_input("月額費用 (円)", value=st.session_state.costs["n_month"], key="n_m_v")
             n_o = st.number_input("年間オプション (円)", value=st.session_state.costs["n_opt"], key="n_o_v")
             st.info(f"NJSS 初年度合計: **{n_i + n_m*12 + n_o:,} 円**")
         with c2:
-            st.markdown("**入札王 費用見積**")
+            st.markdown("#### 入札王 費用見積")
             k_i = st.number_input("初期費用 (円)", value=st.session_state.costs["k_init"], key="k_i_v")
             k_m = st.number_input("月額費用 (円)", value=st.session_state.costs["k_month"], key="k_m_v")
             k_o = st.number_input("年間オプション (円)", value=st.session_state.costs["k_opt"], key="k_o_v")
             st.info(f"入札王 初年度合計: **{k_i + k_m*12 + k_o:,} 円**")
         
         st.markdown("---")
-        st.markdown("**自社営業シミュレーション設定**")
+        st.markdown("#### 自社営業シミュレーション設定")
         cs1, cs2, cs3 = st.columns(3)
         wr = cs1.number_input("平均受注率 (%)", value=st.session_state.costs["win_rate"], help="応札に参加した場合、落札できる確率。")
         mg = cs2.number_input("平均粗利率 (%)", value=st.session_state.costs["margin"], help="落札金額に対する、自社の粗利の割合。")
         ab = cs3.number_input("年間想定応札数 (件)", value=st.session_state.costs["annual_bids"], help="1年間に何件の入札に参加するか。")
         
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("設定を保存してグラフを更新", type="primary", use_container_width=True):
             st.session_state.costs.update({"n_init": n_i, "n_month": n_m, "n_opt": n_o, "k_init": k_i, "k_month": k_m, "k_opt": k_o, "margin": mg, "win_rate": wr, "annual_bids": ab})
             st.success("設定を更新しました。")
@@ -425,28 +470,17 @@ elif page == "コスト・ROI分析":
         fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値", line=dict(color="#10B981", width=4)))
         fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSS累積コスト", line=dict(color="#0176D3", dash='dash')))
         fig_bep.add_trace(go.Scatter(x=p_df["年"], y=p_df["入札王累積コスト"], name="入札王累積コスト", line=dict(color="#1B96FF", dash='dash')))
-        fig_bep.update_layout(title="累積コストと売上の交差点（損益分岐点）", template="plotly_white", paper_bgcolor="rgba(0,0,0,0)")
+        fig_bep.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)", legend_title_text="指標")
+        fig_bep.update_yaxes(title="金額 (円)")
+        fig_bep.update_xaxes(title="経過年数")
         st.plotly_chart(fig_bep, use_container_width=True)
 
-        fig_prof = px.bar(p_df, x="年", y=["NJSS利益", "入札王利益"], barmode="group", title="各年の累積利益比較", color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
-        fig_prof.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)")
+        st.markdown("### 各年の累積利益比較")
+        fig_prof = px.bar(p_df, x="年", y=["NJSS利益", "入札王利益"], barmode="group", color_discrete_map={"NJSS利益": "#0176D3", "入札王利益": "#1B96FF"})
+        fig_prof.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="rgba(0,0,0,0)", legend_title_text="ツール")
+        fig_prof.update_yaxes(title="累積利益 (円)")
+        fig_prof.update_xaxes(title="経過年数")
         st.plotly_chart(fig_prof, use_container_width=True)
-
-        st.markdown("---")
-        st.markdown("### ROI分析結果の解説")
-        n_p5 = p_df.iloc[-1]["NJSS利益"]
-        k_p5 = p_df.iloc[-1]["入札王利益"]
-        
-        if n_p5 < 0 and k_p5 < 0:
-            st.warning("【警告】現在の設定では、5年後も両ツールとも赤字（投資回収不可）の予測です。\n\nツール費用を回収するためには、「想定年間応札数」を増やすか、「平均受注率」「平均粗利率」を改善する必要があります。")
-        elif n_p5 > k_p5:
-            diff = n_p5 - k_p5
-            st.success(f"【判定】ROI（投資対効果）の観点では、NJSSが有利です。\n\n現在の営業シミュレーションでは、5年間でNJSSの方が入札王よりも 約 {diff:,.0f} 円 高い最終利益をもたらす予測となっています。")
-        elif k_p5 > n_p5:
-            diff = k_p5 - n_p5
-            st.success(f"【判定】ROI（投資対効果）の観点では、入札王が有利です。\n\n現在の営業シミュレーションでは、コストの低さが利益に直結し、5年間で入札王の方がNJSSよりも 約 {diff:,.0f} 円 高い最終利益をもたらす予測となっています。")
-        else:
-            st.info("【判定】両ツールの投資対効果はほぼ同等です。\n\nコスト面での差が少ないため、ダッシュボードの「網羅率」や「検索精度」など、機能面での優劣を重視して選定してください。")
 
 elif page == "詳細マニュアル":
     st.markdown('<div class="slds-page-header"><h1>自走式 PoC評価マニュアル</h1></div>', unsafe_allow_html=True)
@@ -465,6 +499,7 @@ elif page == "詳細マニュアル":
         
         **STEP 2: ツールでの検索実測**
         各ツールのトライアルアカウントを使用し、STEP 1で入力した案件が「実際に検索して見つかるか」を確認してチェックを入れます。
+        ※両方のツールで見つかった場合は、両方にチェックを入れてください。
         
         **STEP 3: キーワード検索ボリュームの確認**
         「ワード検索数」画面を開き、得意領域で検索した結果のヒット件数を入力し、保存します。
@@ -506,6 +541,7 @@ elif page == "データ管理 (一括・初期化)":
             st.write("プレビュー (先頭5件):")
             st.dataframe(im_df.head())
             
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("このデータをシステムとスプレッドシートへ書き込む", type="primary", use_container_width=True):
                 try:
                     new_projects = []
@@ -550,9 +586,10 @@ elif page == "データ管理 (一括・初期化)":
                 
     with st.container(border=True):
         with st.expander("危険操作：全データの初期化（テスト完了後のリセット用）"):
-            st.warning("スプレッドシートの全案件データ、コスト設定、検索ワードを完全に消去し、空っぽの初期状態に戻します。")
+            st.markdown("スプレッドシートの全案件データ、コスト設定、検索ワードを完全に消去し、空っぽの初期状態に戻します。")
             confirm = st.checkbox("本当にすべてのデータを消去してよろしいですか？（この操作は元に戻せません）")
             
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("全データを初期化して空っぽにする", type="primary", use_container_width=True):
                 if confirm:
                     try:
