@@ -480,16 +480,29 @@ C1, C2, C3 = "#3B82F6", "#06B6D4", "#10B981"
 #  HELPERS
 # ─────────────────────────────────────────────────────────────────
 def page_header(title, sub="", badge=""):
-    b = f'<span class="ph-badge">{badge}</span>' if badge else ""
-    s = f'<div class="ph-sub">{sub}</div>' if sub else ""
-    st.markdown(f"""
-    <div class="ph">
-      <div>
-        <div class="ph-title">{title}</div>
-        {s}
-      </div>
-      {b}
-    </div>""", unsafe_allow_html=True)
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        b = f'<span class="ph-badge">{badge}</span>' if badge else ""
+        s = f'<div class="ph-sub">{sub}</div>' if sub else ""
+        st.markdown(f"""
+        <div class="ph" style="border-bottom:none; margin-bottom:0; padding-bottom:0.5rem;">
+          <div>
+            <div class="ph-title">{title}</div>
+            {s}
+          </div>
+          {b}
+        </div>""", unsafe_allow_html=True)
+        
+    with col2:
+        st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+        # ダッシュボード以外の画面にのみHOMEボタンを表示
+        if title != "PoC Dashboard":
+            if st.button("🏠 HOMEに戻る", use_container_width=True):
+                st.session_state.nav_radio = "ダッシュボード"
+                st.rerun()
+                
+    st.markdown('<div style="border-bottom: 1px solid var(--line); margin-bottom: 2rem;"></div>', unsafe_allow_html=True)
 
 def kpi(label, value, unit="", sub="", tag="", tag_type="neu"):
     t = f'<div class="kpi-tag tag-{tag_type}">{tag}</div>' if tag else ""
