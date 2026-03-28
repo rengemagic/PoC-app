@@ -10,7 +10,6 @@ import base64, datetime, re
 # ─────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="入札 PoC Board",
-    page_icon="⬡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -20,7 +19,7 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────
 _defaults = {
     "logged_in": False,
-    "current_page": "ダッシュボード",  # 安全な画面遷移用のステート
+    "current_page": "ダッシュボード",
     "search_words": [],
     "search_counts": {},
     "ocr_result": None,
@@ -35,35 +34,43 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ─────────────────────────────────────────────────────────────────
-#  GLOBAL CSS  — Light Mode & Rich Clean UI
+#  GLOBAL CSS  — Modern SaaS Design (Dark Sidebar / Light Main)
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;700&display=swap');
 
 :root {
-  --bg:        #F8FAFC;
+  /* Main Area (Light) */
+  --bg:        #F4F7FA;
   --bg2:       #FFFFFF;
-  --bg3:       #F1F5F9;
-  --bg4:       #E2E8F0;
+  --bg3:       #F8FAFC;
   --line:      #E2E8F0;
   --line2:     #CBD5E1;
   --text:      #1E293B;
   --muted:     #64748B;
+  /* Sidebar (Dark) */
+  --sb-bg:     #0D1320;
+  --sb-text:   #8B9EC7;
+  --sb-hover:  #1A2540;
+  --sb-active: #233154;
+  /* Accents */
   --accent:    #0176D3;
-  --accent2:   #1B96FF;
   --green:     #10B981;
   --red:       #EF4444;
-  --radius:    10px;
-  --radius-lg: 16px;
+  --radius:    8px;
+  --radius-lg: 12px;
 }
 
+/* ── Reset / Base ────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
-html, body, [class*="st-"], p, div, span, label {
-  font-family: 'Outfit', sans-serif !important;
-  color: var(--text) !important;
+
+/* ⚠️ ハンバーガーのSVGが文字化けしないよう、フォント適用範囲を絞る */
+html, body, p, div, span, label, input, textarea, select {
+  font-family: 'Outfit', sans-serif;
+  color: var(--text);
 }
-h1,h2,h3,h4,h5 { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
+h1,h2,h3,h4,h5 { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; color: var(--text); }
 
 /* ── Hide Streamlit chrome ───────────────────────────── */
 [data-testid="stHeader"] { background-color: transparent !important; }
@@ -71,32 +78,35 @@ footer { display: none !important; }
 [data-testid="stAppViewContainer"] { background: var(--bg) !important; }
 [data-testid="block-container"] { padding: 2rem 2.5rem 4rem !important; max-width: 1400px; }
 
-/* ── Sidebar ─────────────────────────────────────────────────── */
-[data-testid="stSidebar"] { background: var(--bg2) !important; border-right: 1px solid var(--line) !important; }
+/* ── Sidebar (Dark Mode) ─────────────────────────────────────── */
+[data-testid="stSidebar"] { background: var(--sb-bg) !important; border-right: none !important; }
 [data-testid="stSidebar"] > div:first-child { padding-top: 0 !important; }
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div { color: var(--muted) !important; }
-[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
-[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 8px !important; transition: background 0.15s; cursor: pointer; }
-[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background: var(--bg3) !important; }
-[data-testid="stSidebar"] div.stRadio p { font-size: 14.5px !important; font-weight: 600 !important; color: var(--muted) !important; margin: 0 !important; }
+/* Override colors inside sidebar */
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div { color: var(--sb-text) !important; }
 
-/* ── Buttons ─────────────────────────────────────────────────── */
+/* Radio nav items in sidebar */
+[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
+[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 8px !important; transition: background 0.15s; cursor: pointer; background: transparent !important; }
+[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background: var(--sb-hover) !important; }
+[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"] { background: var(--sb-active) !important; border-left: 3px solid var(--accent) !important; }
+[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label p { font-size: 14.5px !important; font-weight: 500 !important; margin: 0 !important; color: var(--sb-text) !important; }
+[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"] p { color: #FFFFFF !important; font-weight: 700 !important; }
+
+/* ── Buttons (All Blue & White Text) ─────────────────────────── */
 div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
-  background: var(--accent) !important; border: none !important; border-radius: 8px !important;
+  background: var(--accent) !important; border: none !important; border-radius: var(--radius) !important;
   padding: 0.6rem 1.5rem !important; font-weight: 600 !important; font-size: 14px !important;
-  color: #fff !important; transition: all 0.2s !important; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.15) !important; width: 100%;
+  color: #FFFFFF !important; transition: all 0.2s !important; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2) !important; width: 100%;
 }
-div.stButton > button p, div[data-testid="stFormSubmitButton"] > button p { color: #fff !important; font-weight: 600 !important; }
-div.stButton > button:hover { background: #015BA7 !important; box-shadow: 0 6px 12px rgba(1, 118, 211, 0.25) !important; transform: translateY(-1px) !important; }
-div.stButton > button[kind="secondary"] { background: var(--bg2) !important; border: 1px solid var(--line2) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important; }
-div.stButton > button[kind="secondary"] p { color: var(--text) !important; }
-div.stButton > button[kind="secondary"]:hover { background: var(--bg3) !important; border-color: var(--text) !important; }
+div.stButton > button p, div[data-testid="stFormSubmitButton"] > button p { color: #FFFFFF !important; font-weight: 600 !important; margin: 0; }
+div.stButton > button:hover { background: #015BA7 !important; box-shadow: 0 6px 12px rgba(1, 118, 211, 0.3) !important; transform: translateY(-1px) !important; }
 
 /* ── Containers & Inputs ─────────────────────────────────────── */
-[data-testid="stVerticalBlockBorderWrapper"] { background: var(--bg2) !important; border: 1px solid var(--line) !important; border-radius: var(--radius-lg) !important; padding: 0.5rem !important; box-shadow: 0 4px 10px rgba(0,0,0,0.03) !important; transition: all 0.2s !important; }
-[data-testid="stVerticalBlockBorderWrapper"]:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important; }
-div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { background: var(--bg2) !important; border: 1px solid var(--line2) !important; border-radius: 8px !important; box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important; }
+[data-testid="stVerticalBlockBorderWrapper"] { background: var(--bg2) !important; border: 1px solid var(--line) !important; border-radius: var(--radius-lg) !important; padding: 0.5rem !important; box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important; transition: all 0.2s !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.05) !important; border-color: var(--line2) !important; }
+div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { background: var(--bg2) !important; border: 1px solid var(--line2) !important; border-radius: var(--radius) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important; }
 div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div:focus-within { border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.15) !important; }
+input, textarea, select { color: var(--text) !important; background: transparent !important; }
 
 /* ── Custom UI Components ────────────────────────────────────── */
 .ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
@@ -104,7 +114,7 @@ div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div
 .ph-sub { font-size: 14px; color: var(--muted) !important; margin-top: 5px; font-weight: 500; }
 .ph-badge { background: var(--bg3); border: 1px solid var(--line2); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--accent) !important; text-transform: uppercase; }
 
-/* 🌟 大型化・均等化されたKPIカード */
+/* Colorful SaaS KPI Cards */
 .kpi {
   background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius-lg); 
   padding: 1.5rem 1rem; position: relative; overflow: hidden;
@@ -112,19 +122,17 @@ div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div
   display: flex; flex-direction: column; justify-content: center; align-items: center;
   min-height: 155px; text-align: center;
 }
-.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); opacity: 0; transition: opacity 0.2s; }
 .kpi:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); }
-.kpi:hover::before { opacity: 1; }
 .kpi-lbl { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--muted) !important; margin-bottom: 8px; }
-.kpi-val { font-family: 'Geist Mono', monospace; font-size: 2.3rem; font-weight: 700; color: var(--accent) !important; line-height: 1; margin-bottom: 6px; }
-.kpi-val .unit { font-size: 1.1rem; color: var(--muted) !important; margin-left: 3px; }
+.kpi-val { font-family: 'Geist Mono', monospace; font-size: 2.3rem; font-weight: 700; color: var(--text) !important; line-height: 1; margin-bottom: 6px; }
+.kpi-val .unit { font-size: 1.1rem; color: var(--muted) !important; margin-left: 3px; font-family: 'Outfit', sans-serif; }
 .kpi-sub { font-size: 11px; color: var(--muted) !important; font-weight: 500; }
 .kpi-tag { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; }
 .tag-up { background: rgba(16,185,129,0.15); color: var(--green) !important; }
 .tag-dn { background: rgba(239,68,68,0.12); color: var(--red) !important; }
 .tag-neu { background: var(--bg3); color: var(--muted) !important; }
 
-/* 🌟 装飾されたセクションヘッダー */
+/* Decor Section Headers */
 .sec {
   font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text) !important; 
   margin-bottom: 1.25rem; letter-spacing: -0.2px;
@@ -147,23 +155,31 @@ div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div
 .verdict-title { font-size: 1.1rem; font-weight: 800; color: var(--accent) !important; margin-bottom: 6px; }
 .verdict-body { font-size: 13px; color: var(--text) !important; line-height: 1.6; }
 
+/* Step list */
+.step { display:flex; gap:16px; margin-bottom:1.5rem; }
+.step-num { width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; background: var(--accent); color: #fff !important; }
+.step-body h4 { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text) !important; margin:0 0 4px; }
+.step-body p { font-size:13px; color:var(--muted) !important; margin:0; line-height:1.55; }
+
+/* Tabs */
+[data-testid="stTabs"] button { font-family: 'Outfit', sans-serif !important; color: var(--muted) !important; }
+[data-testid="stTabs"] button[aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; font-weight: 700; }
+
 </style>
 """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────
-#  LOGIN (コンパクトサイズ)
+#  LOGIN
 # ─────────────────────────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
-    # 幅を狭くするため、両端の比率を大きく設定
     col1, col2, col3 = st.columns([2, 1.3, 2])
     with col2:
         st.markdown("""
         <div style="text-align:center; margin-bottom:1.5rem;">
-          <div style="font-size:3rem; margin-bottom:0.5rem; color:#0176D3;">⬡</div>
-          <div style="font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:#1E293B; letter-spacing:-0.5px;">入札 PoC Board</div>
-          <div style="font-size:12px; color:#64748B; margin-top:4px;">データドリブン入札ツール評価プラットフォーム</div>
+          <div style="font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:var(--text); letter-spacing:-0.5px;">PoC Board</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">入札ツール評価プラットフォーム</div>
         </div>""", unsafe_allow_html=True)
 
         with st.container(border=True):
@@ -171,7 +187,7 @@ if not st.session_state.logged_in:
             uid = st.text_input("ログインID", placeholder="admin").strip()
             pwd = st.text_input("パスワード", type="password", placeholder="パスワードを入力").strip()
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("サインイン　⟶"):
+            if st.button("サインイン"):
                 if uid == "admin" and pwd == "admin":
                     st.session_state.logged_in = True
                     st.rerun()
@@ -242,7 +258,7 @@ PLY = dict(
     legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5,
                 font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
 )
-C1, C2, C3 = "#0176D3", "#1B96FF", "#10B981"
+C1, C2, C3 = "#0176D3", "#14B8A6", "#8B5CF6"
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -268,18 +284,18 @@ def page_header(title, sub="", badge=""):
     with col2:
         st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
         if title != "PoC Dashboard":
-            st.button("🏠 ダッシュボードに戻る", type="secondary", on_click=go_to_dashboard, use_container_width=True)
+            st.button("ダッシュボードに戻る", key=f"btn_{title}", on_click=go_to_dashboard, use_container_width=True)
                 
     st.markdown('<div style="border-bottom: 1px solid var(--line2); margin-bottom: 2rem;"></div>', unsafe_allow_html=True)
 
-def kpi(label, value, unit="", sub="", tag="", tag_type="neu"):
+def kpi(label, value, unit="", sub="", tag="", tag_type="neu", color="#0176D3"):
     t = f'<div class="kpi-tag tag-{tag_type}">{tag}</div>' if tag else ""
     s = f'<div class="kpi-sub">{sub}</div>' if sub else ""
     u = f'<span class="unit">{unit}</span>' if unit else ""
     st.markdown(f"""
-    <div class="kpi">
+    <div class="kpi" style="border-top: 4px solid {color};">
       <div class="kpi-lbl">{label}</div>
-      <div class="kpi-val">{value}{u}</div>
+      <div class="kpi-val" style="color:{color} !important;">{value}{u}</div>
       {s}{t}
     </div>""", unsafe_allow_html=True)
 
@@ -294,7 +310,7 @@ def sec(text):
 
 
 # ─────────────────────────────────────────────────────────────────
-#  OCR  (Google Vision API or demo)
+#  OCR
 # ─────────────────────────────────────────────────────────────────
 def ocr_extract(uploaded_file) -> dict:
     if uploaded_file is None:
@@ -334,9 +350,9 @@ def ocr_extract(uploaded_file) -> dict:
         return _demo_ocr()
 
 def _demo_ocr():
-    st.warning("**OCRデモモード** — Google Vision APIキー未設定のためサンプルデータを表示しています。")
+    st.warning("OCRデモモード — Google Vision APIキー未設定のためサンプルデータを表示しています。")
     return {
-        "自治体名": "（デモ）東京都",
+        "自治体名": "東京都",
         "案件概要": "情報システム調達支援業務",
         "予算(千円)": "5000",
         "入札方式": "公募型プロポーザル",
@@ -349,17 +365,16 @@ def _demo_ocr():
 # ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style="padding:24px 20px 16px;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:8px;">
+    <div style="padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:22px;color:#0176D3;">⬡</div>
         <div>
-          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:#1E293B;letter-spacing:-0.3px;">PoC Board</div>
-          <div style="font-size:10px;color:#64748B;letter-spacing:1px;text-transform:uppercase;">入札ツール評価</div>
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#FFFFFF;letter-spacing:-0.3px;">PoC Board</div>
+          <div style="font-size:10px;color:#8B9EC7;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">Evaluation Tool</div>
         </div>
       </div>
     </div>""", unsafe_allow_html=True)
 
-    st.markdown('<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#64748B;text-transform:uppercase;padding:12px 20px 4px;">Navigation</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#54668A;text-transform:uppercase;padding:12px 20px 4px;">Navigation</div>', unsafe_allow_html=True)
 
     menu_options = ["ダッシュボード", "案件データ入力", "ワード検索数", "ROI分析", "マニュアル"]
     test_mode = st.toggle("管理モード", key="admin_toggle")
@@ -369,7 +384,6 @@ with st.sidebar:
     def on_nav_change():
         st.session_state.current_page = st.session_state.nav_radio
 
-    # 現在のページがメニューにあるか確認してインデックスを取得
     current_index = 0
     if st.session_state.current_page in menu_options:
         current_index = menu_options.index(st.session_state.current_page)
@@ -385,14 +399,7 @@ with st.sidebar:
 
     current_page = st.session_state.current_page
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style="padding:0 20px;font-size:12px;color:#64748B;line-height:1.8;">
-      <div style="font-weight:700;color:#1E293B;margin-bottom:6px;">検証フロー</div>
-      1. 案件入力 → 2. ワード検索 → 3. ROI設定 → 4. ダッシュボード確認
-    </div>""", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
     if st.button("ログアウト"):
         st.session_state.logged_in = False
         st.rerun()
@@ -419,26 +426,26 @@ if current_page == "ダッシュボード":
     n_p5  = p_df.iloc[-1]["NJSS利益"]  if not p_df.empty else 0
     k_p5  = p_df.iloc[-1]["入札王利益"] if not p_df.empty else 0
 
-    # ── KPI row ──
+    # ── KPI row (Colorful Top Borders) ──
     c1,c2,c3,c4,c5 = st.columns(5)
-    with c1: kpi("対象案件数", total, "件", sub="登録済み総案件")
-    with c2: kpi("NJSS 網羅率", f"{nj_c/total*100:.1f}", "%", sub=f"{nj_c}件捕捉", tag="NJSS", tag_type="up" if nj_c >= ki_c else "dn")
-    with c3: kpi("入札王 網羅率", f"{ki_c/total*100:.1f}", "%", sub=f"{ki_c}件捕捉", tag="入札王", tag_type="up" if ki_c >= nj_c else "dn")
-    with c4: kpi("NJSS 5年利益", f"{int(n_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu")
-    with c5: kpi("入札王 5年利益", f"{int(k_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu")
+    with c1: kpi("対象案件数", total, "件", sub="登録済み総案件", color="#3B82F6")
+    with c2: kpi("NJSS 網羅率", f"{nj_c/total*100:.1f}", "%", sub=f"{nj_c}件捕捉", tag="NJSS", tag_type="up" if nj_c >= ki_c else "dn", color="#14B8A6")
+    with c3: kpi("入札王 網羅率", f"{ki_c/total*100:.1f}", "%", sub=f"{ki_c}件捕捉", tag="入札王", tag_type="up" if ki_c >= nj_c else "dn", color="#6366F1")
+    with c4: kpi("NJSS 5年利益", f"{int(n_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#8B5CF6")
+    with c5: kpi("入札王 5年利益", f"{int(k_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#EC4899")
 
     # ── Row 1: bar charts ──
     r1l, r1r = st.columns(2)
     with r1l:
         with st.container(border=True):
-            sec("📊 案件捕捉数の比較")
+            sec("案件捕捉数の比較")
             fig = px.bar(
                 x=["NJSS","入札王"], y=[nj_c, ki_c],
                 color=["NJSS","入札王"],
                 color_discrete_map={"NJSS": C1, "入札王": C2},
                 text=[nj_c, ki_c],
             )
-            fig.update_traces(marker_line_width=0, textposition="outside", textfont_size=13)
+            fig.update_traces(marker_line_width=0, textposition="outside", textfont_size=14)
             fig.update_layout(**PLY, showlegend=False, height=260)
             fig.update_yaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
             fig.update_xaxes(title="")
@@ -446,13 +453,13 @@ if current_page == "ダッシュボード":
 
     with r1r:
         with st.container(border=True):
-            sec("🏆 競合出現シェア")
+            sec("競合出現シェア")
             comp = pd.concat([vd["落札企業"], vd["競合1"], vd["競合2"], vd["競合3"]])
             comp_df = comp[comp.notna() & (comp != "")].value_counts().head(6).reset_index()
             comp_df.columns = ["企業名", "回数"]
             fig2 = px.bar(comp_df, x="回数", y="企業名", orientation="h",
-                          text="回数", color_discrete_sequence=[C1])
-            fig2.update_traces(marker_line_width=0, textposition="outside", textfont_size=11)
+                          text="回数", color_discrete_sequence=[C3])
+            fig2.update_traces(marker_line_width=0, textposition="outside", textfont_size=12)
             fig2.update_layout(**PLY, showlegend=False, height=260)
             fig2.update_xaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
             fig2.update_yaxes(title="")
@@ -462,7 +469,7 @@ if current_page == "ダッシュボード":
     r2l, r2r = st.columns([1.1, 0.9])
     with r2l:
         with st.container(border=True):
-            sec("🔍 キーワード検索精度比較")
+            sec("キーワード検索精度比較")
             if st.session_state.search_words and st.session_state.search_counts:
                 sw_df = pd.DataFrame([
                     {"ワード": w,
@@ -481,7 +488,7 @@ if current_page == "ダッシュボード":
 
     with r2r:
         with st.container(border=True):
-            sec("🎯 総合評価レーダー")
+            sec("総合評価レーダー")
             cov_w = "NJSS" if nj_c > ki_c else "入札王" if ki_c > nj_c else "同等"
             nj_sw = sum(1 for v in st.session_state.search_counts.values() if v.get("NJSS",0) > v.get("入札王",0))
             ki_sw = sum(1 for v in st.session_state.search_counts.values() if v.get("入札王",0) > v.get("NJSS",0))
@@ -503,7 +510,7 @@ if current_page == "ダッシュボード":
                 line=dict(color=C1, width=2), fillcolor="rgba(1,118,211,0.15)"))
             fig_r.add_trace(go.Scatterpolar(
                 r=[ki_cov,ki_s,ki_ps,ki_cov], theta=cats, fill="toself", name="入札王",
-                line=dict(color=C2, width=2, dash="dash"), fillcolor="rgba(27,150,255,0.1)"))
+                line=dict(color=C2, width=2, dash="dash"), fillcolor="rgba(20,184,166,0.1)"))
             fig_r.update_layout(
                 polar=dict(
                     bgcolor="rgba(0,0,0,0)",
@@ -519,23 +526,23 @@ if current_page == "ダッシュボード":
 
     # ── Verdict ──
     with st.container(border=True):
-        sec("📋 総合判定レポート")
+        sec("総合判定レポート")
         nj_sc = (cov_w=="NJSS") + (sw_w=="NJSS") + (roi_w=="NJSS")
         ki_sc = (cov_w=="入札王") + (sw_w=="入札王") + (roi_w=="入札王")
 
         v1, v2, v3 = st.columns(3)
         with v1:
-            label = f"{'✦ ' if cov_w=='NJSS' else ''}NJSS" if cov_w=="NJSS" else f"{'✦ ' if cov_w=='入札王' else ''}入札王" if cov_w=="入札王" else "同等"
+            label = "NJSS" if cov_w=="NJSS" else "入札王" if cov_w=="入札王" else "同等"
             color = C1 if cov_w=="NJSS" else C2 if cov_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">① 網羅率</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color};">{label}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(nj_cov)}% / 入札王 {int(ki_cov)}%</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">1. 網羅率</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color};">{label}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(nj_cov)}% / 入札王 {int(ki_cov)}%</div>', unsafe_allow_html=True)
         with v2:
             label2 = sw_w if sw_w != "同等" else "同等"
             color2 = C1 if sw_w=="NJSS" else C2 if sw_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">② 検索精度</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color2};">{label2}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">優位ワード数で比較</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">2. 検索精度</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color2};">{label2}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">優位ワード数で比較</div>', unsafe_allow_html=True)
         with v3:
             label3 = roi_w if roi_w != "同等" else "同等"
             color3 = C1 if roi_w=="NJSS" else C2 if roi_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">③ 5年ROI</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color3};">{label3}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(n_p5/10000):,}万 / 入札王 {int(k_p5/10000):,}万</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">3. 5年ROI</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color3};">{label3}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(n_p5/10000):,}万 / 入札王 {int(k_p5/10000):,}万</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         if nj_sc > ki_sc:
@@ -547,10 +554,10 @@ if current_page == "ダッシュボード":
 
     # ── ROI forecast ──
     with st.container(border=True):
-        sec("📈 累積期待利益の予測推移（5カ年）")
+        sec("累積期待利益の予測推移（5カ年）")
         fig4 = px.line(p_df, x="年", y=["NJSS利益","入札王利益"],
                        color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
-        fig4.update_traces(line_width=2.5)
+        fig4.update_traces(line_width=3)
         fig4.update_layout(**PLY, height=250)
         fig4.update_yaxes(title="累積利益 (円)", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
         fig4.update_xaxes(title="経過年数")
@@ -566,7 +573,7 @@ elif current_page == "案件データ入力":
     # OCR box
     st.markdown("""
     <div class="ocr-box">
-      <div class="ocr-title">📄 仕様書・公告ファイルから自動入力（OCR）</div>
+      <div class="ocr-title">仕様書・公告ファイルから自動入力（OCR）</div>
       <div class="ocr-sub">
         PNG / JPG / PDF をアップロードすると主要項目を自動解析してフォームへ反映します。<br>
         ※アップロードされた画像は一時的に読み取られるだけで、サーバーやデータベースには保存されません。
@@ -651,7 +658,7 @@ elif current_page == "案件データ入力":
             url5 = st.text_input("URL 5")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("この案件を保存する　→"):
+            if st.form_submit_button("この案件を保存する"):
                 if mun and smm and wbid > 0:
                     new_rec = pd.DataFrame([{
                         "ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm,
@@ -674,7 +681,7 @@ elif current_page == "案件データ入力":
 
     if not vd.empty:
         with st.container(border=True):
-            sec("📂 登録済みデータ一覧")
+            sec("登録済みデータ一覧")
             st.dataframe(vd, hide_index=True, use_container_width=True)
 
 
@@ -684,24 +691,22 @@ elif current_page == "案件データ入力":
 elif current_page == "ワード検索数":
     page_header("ワード検索数比較", "同一キーワードで両ツールを実測→件数を入力")
 
-    # 今日の日付文字列
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
     with st.container(border=True):
-        sec("➕ キーワードの追加")
+        sec("キーワードの追加")
         ca1,ca2,ca3 = st.columns([2,1,1])
         nw = ca1.text_input("キーワード", placeholder="例: BIツール、DX推進", label_visibility="collapsed")
         if ca2.button("追加"):
             if nw and nw not in st.session_state.search_words:
                 st.session_state.search_words.append(nw)
-                # 追加時に登録日をセット
                 st.session_state.search_counts[nw] = {"NJSS": 0, "入札王": 0, "登録日": today_str}
                 st.rerun()
         if ca3.button("クリア"):
             st.session_state.search_words = []; st.session_state.search_counts = {}; st.rerun()
 
     with st.container(border=True):
-        sec("📝 ヒット件数テーブル（セル直接編集可）")
+        sec("ヒット件数テーブル（セル直接編集可）")
         if st.session_state.search_words:
             df_sw = pd.DataFrame([{
                 "検索ワード": w,
@@ -734,7 +739,7 @@ elif current_page == "ROI分析":
     page_header("コスト・ROI分析設定", "費用と営業指標を設定してシミュレーション")
 
     with st.container(border=True):
-        sec("💰 費用見積と営業シミュレーション")
+        sec("費用見積と営業シミュレーション")
         c1,c2 = st.columns(2)
         with c1:
             st.markdown("#### NJSS 費用見積")
@@ -765,7 +770,7 @@ elif current_page == "ROI分析":
     p_df, _ = calc_proj()
 
     with st.container(border=True):
-        sec("📈 損益分岐点 & 5年収益推移")
+        sec("損益分岐点 & 5年収益推移")
         fb = go.Figure()
         fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値",
                                 line=dict(color=C3, width=3)))
@@ -779,7 +784,7 @@ elif current_page == "ROI分析":
         st.plotly_chart(fb, use_container_width=True)
 
     with st.container(border=True):
-        sec("📊 各年の累積利益比較")
+        sec("各年の累積利益比較")
         fp = px.bar(p_df, x="年", y=["NJSS利益","入札王利益"], barmode="group",
                     color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
         fp.update_traces(marker_line_width=0)
@@ -794,7 +799,7 @@ elif current_page == "ROI分析":
 elif current_page == "マニュアル":
     page_header("自走式 PoC評価マニュアル", "検証フロー・OCR設定ガイド")
 
-    tabs = st.tabs(["📋 検証フロー", "📄 OCR設定方法", "💼 営業DB活用"])
+    tabs = st.tabs(["検証フロー", "OCR設定方法", "営業DB活用"])
 
     with tabs[0]:
         with st.container(border=True):
@@ -818,18 +823,18 @@ elif current_page == "マニュアル":
 
     with tabs[1]:
         with st.container(border=True):
-            sec("⚙️ Google Cloud Vision API の設定方法")
+            sec("Google Cloud Vision API の設定方法")
 
-            st.markdown("**① Google Cloud Console でプロジェクトを作成**")
+            st.markdown("**1. Google Cloud Console でプロジェクトを作成**")
             st.markdown("https://console.cloud.google.com/ にアクセスし、新規プロジェクトを作成します。")
 
-            st.markdown("**② Cloud Vision API を有効化**")
+            st.markdown("**2. Cloud Vision API を有効化**")
             st.markdown("「APIとサービス」→「ライブラリ」→ `Cloud Vision API` を検索して「有効にする」をクリック。")
 
-            st.markdown("**③ APIキーを発行**")
+            st.markdown("**3. APIキーを発行**")
             st.markdown("「APIとサービス」→「認証情報」→「認証情報を作成」→「APIキー」でキーを発行。")
 
-            st.markdown("**④ `secrets.toml` にキーを追記**")
+            st.markdown("**4. secrets.toml にキーを追記**")
             st.markdown("Streamlit アプリのルートディレクトリまたは Streamlit Cloud の Secrets 設定に以下を追加：")
             st.markdown("""
             <div class="code-block">[google_vision]
@@ -843,7 +848,7 @@ api_key = "AIzaSy＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"</div>
   → 上記の [google_vision] ブロックを貼り付けて「Save」</div>
             """, unsafe_allow_html=True)
 
-            st.markdown("**⑤ 動作確認**")
+            st.markdown("**5. 動作確認**")
             st.markdown("「案件データ入力」画面でPNGまたはPDFをアップロードし、項目が自動入力されれば設定完了です。")
 
             st.info("APIキーの利用料金：Vision API は月1,000リクエストまで無料。仕様書1件＝1リクエストのため、通常のPoC用途では無料枠内で収まります。")
@@ -851,13 +856,13 @@ api_key = "AIzaSy＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"</div>
             st.markdown("**よくあるエラーと対処**")
             col_e1, col_e2 = st.columns(2)
             with col_e1:
-                st.error("403 Forbidden → APIが有効化されていません。②を再確認してください。")
+                st.error("403 Forbidden → APIが有効化されていません。手順2を再確認してください。")
             with col_e2:
                 st.error("KeyError: google_vision → secrets.toml のセクション名が正しいか確認してください。")
 
     with tabs[2]:
         with st.container(border=True):
-            sec("💡 営業データベースとしての活用方法")
+            sec("営業データベースとしての活用方法")
             st.markdown("""
             本システムは PoC 評価ツールと同時に、公共営業の案件データベースとして継続活用できます。
 
@@ -873,10 +878,10 @@ api_key = "AIzaSy＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"</div>
 #  PAGE: DATA MANAGEMENT
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "データ管理":
-    page_header("データ一括管理・初期化", "CSVインポート / データリセット", "ADMIN")
+    page_header("データ一括管理・初期化", "CSVインポート / データリセット")
 
     with st.container(border=True):
-        sec("📥 万能サンプルCSVダウンロード")
+        sec("万能サンプルCSVダウンロード")
         st.caption("このCSVをアップロードするだけでコスト・検索ワード・案件データが一括セットアップされます。")
         sample = [
             {"ID":"SETTING_COST","自治体名":"NJSS初期費用","落札金額(千円)":100000},
@@ -900,7 +905,7 @@ elif current_page == "データ管理":
         )
 
     with st.container(border=True):
-        sec("📤 CSV一括インポート")
+        sec("CSV一括インポート")
         uf = st.file_uploader("CSVをアップロード", type="csv")
         if uf:
             im = pd.read_csv(uf, encoding="utf-8-sig")
@@ -942,7 +947,7 @@ elif current_page == "データ管理":
                     st.error(f"エラー: {e}")
 
     with st.container(border=True):
-        with st.expander("⚠️ 危険操作：全データの初期化"):
+        with st.expander("危険操作：全データの初期化"):
             st.caption("スプレッドシートの全案件・設定・ワードを完全消去します。元に戻せません。")
             ok = st.checkbox("すべてのデータを消去することを確認します")
             if st.button("全データを初期化する"):
