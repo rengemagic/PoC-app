@@ -35,7 +35,6 @@ for k, v in _defaults.items():
 
 # ─────────────────────────────────────────────────────────────────
 #  GLOBAL CSS  — dark fintech / data-viz aesthetic
-#  Font stack: Syne (display) + Geist Mono (numbers) + Outfit (body)
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -69,11 +68,10 @@ html, body, [class*="st-"], p, div, span, label {
 }
 h1,h2,h3,h4,h5 { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
 
-/* ── Hide Streamlit chrome ───────────────────────────────────── */
-/* 💡 修正箇所: ヘッダーは透明にしてメニューボタンを残す */
-[data-testid="stHeader"] { background: transparent !important; }
-[data-testid="stToolbar"],
-#MainMenu, footer { display: none !important; }
+/* ── Hide Streamlit chrome (FIXED) ───────────────────────────── */
+/* ヘッダー背景を透明にし、ハンバーガーメニューは絶対に消さない */
+[data-testid="stHeader"] { background-color: transparent !important; }
+footer { display: none !important; }
 
 /* ── App background ──────────────────────────────────────────── */
 [data-testid="stAppViewContainer"] {
@@ -148,6 +146,16 @@ div.stButton > button:hover {
   background: #2563EB !important;
   box-shadow: 0 0 24px rgba(59,130,246,0.4) !important;
   transform: translateY(-1px) !important;
+}
+
+/* HOMEボタン専用スタイル（アクセントを変える） */
+div.stButton > button[kind="secondary"] {
+  background: var(--bg4) !important;
+  border: 1px solid var(--line2) !important;
+}
+div.stButton > button[kind="secondary"]:hover {
+  background: var(--bg3) !important;
+  border-color: var(--text) !important;
 }
 
 /* ── Form inputs ─────────────────────────────────────────────── */
@@ -234,8 +242,7 @@ input, textarea, select {
 /* Page header */
 .ph {
   display: flex; align-items: flex-start; justify-content: space-between;
-  margin-bottom: 2rem; padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.5rem; padding-bottom: 0.5rem;
 }
 .ph-title {
   font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 800;
@@ -364,18 +371,6 @@ input, textarea, select {
 .step-body h4 { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; color:var(--text) !important; margin:0 0 4px; }
 .step-body p { font-size:13px; color:var(--muted) !important; margin:0; line-height:1.55; }
 
-/* Login page */
-.login-wrap {
-  min-height:85vh; display:flex; align-items:center; justify-content:center;
-}
-.login-card {
-  background:var(--bg2); border:1px solid var(--line2); border-radius:20px;
-  padding:2.5rem 2rem; width:100%; max-width:420px; text-align:center;
-}
-.login-icon { font-size:2.5rem; margin-bottom:1rem; }
-.login-title { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; color:var(--text) !important; margin-bottom:4px; }
-.login-sub { font-size:13px; color:var(--muted) !important; margin-bottom:2rem; }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -477,7 +472,7 @@ C1, C2, C3 = "#3B82F6", "#06B6D4", "#10B981"
 
 
 # ─────────────────────────────────────────────────────────────────
-#  HELPERS
+#  HELPERS (ここにHOMEボタンを追加)
 # ─────────────────────────────────────────────────────────────────
 def page_header(title, sub="", badge=""):
     col1, col2 = st.columns([3, 1])
@@ -486,7 +481,7 @@ def page_header(title, sub="", badge=""):
         b = f'<span class="ph-badge">{badge}</span>' if badge else ""
         s = f'<div class="ph-sub">{sub}</div>' if sub else ""
         st.markdown(f"""
-        <div class="ph" style="border-bottom:none; margin-bottom:0; padding-bottom:0.5rem;">
+        <div class="ph">
           <div>
             <div class="ph-title">{title}</div>
             {s}
@@ -498,7 +493,7 @@ def page_header(title, sub="", badge=""):
         st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
         # ダッシュボード以外の画面にのみHOMEボタンを表示
         if title != "PoC Dashboard":
-            if st.button("🏠 HOMEに戻る", use_container_width=True):
+            if st.button("🏠 HOMEへ戻る", key="home_btn", type="secondary", use_container_width=True):
                 st.session_state.nav_radio = "ダッシュボード"
                 st.rerun()
                 
@@ -578,7 +573,7 @@ def _demo_ocr():
 
 
 # ─────────────────────────────────────────────────────────────────
-#  SIDEBAR  ※ ハンバーガーメニューで閉じても選択状態を保持
+#  SIDEBAR
 # ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     # ロゴ
@@ -601,9 +596,9 @@ with st.sidebar:
     if test_mode:
         menu_options.append("データ管理")
 
-    # ※ ハンバーガーで閉じても st.session_state でページ選択が保持される
-    if "current_page" not in st.session_state:
-        st.session_state.current_page = menu_options[0]
+    # HOMEボタン押下時にダッシュボードへ戻すための制御
+    if "nav_radio" not in st.session_state:
+        st.session_state.nav_radio = "ダッシュボード"
 
     page = st.radio(
         "ページ",
@@ -611,7 +606,6 @@ with st.sidebar:
         key="nav_radio",
         label_visibility="collapsed",
     )
-    st.session_state.current_page = page
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("""
