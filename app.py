@@ -34,12 +34,10 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ─────────────────────────────────────────────────────────────────
-#  GLOBAL CSS  — Modern SaaS Design (Dark Sidebar / Light Main)
+#  GLOBAL CSS  — Modern SaaS Design (Mac-style Typography)
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;700&display=swap');
-
 :root {
   /* Main Area (Light) */
   --bg:        #F4F7FA;
@@ -65,12 +63,19 @@ st.markdown("""
 /* ── Reset / Base ────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-/* ⚠️ ハンバーガーのSVGが文字化けしないよう、フォント適用範囲を絞る */
-html, body, p, div, span, label, input, textarea, select {
-  font-family: 'Outfit', sans-serif;
+/* 🍎 Mac-style Typography Stack */
+html, body, p, div, span, label, input, textarea, select, button, table, th, td {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, Arial, sans-serif !important;
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-h1,h2,h3,h4,h5 { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; color: var(--text); }
+h1,h2,h3,h4,h5 { 
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, Arial, sans-serif !important; 
+  font-weight: 700 !important; 
+  color: var(--text); 
+  letter-spacing: -0.02em;
+}
 
 /* ── Hide Streamlit chrome ───────────────────────────── */
 [data-testid="stHeader"] { background-color: transparent !important; }
@@ -110,7 +115,7 @@ input, textarea, select { color: var(--text) !important; background: transparent
 
 /* ── Custom UI Components ────────────────────────────────────── */
 .ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
-.ph-title { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--text) !important; letter-spacing: -0.5px; margin: 0; line-height: 1.1; }
+.ph-title { font-size: 1.8rem; font-weight: 800; color: var(--text) !important; letter-spacing: -0.5px; margin: 0; line-height: 1.1; }
 .ph-sub { font-size: 14px; color: var(--muted) !important; margin-top: 5px; font-weight: 500; }
 .ph-badge { background: var(--bg3); border: 1px solid var(--line2); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--accent) !important; text-transform: uppercase; }
 
@@ -124,8 +129,8 @@ input, textarea, select { color: var(--text) !important; background: transparent
 }
 .kpi:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); }
 .kpi-lbl { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--muted) !important; margin-bottom: 8px; }
-.kpi-val { font-family: 'Geist Mono', monospace; font-size: 2.3rem; font-weight: 700; color: var(--text) !important; line-height: 1; margin-bottom: 6px; }
-.kpi-val .unit { font-size: 1.1rem; color: var(--muted) !important; margin-left: 3px; font-family: 'Outfit', sans-serif; }
+.kpi-val { font-size: 2.3rem; font-weight: 700; color: var(--text) !important; line-height: 1; margin-bottom: 6px; letter-spacing: -1px; }
+.kpi-val .unit { font-size: 1.1rem; color: var(--muted) !important; margin-left: 3px; font-weight: 600; letter-spacing: 0; }
 .kpi-sub { font-size: 11px; color: var(--muted) !important; font-weight: 500; }
 .kpi-tag { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; }
 .tag-up { background: rgba(16,185,129,0.15); color: var(--green) !important; }
@@ -134,7 +139,7 @@ input, textarea, select { color: var(--text) !important; background: transparent
 
 /* Decor Section Headers */
 .sec {
-  font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text) !important; 
+  font-size: 1.15rem; font-weight: 700; color: var(--text) !important; 
   margin-bottom: 1.25rem; letter-spacing: -0.2px;
   border-left: 5px solid var(--accent); padding-left: 12px;
   background: linear-gradient(90deg, rgba(1,118,211,0.06) 0%, rgba(255,255,255,0) 100%);
@@ -157,12 +162,12 @@ input, textarea, select { color: var(--text) !important; background: transparent
 
 /* Step list */
 .step { display:flex; gap:16px; margin-bottom:1.5rem; }
-.step-num { width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; background: var(--accent); color: #fff !important; }
-.step-body h4 { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text) !important; margin:0 0 4px; }
+.step-num { width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; font-weight:600; background: var(--accent); color: #fff !important; }
+.step-body h4 { font-size:15px; font-weight:700; color:var(--text) !important; margin:0 0 4px; }
 .step-body p { font-size:13px; color:var(--muted) !important; margin:0; line-height:1.55; }
 
 /* Tabs */
-[data-testid="stTabs"] button { font-family: 'Outfit', sans-serif !important; color: var(--muted) !important; }
+[data-testid="stTabs"] button { color: var(--muted) !important; }
 [data-testid="stTabs"] button[aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; font-weight: 700; }
 
 </style>
@@ -178,7 +183,7 @@ if not st.session_state.logged_in:
     with col2:
         st.markdown("""
         <div style="text-align:center; margin-bottom:1.5rem;">
-          <div style="font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:var(--text); letter-spacing:-0.5px;">PoC Board</div>
+          <div style="font-size:2rem; font-weight:800; color:var(--text); letter-spacing:-0.5px;">PoC Board</div>
           <div style="font-size:12px; color:var(--muted); margin-top:4px;">入札ツール評価プラットフォーム</div>
         </div>""", unsafe_allow_html=True)
 
@@ -247,11 +252,11 @@ def calc_proj():
 
 
 # ─────────────────────────────────────────────────────────────────
-#  PLOTLY THEME (Light Mode)
+#  PLOTLY THEME (Mac-style Font Stack)
 # ─────────────────────────────────────────────────────────────────
 PLY = dict(
     template="plotly_white",
-    font=dict(family="Outfit, sans-serif", color="#64748B"),
+    font=dict(family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Arial, sans-serif", color="#64748B"),
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     margin=dict(l=16, r=16, t=28, b=16),
@@ -368,7 +373,7 @@ with st.sidebar:
     <div style="padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div>
-          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#FFFFFF;letter-spacing:-0.3px;">PoC Board</div>
+          <div style="font-size:18px;font-weight:800;color:#FFFFFF;letter-spacing:-0.3px;">PoC Board</div>
           <div style="font-size:10px;color:#8B9EC7;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">Evaluation Tool</div>
         </div>
       </div>
@@ -518,7 +523,7 @@ if current_page == "ダッシュボード":
                     angularaxis=dict(gridcolor="rgba(0,0,0,0.08)", color="#1E293B"),
                 ),
                 paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="Outfit,sans-serif", color="#64748B"),
+                font=dict(family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Arial, sans-serif", color="#64748B"),
                 legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", bgcolor="rgba(0,0,0,0)"),
                 height=260, margin=dict(t=16,b=36,l=16,r=16),
             )
@@ -534,15 +539,15 @@ if current_page == "ダッシュボード":
         with v1:
             label = "NJSS" if cov_w=="NJSS" else "入札王" if cov_w=="入札王" else "同等"
             color = C1 if cov_w=="NJSS" else C2 if cov_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">1. 網羅率</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color};">{label}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(nj_cov)}% / 入札王 {int(ki_cov)}%</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">1. 網羅率</div><div style="font-size:1.5rem;font-weight:800;color:{color};">{label}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(nj_cov)}% / 入札王 {int(ki_cov)}%</div>', unsafe_allow_html=True)
         with v2:
             label2 = sw_w if sw_w != "同等" else "同等"
             color2 = C1 if sw_w=="NJSS" else C2 if sw_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">2. 検索精度</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color2};">{label2}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">優位ワード数で比較</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">2. 検索精度</div><div style="font-size:1.5rem;font-weight:800;color:{color2};">{label2}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">優位ワード数で比較</div>', unsafe_allow_html=True)
         with v3:
             label3 = roi_w if roi_w != "同等" else "同等"
             color3 = C1 if roi_w=="NJSS" else C2 if roi_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">3. 5年ROI</div><div style="font-size:1.5rem;font-weight:800;font-family:\'Syne\',sans-serif;color:{color3};">{label3}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(n_p5/10000):,}万 / 入札王 {int(k_p5/10000):,}万</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">3. 5年ROI</div><div style="font-size:1.5rem;font-weight:800;color:{color3};">{label3}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(n_p5/10000):,}万 / 入札王 {int(k_p5/10000):,}万</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         if nj_sc > ki_sc:
@@ -837,13 +842,13 @@ elif current_page == "マニュアル":
             st.markdown("**4. secrets.toml にキーを追記**")
             st.markdown("Streamlit アプリのルートディレクトリまたは Streamlit Cloud の Secrets 設定に以下を追加：")
             st.markdown("""
-            <div class="code-block">[google_vision]
+            <div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">[google_vision]
 api_key = "AIzaSy＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"</div>
             """, unsafe_allow_html=True)
 
             st.markdown("**Streamlit Cloud の場合（ローカルファイル不要）**")
             st.markdown("""
-            <div class="code-block">Streamlit Cloud ダッシュボード
+            <div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">Streamlit Cloud ダッシュボード
   → アプリ選択 → Settings → Secrets タブ
   → 上記の [google_vision] ブロックを貼り付けて「Save」</div>
             """, unsafe_allow_html=True)
