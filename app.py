@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from streamlit_gsheets import GSheetsConnection
-import base64, datetime, re
+import base64, datetime, re, json
 
 # ─────────────────────────────────────────────────────────────────
 #  PAGE CONFIG
@@ -152,10 +152,6 @@ input, textarea, select { color: var(--text) !important; background: transparent
 .rl { font-size: 13px; font-weight: 600; color: var(--text) !important; margin-bottom: 4px; }
 .rl .req { color: #EF4444 !important; font-size: 11px; margin-left: 5px; }
 
-.ocr-box { background: linear-gradient(135deg, rgba(1,118,211,0.05), rgba(27,150,255,0.03)); border: 1px dashed rgba(1,118,211,0.3); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem; }
-.ocr-title { font-size: 1rem; font-weight: 700; color: var(--accent) !important; margin-bottom: 6px; }
-.ocr-sub { font-size: 13px; color: var(--muted) !important; line-height: 1.6; }
-
 .verdict { background: linear-gradient(135deg, rgba(1,118,211,0.08), rgba(27,150,255,0.04)); border: 1px solid rgba(1,118,211,0.2); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; }
 .verdict-title { font-size: 1.1rem; font-weight: 800; color: var(--accent) !important; margin-bottom: 6px; }
 .verdict-body { font-size: 13px; color: var(--text) !important; line-height: 1.6; }
@@ -213,12 +209,10 @@ COLS = [
     "URL1","URL2","URL3","URL4","URL5",
 ]
 
-# ⚠️修正ポイント：外側で10分キャッシュさせ、Google API制限を回避する
 @st.cache_data(ttl="10m")
 def load_data():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        # 内側のキャッシュは無効化し、外側の@st.cache_dataで管理する
         df = conn.read(spreadsheet=url, ttl="0s")
         return df if "URL1" in df.columns else pd.DataFrame(columns=COLS)
     except:
@@ -232,7 +226,6 @@ def save_data(df_new):
         spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"],
         data=df_new.fillna(""),
     )
-    # データを保存したらキャッシュをクリアして次回最新を読み込ませる
     load_data.clear()
 
 def calc_proj():
@@ -318,8 +311,46 @@ def sec(text):
 
 
 # ─────────────────────────────────────────────────────────────────
-#  OCR
+#  AI EXTRACTION (Gemini Text & Vision Image)
 # ─────────────────────────────────────────────────────────────────
+def gemini_extract(text_data: str) -> dict:
+    if not text_data.strip():
+        return {}
+    try:
+        api_key = st.secrets["gemini"]["api_key"]
+        import requests
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        prompt = """以下の入札案件に関するテキストデータから、指定のフォーマットで情報を抽出してJSON形式のみで出力してください。
+        該当する情報がない場合は空文字("")にしてください。予算は千円単位の数値文字列（例: "5000"）に変換してください。
+        
+        【抽出フォーマット】
+        {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}
+        
+        【テキストデータ】
+        """ + text_data
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"response_mime_type": "application/json"}
+        }
+        
+        resp = requests.post(url, json=payload, timeout=20)
+        res_data = resp.json()
+        
+        if "candidates" in res_data:
+            res_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(res_text)
+        else:
+            st.error("Gemini APIからの応答が不正です。")
+            return {}
+            
+    except Exception as e:
+        if "gemini" not in st.secrets:
+            st.warning("⚠️ secrets.toml に [gemini] api_key の設定がありません。")
+        else:
+            st.error(f"Gemini APIエラー: {e}")
+        return {}
+
 def ocr_extract(uploaded_file) -> dict:
     if uploaded_file is None:
         return {}
@@ -358,7 +389,7 @@ def ocr_extract(uploaded_file) -> dict:
         return _demo_ocr()
 
 def _demo_ocr():
-    st.warning("OCRデモモード — Google Vision APIキー未設定のためサンプルデータを表示しています。")
+    st.warning("⚠️ OCRデモモード — Google Vision APIキー未設定のためサンプルデータを表示しています。")
     return {
         "自治体名": "東京都",
         "案件概要": "情報システム調達支援業務",
@@ -568,30 +599,50 @@ if current_page == "ダッシュボード":
 
 
 # ─────────────────────────────────────────────────────────────────
-#  PAGE: DATA INPUT + OCR
+#  PAGE: DATA INPUT + AI PARSING
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "案件データ入力":
-    page_header("案件データ入力", "仕様書・公告OCR読み取り + 手動入力")
+    page_header("案件データ入力", "AIによる自動入力（テキスト/画像） + 手動入力")
 
-    st.markdown("""
-    <div class="ocr-box">
-      <div class="ocr-title">仕様書・公告ファイルから自動入力（OCR）</div>
-      <div class="ocr-sub">
-        PNG / JPG / PDF をアップロードすると主要項目を自動解析してフォームへ反映します。<br>
-        ※アップロードされた画像は一時的に読み取られるだけで、サーバーやデータベースには保存されません。
-      </div>
-    </div>""", unsafe_allow_html=True)
+    # 🌟 AI入力タブの追加
+    tab_text, tab_img = st.tabs(["テキスト貼り付け (Gemini AI) ✨", "画像アップロード (Vision OCR)"])
+    
+    with tab_text:
+        st.markdown("""
+        <div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">
+          自治体のWebサイトやPDFのテキストを「全選択＆コピー」して、下の枠に貼り付けてください。<br>
+          Gemini AI が内容を解析し、自動的にフォームの各項目に振り分けます。
+        </div>""", unsafe_allow_html=True)
+        
+        pasted_text = st.text_area("案件テキスト", height=150, placeholder="自治体名、案件名、予算、入札方式などが含まれるテキストをここにペーストしてください...", label_visibility="collapsed")
+        
+        if st.button("テキストをAIで解析する ✨", type="primary"):
+            if pasted_text.strip():
+                with st.spinner("Gemini AI がテキストを解析中..."):
+                    result = gemini_extract(pasted_text)
+                    if result:
+                        st.session_state.ocr_result = result
+                        st.success("テキストの解析に成功しました！フォームに反映しています。")
+            else:
+                st.warning("テキストを入力してください。")
 
-    ocr_file = st.file_uploader(
-        "ファイルをアップロード（PNG / JPG / PDF）",
-        type=["png","jpg","jpeg","pdf"],
-        key="ocr_up",
-    )
-    if ocr_file:
-        with st.spinner("OCR解析中..."):
-            st.session_state.ocr_result = ocr_extract(ocr_file)
-        if st.session_state.ocr_result:
-            st.success(f"{len(st.session_state.ocr_result)} 項目を読み取りました。フォームに反映しています。")
+    with tab_img:
+        st.markdown("""
+        <div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">
+          仕様書などの画像（PNG / JPG / PDF）をアップロードすると、Google Vision AI が主要項目を解析します。
+        </div>""", unsafe_allow_html=True)
+        
+        ocr_file = st.file_uploader(
+            "ファイルをアップロード",
+            type=["png","jpg","jpeg","pdf"],
+            key="ocr_up",
+            label_visibility="collapsed"
+        )
+        if ocr_file:
+            with st.spinner("Vision AI が画像を解析中..."):
+                st.session_state.ocr_result = ocr_extract(ocr_file)
+            if st.session_state.ocr_result:
+                st.success("画像の読み取りに成功しました！フォームに反映しています。")
 
     ocr = st.session_state.ocr_result or {}
 
@@ -616,8 +667,18 @@ elif current_page == "案件データ入力":
 
             form_div("スケジュール・要件")
             c3,c4,c5 = st.columns(3)
-            pub_d  = c3.date_input("公示日", value=None)
-            bid_d  = c4.date_input("入札日", value=None)
+            
+            # 日付の自動変換処理（YYYY-MM-DD形式以外が来てもエラーにしないため）
+            def parse_date(d_str):
+                try:
+                    if d_str and isinstance(d_str, str):
+                        return datetime.datetime.strptime(d_str, "%Y-%m-%d").date()
+                except:
+                    return None
+                return None
+
+            pub_d  = c3.date_input("公示日", value=parse_date(ocr.get("公示日")))
+            bid_d  = c4.date_input("入札日", value=parse_date(ocr.get("入札日")))
             per_d  = c5.text_input("履行期間", placeholder="2025-06-01 〜 2026-03-31",
                                    value=ocr.get("履行期間",""))
             c6,c7  = st.columns(2)
@@ -801,13 +862,13 @@ elif current_page == "ROI分析":
 elif current_page == "マニュアル":
     page_header("自走式 PoC評価マニュアル", "検証フロー・OCR設定ガイド")
 
-    tabs = st.tabs(["検証フロー", "OCR設定方法", "営業DB活用"])
+    tabs = st.tabs(["検証フロー", "API設定方法", "営業DB活用"])
 
     with tabs[0]:
         with st.container(border=True):
             for i, (title, body) in enumerate([
                 ("過去案件データの準備",
-                 "「案件データ入力」画面に、自社ターゲット案件を10〜20件入力します。仕様書PDFのOCR読み取りも活用できます。"),
+                 "「案件データ入力」画面に、自社ターゲット案件を入力します。テキストのコピペ（Gemini API）や画像（Vision API）による自動入力も活用してください。"),
                 ("ツールでの検索実測",
                  "各ツールのトライアルアカウントで案件を検索し、見つかった場合は「NJSS掲載」「入札王掲載」にチェックを入れます。"),
                 ("キーワード検索ボリューム確認",
@@ -825,42 +886,23 @@ elif current_page == "マニュアル":
 
     with tabs[1]:
         with st.container(border=True):
-            sec("Google Cloud Vision API の設定方法")
+            sec("AI機能（Gemini & Vision）のAPIキー設定")
 
-            st.markdown("**1. Google Cloud Console でプロジェクトを作成**")
-            st.markdown("https://console.cloud.google.com/ にアクセスし、新規プロジェクトを作成します。")
+            st.markdown("**1. Google AI Studio で Gemini API キーを取得する（テキスト解析用）**")
+            st.markdown("https://aistudio.google.com/app/apikey にアクセスし、「Create API key」からキーを発行します。")
 
-            st.markdown("**2. Cloud Vision API を有効化**")
-            st.markdown("「APIとサービス」→「ライブラリ」→ `Cloud Vision API` を検索して「有効にする」をクリック。")
+            st.markdown("**2. Google Cloud Console で Vision API キーを取得する（画像解析用）**")
+            st.markdown("Google Cloudでプロジェクトを作成し、「Cloud Vision API」を有効化後、「APIとサービス > 認証情報」からキーを発行します。")
 
-            st.markdown("**3. APIキーを発行**")
-            st.markdown("「APIとサービス」→「認証情報」→「認証情報を作成」→「APIキー」でキーを発行。")
-
-            st.markdown("**4. secrets.toml にキーを追記**")
-            st.markdown("Streamlit アプリのルートディレクトリまたは Streamlit Cloud の Secrets 設定に以下を追加：")
+            st.markdown("**3. Secrets設定画面にキーを追記**")
+            st.markdown("Streamlit Cloud の Settings → Secrets タブに以下を追加します：")
             st.markdown("""
-            <div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">[google_vision]
-api_key = "AIzaSy＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"</div>
+            <div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">[gemini]
+api_key = "AIzaSy_あなたのGeminiキー..."
+
+[google_vision]
+api_key = "AIzaSy_あなたのVisionキー..."</div>
             """, unsafe_allow_html=True)
-
-            st.markdown("**Streamlit Cloud の場合（ローカルファイル不要）**")
-            st.markdown("""
-            <div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">Streamlit Cloud ダッシュボード
-  → アプリ選択 → Settings → Secrets タブ
-  → 上記の [google_vision] ブロックを貼り付けて「Save」</div>
-            """, unsafe_allow_html=True)
-
-            st.markdown("**5. 動作確認**")
-            st.markdown("「案件データ入力」画面でPNGまたはPDFをアップロードし、項目が自動入力されれば設定完了です。")
-
-            st.info("APIキーの利用料金：Vision API は月1,000リクエストまで無料。仕様書1件＝1リクエストのため、通常のPoC用途では無料枠内で収まります。")
-
-            st.markdown("**よくあるエラーと対処**")
-            col_e1, col_e2 = st.columns(2)
-            with col_e1:
-                st.error("403 Forbidden → APIが有効化されていません。手順2を再確認してください。")
-            with col_e2:
-                st.error("KeyError: google_vision → secrets.toml のセクション名が正しいか確認してください。")
 
     with tabs[2]:
         with st.container(border=True):
