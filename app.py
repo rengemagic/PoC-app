@@ -320,9 +320,18 @@ def gemini_extract(text_data: str) -> dict:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        prompt = """以下の入札案件に関するテキストデータから、指定のフォーマットで情報を抽出してJSON形式のみで出力してください。
-        該当する情報がない場合は空文字("")にしてください。予算は千円単位の数値文字列（例: "5000"）に変換してください。
-        ※公示日や入札日は、必ず「YYYY-MM-DD」の形式（例: "2026-04-01"）に変換して出力してください。
+        
+        # ▼ プロンプト（AIへの指示）を大幅に賢くアップデート
+        prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
+
+        【🚨 最優先の重要ルール】
+        テキスト内に「全く異なる複数の案件（別の自治体、別の案件名など）」が混在していると判断した場合は、絶対に抽出を行わず、以下のエラー用JSONのみを出力して終了してください。
+        {"error": "multiple_projects"}
+
+        【通常の抽出ルール】
+        案件が1つのみの場合は、以下のフォーマットで抽出してください。該当情報がない場合は空文字("")にしてください。
+        予算は千円単位の数値文字列（例: "5000"）に変換してください。
+        ※公示日や入札日は、必ず「YYYY-MM-DD」の形式（例: "2026-04-01"）に変換してください。
         
         【抽出フォーマット】
         {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}
@@ -340,10 +349,24 @@ def gemini_extract(text_data: str) -> dict:
         
         if "candidates" in res_data:
             res_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(res_text)
+            parsed_data = json.loads(res_text)
+            
+            # ▼ ここでエラー用JSONが返ってきたかを判定してアラートを出す
+            if parsed_data.get("error") == "multiple_projects":
+                st.error("🚨 【解析中止】テキスト内に「複数の異なる案件」が混在していると判定されました。1案件ずつに分けてから再度お試しください。")
+                return {} # フォームには何も反映させない
+                
+            return parsed_data
         else:
             st.error("Gemini APIからの応答が不正です。")
             return {}
+            
+    except Exception as e:
+        if "gemini" not in st.secrets:
+            st.warning("⚠️ secrets.toml に [gemini] api_key の設定がありません。")
+        else:
+            st.error(f"Gemini APIエラー: {e}")
+        return {}
             
     except Exception as e:
         if "gemini" not in st.secrets:
