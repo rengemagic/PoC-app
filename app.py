@@ -34,12 +34,11 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ─────────────────────────────────────────────────────────────────
-#  GLOBAL CSS  — Modern SaaS Design (Mac-style Typography)
+#  GLOBAL CSS  — Modern SaaS Design
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 :root {
-  /* Main Area (Light) */
   --bg:        #F4F7FA;
   --bg2:       #FFFFFF;
   --bg3:       #F8FAFC;
@@ -47,23 +46,17 @@ st.markdown("""
   --line2:     #CBD5E1;
   --text:      #1E293B;
   --muted:     #64748B;
-  /* Sidebar (Dark) */
   --sb-bg:     #0D1320;
   --sb-text:   #8B9EC7;
   --sb-hover:  #1A2540;
   --sb-active: #233154;
-  /* Accents */
   --accent:    #0176D3;
   --green:     #10B981;
   --red:       #EF4444;
   --radius:    8px;
   --radius-lg: 12px;
 }
-
-/* ── Reset / Base ────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
-
-/* 🍎 Mac-style Typography Stack */
 html, body, p, div, span, label, input, textarea, select, button, table, th, td {
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, Arial, sans-serif !important;
   color: var(--text);
@@ -71,33 +64,21 @@ html, body, p, div, span, label, input, textarea, select, button, table, th, td 
   -moz-osx-font-smoothing: grayscale;
 }
 h1,h2,h3,h4,h5 { 
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, Arial, sans-serif !important; 
-  font-weight: 700 !important; 
-  color: var(--text); 
-  letter-spacing: -0.02em;
+  font-weight: 700 !important; color: var(--text); letter-spacing: -0.02em;
 }
-
-/* ── Hide Streamlit chrome ───────────────────────────── */
 [data-testid="stHeader"] { background-color: transparent !important; }
 footer { display: none !important; }
 [data-testid="stAppViewContainer"] { background: var(--bg) !important; }
 [data-testid="block-container"] { padding: 2rem 2.5rem 4rem !important; max-width: 1400px; }
-
-/* ── Sidebar (Dark Mode) ─────────────────────────────────────── */
 [data-testid="stSidebar"] { background: var(--sb-bg) !important; border-right: none !important; }
 [data-testid="stSidebar"] > div:first-child { padding-top: 0 !important; }
-/* Override colors inside sidebar */
 [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div { color: var(--sb-text) !important; }
-
-/* Radio nav items in sidebar */
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child { display: none !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label { padding: 12px 16px !important; margin-bottom: 4px !important; border-radius: 8px !important; transition: background 0.15s; cursor: pointer; background: transparent !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover { background: var(--sb-hover) !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"] { background: var(--sb-active) !important; border-left: 3px solid var(--accent) !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label p { font-size: 14.5px !important; font-weight: 500 !important; margin: 0 !important; color: var(--sb-text) !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"] p { color: #FFFFFF !important; font-weight: 700 !important; }
-
-/* ── Buttons (All Blue & White Text) ─────────────────────────── */
 div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
   background: var(--accent) !important; border: none !important; border-radius: var(--radius) !important;
   padding: 0.6rem 1.5rem !important; font-weight: 600 !important; font-size: 14px !important;
@@ -105,21 +86,15 @@ div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
 }
 div.stButton > button p, div[data-testid="stFormSubmitButton"] > button p { color: #FFFFFF !important; font-weight: 600 !important; margin: 0; }
 div.stButton > button:hover { background: #015BA7 !important; box-shadow: 0 6px 12px rgba(1, 118, 211, 0.3) !important; transform: translateY(-1px) !important; }
-
-/* ── Containers & Inputs ─────────────────────────────────────── */
 [data-testid="stVerticalBlockBorderWrapper"] { background: var(--bg2) !important; border: 1px solid var(--line) !important; border-radius: var(--radius-lg) !important; padding: 0.5rem !important; box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important; transition: all 0.2s !important; }
 [data-testid="stVerticalBlockBorderWrapper"]:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.05) !important; border-color: var(--line2) !important; }
 div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { background: var(--bg2) !important; border: 1px solid var(--line2) !important; border-radius: var(--radius) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important; }
 div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div:focus-within { border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.15) !important; }
 input, textarea, select { color: var(--text) !important; background: transparent !important; }
-
-/* ── Custom UI Components ────────────────────────────────────── */
 .ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
 .ph-title { font-size: 1.8rem; font-weight: 800; color: var(--text) !important; letter-spacing: -0.5px; margin: 0; line-height: 1.1; }
 .ph-sub { font-size: 14px; color: var(--muted) !important; margin-top: 5px; font-weight: 500; }
 .ph-badge { background: var(--bg3); border: 1px solid var(--line2); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--accent) !important; text-transform: uppercase; }
-
-/* Colorful SaaS KPI Cards */
 .kpi {
   background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius-lg); 
   padding: 1.5rem 1rem; position: relative; overflow: hidden;
@@ -136,8 +111,6 @@ input, textarea, select { color: var(--text) !important; background: transparent
 .tag-up { background: rgba(16,185,129,0.15); color: var(--green) !important; }
 .tag-dn { background: rgba(239,68,68,0.12); color: var(--red) !important; }
 .tag-neu { background: var(--bg3); color: var(--muted) !important; }
-
-/* Decor Section Headers */
 .sec {
   font-size: 1.15rem; font-weight: 700; color: var(--text) !important; 
   margin-bottom: 1.25rem; letter-spacing: -0.2px;
@@ -145,27 +118,20 @@ input, textarea, select { color: var(--text) !important; background: transparent
   background: linear-gradient(90deg, rgba(1,118,211,0.06) 0%, rgba(255,255,255,0) 100%);
   padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;
 }
-
 .form-div { display: flex; align-items: center; gap: 12px; margin: 1.75rem 0 1.25rem; }
 .form-div-line { flex: 1; height: 1px; background: var(--line2); }
 .form-div-label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent) !important; }
 .rl { font-size: 13px; font-weight: 600; color: var(--text) !important; margin-bottom: 4px; }
 .rl .req { color: #EF4444 !important; font-size: 11px; margin-left: 5px; }
-
 .verdict { background: linear-gradient(135deg, rgba(1,118,211,0.08), rgba(27,150,255,0.04)); border: 1px solid rgba(1,118,211,0.2); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; }
 .verdict-title { font-size: 1.1rem; font-weight: 800; color: var(--accent) !important; margin-bottom: 6px; }
 .verdict-body { font-size: 13px; color: var(--text) !important; line-height: 1.6; }
-
-/* Step list */
 .step { display:flex; gap:16px; margin-bottom:1.5rem; }
 .step-num { width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; font-weight:600; background: var(--accent); color: #fff !important; }
 .step-body h4 { font-size:15px; font-weight:700; color:var(--text) !important; margin:0 0 4px; }
 .step-body p { font-size:13px; color:var(--muted) !important; margin:0; line-height:1.55; }
-
-/* Tabs */
 [data-testid="stTabs"] button { color: var(--muted) !important; }
 [data-testid="stTabs"] button[aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; font-weight: 700; }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -182,7 +148,6 @@ if not st.session_state.logged_in:
           <div style="font-size:2rem; font-weight:800; color:var(--text); letter-spacing:-0.5px;">PoC Board</div>
           <div style="font-size:12px; color:var(--muted); margin-top:4px;">入札ツール評価プラットフォーム</div>
         </div>""", unsafe_allow_html=True)
-
         with st.container(border=True):
             st.markdown("<div style='padding: 0.5rem;'>", unsafe_allow_html=True)
             uid = st.text_input("ログインID", placeholder="admin").strip()
@@ -199,37 +164,92 @@ if not st.session_state.logged_in:
 
 
 # ─────────────────────────────────────────────────────────────────
-#  DATA LAYER
+#  DATA LAYER (デュアルシート構成対応)
 # ─────────────────────────────────────────────────────────────────
 conn = st.connection("gsheets", type=GSheetsConnection)
-COLS = [
+
+COLS_BIDS = [
     "ID","自治体名","担当部署名","案件概要","公示日","入札日","履行期間",
     "入札方式","参加資格","予算(千円)","落札金額(千円)","自社結果",
     "落札企業","競合1","競合2","競合3","仕様書","NJSS掲載","入札王掲載",
     "URL1","URL2","URL3","URL4","URL5",
 ]
 
+COLS_SETTINGS = ["種別", "項目名", "値1", "値2", "値3"]
+
 @st.cache_data(ttl="10m")
-def load_data():
+def load_bids():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        df = conn.read(spreadsheet=url, ttl="0s")
-        return df if "URL1" in df.columns else pd.DataFrame(columns=COLS)
+        df = conn.read(spreadsheet=url, worksheet="案件データ", ttl="0s")
+        return df if "URL1" in df.columns else pd.DataFrame(columns=COLS_BIDS)
     except:
-        return pd.DataFrame(columns=COLS)
+        return pd.DataFrame(columns=COLS_BIDS)
+
+@st.cache_data(ttl="10m")
+def load_settings():
+    try:
+        url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        df = conn.read(spreadsheet=url, worksheet="設定データ", ttl="0s")
+        return df if "種別" in df.columns else pd.DataFrame(columns=COLS_SETTINGS)
+    except:
+        return pd.DataFrame(columns=COLS_SETTINGS)
 
 def vdf(df):
     return df[df["自治体名"].notna() & (df["自治体名"].astype(str).str.strip() != "")].copy()
 
-def save_data(df_new):
+def save_bids(df_new):
     conn.update(
         spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"],
+        worksheet="案件データ",
         data=df_new.fillna(""),
     )
-    load_data.clear()
+    load_bids.clear()
+
+def save_settings(df_new):
+    conn.update(
+        spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"],
+        worksheet="設定データ",
+        data=df_new.fillna(""),
+    )
+    load_settings.clear()
+
+def sync_settings():
+    rows = []
+    # コストの保存
+    for k, v in st.session_state.costs.items():
+        rows.append({"種別": "COST", "項目名": k, "値1": v, "値2": "", "値3": ""})
+    # ワードの保存
+    for w in st.session_state.search_words:
+        d = st.session_state.search_counts.get(w, {})
+        rows.append({"種別": "WORD", "項目名": w, "値1": d.get("NJSS", 0), "値2": d.get("入札王", 0), "値3": d.get("登録日", "")})
+    
+    df_set = pd.DataFrame(rows, columns=COLS_SETTINGS)
+    save_settings(df_set)
+
+# 🔄 初回ロード時に「設定データ」からメモリへ復元する処理
+if "settings_loaded" not in st.session_state:
+    df_set = load_settings()
+    if not df_set.empty:
+        # COSTの復元
+        for _, row in df_set[df_set["種別"] == "COST"].iterrows():
+            k = str(row["項目名"])
+            if k in st.session_state.costs:
+                st.session_state.costs[k] = int(pd.to_numeric(row["値1"], errors="coerce") or 0)
+        # WORDの復元
+        for _, row in df_set[df_set["種別"] == "WORD"].iterrows():
+            w = str(row["項目名"])
+            if w and w not in st.session_state.search_words:
+                st.session_state.search_words.append(w)
+                st.session_state.search_counts[w] = {
+                    "NJSS": int(pd.to_numeric(row["値1"], errors="coerce") or 0),
+                    "入札王": int(pd.to_numeric(row["値2"], errors="coerce") or 0),
+                    "登録日": str(row["値3"])
+                }
+    st.session_state.settings_loaded = True
 
 def calc_proj():
-    df = vdf(load_data())
+    df = vdf(load_bids())
     avg_bid = 0
     if not df.empty and "落札金額(千円)" in df.columns:
         nums = pd.to_numeric(df["落札金額(千円)"], errors="coerce").fillna(0)
@@ -275,18 +295,12 @@ def page_header(title, sub="", badge=""):
         s = f'<div class="ph-sub">{sub}</div>' if sub else ""
         st.markdown(f"""
         <div class="ph">
-          <div>
-            <div class="ph-title">{title}</div>
-            {s}
-          </div>
-          {b}
+          <div><div class="ph-title">{title}</div>{s}</div>{b}
         </div>""", unsafe_allow_html=True)
-        
     with col2:
         st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
         if title != "PoC Dashboard":
             st.button("ダッシュボードに戻る", key=f"btn_{title}", on_click=go_to_dashboard, use_container_width=True)
-                
     st.markdown('<div style="border-bottom: 1px solid var(--line2); margin-bottom: 2rem;"></div>', unsafe_allow_html=True)
 
 def kpi(label, value, unit="", sub="", tag="", tag_type="neu", color="#0176D3"):
@@ -321,7 +335,6 @@ def gemini_extract(text_data: str) -> dict:
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
-        # ▼ プロンプト（AIへの指示）を大幅に賢くアップデート
         prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
 
         【🚨 最優先の重要ルール】
@@ -331,7 +344,7 @@ def gemini_extract(text_data: str) -> dict:
         【通常の抽出ルール】
         案件が1つのみの場合は、以下のフォーマットで抽出してください。該当情報がない場合は空文字("")にしてください。
         予算は千円単位の数値文字列（例: "5000"）に変換してください。
-        ※公示日や入札日は、必ず「YYYY-MM-DD」の形式（例: "2026-04-01"）に変換してください。
+        ※公示日や入札日は、必ず「YYYY-MM-DD」の形式（例: "2026-04-01"）に変換して出力してください。
         
         【抽出フォーマット】
         {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}
@@ -351,22 +364,15 @@ def gemini_extract(text_data: str) -> dict:
             res_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
             parsed_data = json.loads(res_text)
             
-            # ▼ ここでエラー用JSONが返ってきたかを判定してアラートを出す
+            # 複数案件混在エラーのハンドリング
             if parsed_data.get("error") == "multiple_projects":
                 st.error("🚨 【解析中止】テキスト内に「複数の異なる案件」が混在していると判定されました。1案件ずつに分けてから再度お試しください。")
-                return {} # フォームには何も反映させない
+                return {}
                 
             return parsed_data
         else:
             st.error("Gemini APIからの応答が不正です。")
             return {}
-            
-    except Exception as e:
-        if "gemini" not in st.secrets:
-            st.warning("⚠️ secrets.toml に [gemini] api_key の設定がありません。")
-        else:
-            st.error(f"Gemini APIエラー: {e}")
-        return {}
             
     except Exception as e:
         if "gemini" not in st.secrets:
@@ -415,11 +421,8 @@ def ocr_extract(uploaded_file) -> dict:
 def _demo_ocr():
     st.warning("⚠️ OCRデモモード — Google Vision APIキー未設定のためサンプルデータを表示しています。")
     return {
-        "自治体名": "東京都",
-        "案件概要": "情報システム調達支援業務",
-        "予算(千円)": "5000",
-        "入札方式": "公募型プロポーザル",
-        "参加資格": "情報処理 Aランク",
+        "自治体名": "東京都", "案件概要": "情報システム調達支援業務", "予算(千円)": "5000",
+        "入札方式": "公募型プロポーザル", "参加資格": "情報処理 Aランク",
     }
 
 
@@ -451,15 +454,7 @@ with st.sidebar:
     if st.session_state.current_page in menu_options:
         current_index = menu_options.index(st.session_state.current_page)
 
-    st.radio(
-        "ページ",
-        menu_options,
-        index=current_index,
-        key="nav_radio",
-        label_visibility="collapsed",
-        on_change=on_nav_change
-    )
-
+    st.radio("ページ", menu_options, index=current_index, key="nav_radio", label_visibility="collapsed", on_change=on_nav_change)
     current_page = st.session_state.current_page
 
     st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -474,7 +469,7 @@ with st.sidebar:
 if current_page == "ダッシュボード":
     page_header("PoC Dashboard", "入札ツール導入前検証 — データ統合ビュー", "LIVE")
 
-    df  = load_data()
+    df  = load_bids()
     vd  = vdf(df)
     p_df, _ = calc_proj()
 
@@ -500,12 +495,8 @@ if current_page == "ダッシュボード":
     with r1l:
         with st.container(border=True):
             sec("案件捕捉数の比較")
-            fig = px.bar(
-                x=["NJSS","入札王"], y=[nj_c, ki_c],
-                color=["NJSS","入札王"],
-                color_discrete_map={"NJSS": C1, "入札王": C2},
-                text=[nj_c, ki_c],
-            )
+            fig = px.bar(x=["NJSS","入札王"], y=[nj_c, ki_c], color=["NJSS","入札王"],
+                         color_discrete_map={"NJSS": C1, "入札王": C2}, text=[nj_c, ki_c])
             fig.update_traces(marker_line_width=0, textposition="outside", textfont_size=14)
             fig.update_layout(**PLY, showlegend=False, height=260)
             fig.update_yaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
@@ -518,8 +509,7 @@ if current_page == "ダッシュボード":
             comp = pd.concat([vd["落札企業"], vd["競合1"], vd["競合2"], vd["競合3"]])
             comp_df = comp[comp.notna() & (comp != "")].value_counts().head(6).reset_index()
             comp_df.columns = ["企業名", "回数"]
-            fig2 = px.bar(comp_df, x="回数", y="企業名", orientation="h",
-                          text="回数", color_discrete_sequence=[C3])
+            fig2 = px.bar(comp_df, x="回数", y="企業名", orientation="h", text="回数", color_discrete_sequence=[C3])
             fig2.update_traces(marker_line_width=0, textposition="outside", textfont_size=12)
             fig2.update_layout(**PLY, showlegend=False, height=260)
             fig2.update_xaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
@@ -613,8 +603,7 @@ if current_page == "ダッシュボード":
 
     with st.container(border=True):
         sec("累積期待利益の予測推移（5カ年）")
-        fig4 = px.line(p_df, x="年", y=["NJSS利益","入札王利益"],
-                       color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
+        fig4 = px.line(p_df, x="年", y=["NJSS利益","入札王利益"], color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
         fig4.update_traces(line_width=3)
         fig4.update_layout(**PLY, height=250)
         fig4.update_yaxes(title="累積利益 (円)", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
@@ -628,17 +617,16 @@ if current_page == "ダッシュボード":
 elif current_page == "案件データ入力":
     page_header("案件データ入力", "AIによる自動入力（テキスト/画像） + 手動入力")
 
-    # 🌟 AI入力タブの追加
     tab_text, tab_img = st.tabs(["テキスト貼り付け (Gemini AI) ✨", "画像アップロード (Vision OCR)"])
     
     with tab_text:
         st.markdown("""
         <div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">
-          自治体のWebサイトやPDFのテキストを「全選択＆コピー」して、下の枠に貼り付けてください。<br>
+          自治体のWebサイトやPDFのテキストをコピーして、下の枠に貼り付けてください。<br>
           Gemini AI が内容を解析し、自動的にフォームの各項目に振り分けます。
         </div>""", unsafe_allow_html=True)
         
-        pasted_text = st.text_area("案件テキスト", height=150, placeholder="自治体名、案件名、予算、入札方式などが含まれるテキストをここにペーストしてください...", label_visibility="collapsed")
+        pasted_text = st.text_area("案件テキスト", height=150, placeholder="ここにテキストをペースト...", label_visibility="collapsed")
         
         if st.button("テキストをAIで解析する ✨", type="primary"):
             if pasted_text.strip():
@@ -656,12 +644,7 @@ elif current_page == "案件データ入力":
           仕様書などの画像（PNG / JPG / PDF）をアップロードすると、Google Vision AI が主要項目を解析します。
         </div>""", unsafe_allow_html=True)
         
-        ocr_file = st.file_uploader(
-            "ファイルをアップロード",
-            type=["png","jpg","jpeg","pdf"],
-            key="ocr_up",
-            label_visibility="collapsed"
-        )
+        ocr_file = st.file_uploader("ファイルをアップロード", type=["png","jpg","jpeg","pdf"], key="ocr_up", label_visibility="collapsed")
         if ocr_file:
             with st.spinner("Vision AI が画像を解析中..."):
                 st.session_state.ocr_result = ocr_extract(ocr_file)
@@ -670,7 +653,7 @@ elif current_page == "案件データ入力":
 
     ocr = st.session_state.ocr_result or {}
 
-    df_cur = load_data()
+    df_cur = load_bids()
     vd     = vdf(df_cur)
 
     with st.container(border=True):
@@ -679,20 +662,16 @@ elif current_page == "案件データ入力":
             c1, c2 = st.columns(2)
             with c1:
                 req_label("自治体名・発注機関")
-                mun = st.text_input("mun", label_visibility="collapsed",
-                                    placeholder="例: 横浜市", value=ocr.get("自治体名",""))
+                mun = st.text_input("mun", label_visibility="collapsed", placeholder="例: 横浜市", value=ocr.get("自治体名",""))
             with c2:
                 st.markdown('<div class="rl">担当部署名</div>', unsafe_allow_html=True)
-                dep = st.text_input("dep", label_visibility="collapsed",
-                                    placeholder="例: デジタル統括本部", value=ocr.get("担当部署名",""))
+                dep = st.text_input("dep", label_visibility="collapsed", placeholder="例: デジタル統括本部", value=ocr.get("担当部署名",""))
             req_label("案件名・案件概要")
-            smm = st.text_input("smm", label_visibility="collapsed",
-                                placeholder="例: 交通データ連携基盤構築業務", value=ocr.get("案件概要",""))
+            smm = st.text_input("smm", label_visibility="collapsed", placeholder="例: 交通データ連携基盤構築業務", value=ocr.get("案件概要",""))
 
             form_div("スケジュール・要件")
             c3,c4,c5 = st.columns(3)
             
-            # 日付の自動変換処理（YYYY-MM-DD形式以外が来てもエラーにしないため）
             def parse_date(d_str):
                 try:
                     if d_str and isinstance(d_str, str):
@@ -703,14 +682,12 @@ elif current_page == "案件データ入力":
 
             pub_d  = c3.date_input("公示日", value=parse_date(ocr.get("公示日")))
             bid_d  = c4.date_input("入札日", value=parse_date(ocr.get("入札日")))
-            per_d  = c5.text_input("履行期間", placeholder="2025-06-01 〜 2026-03-31",
-                                   value=ocr.get("履行期間",""))
+            per_d  = c5.text_input("履行期間", placeholder="2025-06-01 〜 2026-03-31", value=ocr.get("履行期間",""))
             c6,c7  = st.columns(2)
             methods = ["","公募型プロポーザル","一般競争入札","指名競争入札","随意契約","その他"]
             m_idx  = methods.index(ocr.get("入札方式","")) if ocr.get("入札方式","") in methods else 0
             method = c6.selectbox("入札方式", methods, index=m_idx)
-            qual   = c7.text_input("参加資格", placeholder="情報処理 Aランク",
-                                   value=ocr.get("参加資格",""))
+            qual   = c7.text_input("参加資格", placeholder="情報処理 Aランク", value=ocr.get("参加資格",""))
 
             form_div("結果・金額")
             c8,c9,c10 = st.columns(3)
@@ -758,7 +735,7 @@ elif current_page == "案件データ入力":
                         "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5,
                     }])
                     try:
-                        save_data(pd.concat([vd, new_rec], ignore_index=True))
+                        save_bids(pd.concat([vd, new_rec], ignore_index=True))
                         st.session_state.ocr_result = None
                         st.success("保存しました。")
                     except Exception as e:
@@ -777,7 +754,6 @@ elif current_page == "案件データ入力":
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "ワード検索数":
     page_header("ワード検索数比較", "同一キーワードで両ツールを実測→件数を入力")
-
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
     with st.container(border=True):
@@ -788,9 +764,12 @@ elif current_page == "ワード検索数":
             if nw and nw not in st.session_state.search_words:
                 st.session_state.search_words.append(nw)
                 st.session_state.search_counts[nw] = {"NJSS": 0, "入札王": 0, "登録日": today_str}
+                sync_settings() # 🌟 スプレッドシートに同期保存
                 st.rerun()
         if ca3.button("クリア"):
-            st.session_state.search_words = []; st.session_state.search_counts = {}; st.rerun()
+            st.session_state.search_words = []; st.session_state.search_counts = {}
+            sync_settings() # 🌟 スプレッドシートに同期保存
+            st.rerun()
 
     with st.container(border=True):
         sec("ヒット件数テーブル（セル直接編集可）")
@@ -814,7 +793,8 @@ elif current_page == "ワード検索数":
                     }
                     for _, row in edited.iterrows() if pd.notna(row["検索ワード"])
                 }
-                st.success("保存しました。")
+                sync_settings() # 🌟 スプレッドシートに同期保存
+                st.success("スプレッドシートに永続保存しました。")
         else:
             st.info("上の欄からキーワードを追加してください。")
 
@@ -852,19 +832,17 @@ elif current_page == "ROI分析":
             st.session_state.costs.update({"n_init":ni,"n_month":nm,"n_opt":no,
                                             "k_init":ki,"k_month":km,"k_opt":ko,
                                             "margin":mg,"win_rate":wr,"annual_bids":ab})
-            st.success("更新しました。"); st.rerun()
+            sync_settings() # 🌟 スプレッドシートに同期保存
+            st.success("スプレッドシートに永続保存しました。"); st.rerun()
 
     p_df, _ = calc_proj()
 
     with st.container(border=True):
         sec("損益分岐点 & 5年収益推移")
         fb = go.Figure()
-        fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値",
-                                line=dict(color=C3, width=3)))
-        fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSS累積コスト",
-                                line=dict(color=C1, dash="dash", width=2)))
-        fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["入札王累積コスト"], name="入札王累積コスト",
-                                line=dict(color=C2, dash="dot", width=2)))
+        fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["累積売上"], name="累積売上期待値", line=dict(color=C3, width=3)))
+        fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["NJSS累積コスト"], name="NJSS累積コスト", line=dict(color=C1, dash="dash", width=2)))
+        fb.add_trace(go.Scatter(x=p_df["年"], y=p_df["入札王累積コスト"], name="入札王累積コスト", line=dict(color=C2, dash="dot", width=2)))
         fb.update_layout(**PLY, height=300)
         fb.update_yaxes(title="金額 (円)", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
         fb.update_xaxes(title="経過年数")
@@ -872,8 +850,7 @@ elif current_page == "ROI分析":
 
     with st.container(border=True):
         sec("各年の累積利益比較")
-        fp = px.bar(p_df, x="年", y=["NJSS利益","入札王利益"], barmode="group",
-                    color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
+        fp = px.bar(p_df, x="年", y=["NJSS利益","入札王利益"], barmode="group", color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
         fp.update_traces(marker_line_width=0)
         fp.update_layout(**PLY, height=280)
         fp.update_yaxes(title="累積利益 (円)", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
@@ -884,62 +861,39 @@ elif current_page == "ROI分析":
 #  PAGE: MANUAL
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "マニュアル":
-    page_header("自走式 PoC評価マニュアル", "検証フロー・OCR設定ガイド")
-
+    page_header("自走式 PoC評価マニュアル", "検証フロー・API設定ガイド")
     tabs = st.tabs(["検証フロー", "API設定方法", "営業DB活用"])
 
     with tabs[0]:
         with st.container(border=True):
             for i, (title, body) in enumerate([
-                ("過去案件データの準備",
-                 "「案件データ入力」画面に、自社ターゲット案件を入力します。テキストのコピペ（Gemini API）や画像（Vision API）による自動入力も活用してください。"),
-                ("ツールでの検索実測",
-                 "各ツールのトライアルアカウントで案件を検索し、見つかった場合は「NJSS掲載」「入札王掲載」にチェックを入れます。"),
-                ("キーワード検索ボリューム確認",
-                 "「ワード検索数」画面で得意領域のキーワードを入力し、ヒット件数を記録・保存します。"),
-                ("コストシミュレーション設定",
-                 "「ROI分析」画面で各ツールの見積金額・自社の受注率・粗利率を入力してシミュレーションを実行します。"),
-                ("ダッシュボードで最終判断",
-                 "「ダッシュボード」でレーダーチャートと推奨テキストを確認し、スクリーンショットを稟議書に添付します。"),
+                ("過去案件データの準備", "「案件データ入力」画面に、自社ターゲット案件を入力します。テキストのコピペ（Gemini API）や画像（Vision API）による自動入力も活用してください。"),
+                ("ツールでの検索実測", "各ツールのトライアルアカウントで案件を検索し、見つかった場合は「NJSS掲載」「入札王掲載」にチェックを入れます。"),
+                ("キーワード検索ボリューム確認", "「ワード検索数」画面で得意領域のキーワードを入力し、ヒット件数を記録・保存します。"),
+                ("コストシミュレーション設定", "「ROI分析」画面で各ツールの見積金額・自社の受注率・粗利率を入力してシミュレーションを実行します。"),
+                ("ダッシュボードで最終判断", "「ダッシュボード」でレーダーチャートと推奨テキストを確認し、スクリーンショットを稟議書に添付します。"),
             ], 1):
-                st.markdown(f"""
-                <div class="step">
-                  <div class="step-num">{i}</div>
-                  <div class="step-body"><h4>{title}</h4><p>{body}</p></div>
-                </div>""", unsafe_allow_html=True)
+                st.markdown(f'<div class="step"><div class="step-num">{i}</div><div class="step-body"><h4>{title}</h4><p>{body}</p></div></div>', unsafe_allow_html=True)
 
     with tabs[1]:
         with st.container(border=True):
             sec("AI機能（Gemini & Vision）のAPIキー設定")
-
             st.markdown("**1. Google AI Studio で Gemini API キーを取得する（テキスト解析用）**")
             st.markdown("https://aistudio.google.com/app/apikey にアクセスし、「Create API key」からキーを発行します。")
-
             st.markdown("**2. Google Cloud Console で Vision API キーを取得する（画像解析用）**")
             st.markdown("Google Cloudでプロジェクトを作成し、「Cloud Vision API」を有効化後、「APIとサービス > 認証情報」からキーを発行します。")
-
             st.markdown("**3. Secrets設定画面にキーを追記**")
             st.markdown("Streamlit Cloud の Settings → Secrets タブに以下を追加します：")
-            st.markdown("""
-            <div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">[gemini]
+            st.markdown("""<div class="code-block" style="background:var(--bg3); border:1px solid var(--line2); border-radius:8px; padding:1rem; font-family:monospace; font-size:13px; color:var(--accent); white-space:pre-wrap; margin-bottom:1rem;">[gemini]
 api_key = "AIzaSy_あなたのGeminiキー..."
 
 [google_vision]
-api_key = "AIzaSy_あなたのVisionキー..."</div>
-            """, unsafe_allow_html=True)
+api_key = "AIzaSy_あなたのVisionキー..."</div>""", unsafe_allow_html=True)
 
     with tabs[2]:
         with st.container(border=True):
             sec("営業データベースとしての活用方法")
-            st.markdown("""
-            本システムは PoC 評価ツールと同時に、公共営業の案件データベースとして継続活用できます。
-
-            **プロポーザル勝率分析** 入札方式・自社結果を蓄積することで、「公募型プロポーザルに強い」「価格競争案件は不利」といった傾向が数値で把握できます。
-
-            **先行営業の起点** 履行期間（契約終了日）から逆算し、次回公示の6〜3ヶ月前に担当部署へ直接アプローチするリマインドに活用できます。
-
-            **競合分析** 落札企業・競合欄の蓄積により、ターゲット自治体で頻出する競合企業のパターンが把握でき、提案戦略の差別化に繋げられます。
-            """)
+            st.markdown("本システムは PoC 評価ツールと同時に、公共営業の案件データベースとして継続活用できます。\n\n**プロポーザル勝率分析** 入札方式・自社結果を蓄積することで、「公募型プロポーザルに強い」「価格競争案件は不利」といった傾向が数値で把握できます。\n\n**先行営業の起点** 履行期間（契約終了日）から逆算し、次回公示の6〜3ヶ月前に担当部署へ直接アプローチするリマインドに活用できます。\n\n**競合分析** 落札企業・競合欄の蓄積により、ターゲット自治体で頻出する競合企業のパターンが把握でき、提案戦略の差別化に繋げられます。")
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -966,11 +920,7 @@ elif current_page == "データ管理":
             {"ID":2,"自治体名":"大阪府","担当部署名":"スマートシティ戦略部","案件概要":"BIツールライセンス更新",
              "落札金額(千円)":8000,"NJSS掲載":True,"入札王掲載":True,"自社結果":"失注"},
         ]
-        st.download_button(
-            "万能サンプルCSVをダウンロード",
-            data=pd.DataFrame(sample).to_csv(index=False).encode("utf-8-sig"),
-            file_name="database_sample.csv", mime="text/csv",
-        )
+        st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample).to_csv(index=False).encode("utf-8-sig"), file_name="database_sample.csv", mime="text/csv")
 
     with st.container(border=True):
         sec("CSV一括インポート")
@@ -1009,7 +959,8 @@ elif current_page == "データ管理":
                             if pd.notna(row.get("自治体名")) and str(row.get("自治体名")).strip():
                                 new_p.append(row)
                     if new_p:
-                        save_data(pd.concat([load_data(), pd.DataFrame(new_p)], ignore_index=True))
+                        save_bids(pd.concat([load_bids(), pd.DataFrame(new_p)], ignore_index=True))
+                    sync_settings() # 🌟 スプレッドシートに同期保存
                     st.success("全データを正常に読み込み・保存しました。")
                 except Exception as e:
                     st.error(f"エラー: {e}")
@@ -1021,7 +972,8 @@ elif current_page == "データ管理":
             if st.button("全データを初期化する"):
                 if ok:
                     try:
-                        save_data(pd.DataFrame(columns=COLS))
+                        save_bids(pd.DataFrame(columns=COLS_BIDS))
+                        save_settings(pd.DataFrame(columns=COLS_SETTINGS))
                         st.session_state.update({
                             "search_words": [], "search_counts": {},
                             "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,
