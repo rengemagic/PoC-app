@@ -34,7 +34,7 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ─────────────────────────────────────────────────────────────────
-#  GLOBAL CSS  — Modern SaaS Design
+#  GLOBAL CSS  — Modern SaaS Design (Bug Fixed)
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -56,20 +56,29 @@ st.markdown("""
   --radius:    8px;
   --radius-lg: 12px;
 }
-*, *::before, *::after { box-sizing: border-box; }
-html, body, p, div, span, label, input, textarea, select, button, table, th, td {
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, Arial, sans-serif !important;
+
+/* 🍎 Mac-style Typography Stack (安全なタグのみに適用) */
+html, body, p, label, input, textarea, select, table, th, td {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, Arial, sans-serif;
   color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 h1,h2,h3,h4,h5 { 
   font-weight: 700 !important; color: var(--text); letter-spacing: -0.02em;
 }
+
+/* 🌟 アイコンフォントの保護（ハンバーガーメニュー文字化け防止） */
+.material-symbols-rounded, 
+[data-testid="stIconMaterial"], 
+[class*="stIcon"] {
+  font-family: "Material Symbols Rounded" !important;
+}
+
 [data-testid="stHeader"] { background-color: transparent !important; }
 footer { display: none !important; }
 [data-testid="stAppViewContainer"] { background: var(--bg) !important; }
 [data-testid="block-container"] { padding: 2rem 2.5rem 4rem !important; max-width: 1400px; }
+
+/* ── Sidebar ── */
 [data-testid="stSidebar"] { background: var(--sb-bg) !important; border-right: none !important; }
 [data-testid="stSidebar"] > div:first-child { padding-top: 0 !important; }
 [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div { color: var(--sb-text) !important; }
@@ -79,22 +88,29 @@ footer { display: none !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"] { background: var(--sb-active) !important; border-left: 3px solid var(--accent) !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label p { font-size: 14.5px !important; font-weight: 500 !important; margin: 0 !important; color: var(--sb-text) !important; }
 [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"] p { color: #FFFFFF !important; font-weight: 700 !important; }
-div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
+
+/* ── Buttons ── */
+.stButton > button, .stFormSubmitButton > button {
   background: var(--accent) !important; border: none !important; border-radius: var(--radius) !important;
-  padding: 0.6rem 1.5rem !important; font-weight: 600 !important; font-size: 14px !important;
-  color: #FFFFFF !important; transition: all 0.2s !important; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2) !important; width: 100%;
+  font-weight: 600 !important; font-size: 14px !important;
+  color: #FFFFFF !important; transition: all 0.2s !important; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2) !important; 
 }
-div.stButton > button p, div[data-testid="stFormSubmitButton"] > button p { color: #FFFFFF !important; font-weight: 600 !important; margin: 0; }
-div.stButton > button:hover { background: #015BA7 !important; box-shadow: 0 6px 12px rgba(1, 118, 211, 0.3) !important; transform: translateY(-1px) !important; }
+.stButton > button p, .stFormSubmitButton > button p { color: #FFFFFF !important; font-weight: 600 !important; margin: 0; }
+.stButton > button:hover { background: #015BA7 !important; box-shadow: 0 6px 12px rgba(1, 118, 211, 0.3) !important; transform: translateY(-1px) !important; }
+
+/* ── Containers ── */
 [data-testid="stVerticalBlockBorderWrapper"] { background: var(--bg2) !important; border: 1px solid var(--line) !important; border-radius: var(--radius-lg) !important; padding: 0.5rem !important; box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important; transition: all 0.2s !important; }
 [data-testid="stVerticalBlockBorderWrapper"]:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.05) !important; border-color: var(--line2) !important; }
 div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div { background: var(--bg2) !important; border: 1px solid var(--line2) !important; border-radius: var(--radius) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important; }
 div[data-baseweb="input"] > div:focus-within, div[data-baseweb="textarea"] > div:focus-within { border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.15) !important; }
-input, textarea, select { color: var(--text) !important; background: transparent !important; }
+input, textarea, select { background: transparent !important; }
+
+/* ── Custom UI ── */
 .ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
 .ph-title { font-size: 1.8rem; font-weight: 800; color: var(--text) !important; letter-spacing: -0.5px; margin: 0; line-height: 1.1; }
 .ph-sub { font-size: 14px; color: var(--muted) !important; margin-top: 5px; font-weight: 500; }
 .ph-badge { background: var(--bg3); border: 1px solid var(--line2); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--accent) !important; text-transform: uppercase; }
+
 .kpi {
   background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius-lg); 
   padding: 1.5rem 1rem; position: relative; overflow: hidden;
@@ -111,6 +127,7 @@ input, textarea, select { color: var(--text) !important; background: transparent
 .tag-up { background: rgba(16,185,129,0.15); color: var(--green) !important; }
 .tag-dn { background: rgba(239,68,68,0.12); color: var(--red) !important; }
 .tag-neu { background: var(--bg3); color: var(--muted) !important; }
+
 .sec {
   font-size: 1.15rem; font-weight: 700; color: var(--text) !important; 
   margin-bottom: 1.25rem; letter-spacing: -0.2px;
@@ -123,13 +140,16 @@ input, textarea, select { color: var(--text) !important; background: transparent
 .form-div-label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent) !important; }
 .rl { font-size: 13px; font-weight: 600; color: var(--text) !important; margin-bottom: 4px; }
 .rl .req { color: #EF4444 !important; font-size: 11px; margin-left: 5px; }
+
 .verdict { background: linear-gradient(135deg, rgba(1,118,211,0.08), rgba(27,150,255,0.04)); border: 1px solid rgba(1,118,211,0.2); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; }
 .verdict-title { font-size: 1.1rem; font-weight: 800; color: var(--accent) !important; margin-bottom: 6px; }
 .verdict-body { font-size: 13px; color: var(--text) !important; line-height: 1.6; }
+
 .step { display:flex; gap:16px; margin-bottom:1.5rem; }
 .step-num { width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; font-weight:600; background: var(--accent); color: #fff !important; }
 .step-body h4 { font-size:15px; font-weight:700; color:var(--text) !important; margin:0 0 4px; }
 .step-body p { font-size:13px; color:var(--muted) !important; margin:0; line-height:1.55; }
+
 [data-testid="stTabs"] button { color: var(--muted) !important; }
 [data-testid="stTabs"] button[aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; font-weight: 700; }
 </style>
@@ -153,7 +173,7 @@ if not st.session_state.logged_in:
             uid = st.text_input("ログインID", placeholder="admin").strip()
             pwd = st.text_input("パスワード", type="password", placeholder="パスワードを入力").strip()
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("サインイン"):
+            if st.button("サインイン", use_container_width=True):
                 if uid == "admin" and pwd == "admin":
                     st.session_state.logged_in = True
                     st.rerun()
@@ -458,7 +478,7 @@ with st.sidebar:
     current_page = st.session_state.current_page
 
     st.markdown("<br><br><br>", unsafe_allow_html=True)
-    if st.button("ログアウト"):
+    if st.button("ログアウト", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
@@ -628,7 +648,7 @@ elif current_page == "案件データ入力":
         
         pasted_text = st.text_area("案件テキスト", height=150, placeholder="ここにテキストをペースト...", label_visibility="collapsed")
         
-        if st.button("テキストをAIで解析する ✨", type="primary"):
+        if st.button("テキストをAIで解析する ✨", type="primary", use_container_width=True):
             if pasted_text.strip():
                 with st.spinner("Gemini AI がテキストを解析中..."):
                     result = gemini_extract(pasted_text)
@@ -722,7 +742,7 @@ elif current_page == "案件データ入力":
             url5 = st.text_input("URL 5")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("この案件を保存する"):
+            if st.form_submit_button("この案件を保存する", use_container_width=True):
                 if mun and smm and wbid > 0:
                     new_rec = pd.DataFrame([{
                         "ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm,
@@ -760,15 +780,15 @@ elif current_page == "ワード検索数":
         sec("キーワードの追加")
         ca1,ca2,ca3 = st.columns([2,1,1])
         nw = ca1.text_input("キーワード", placeholder="例: BIツール、DX推進", label_visibility="collapsed")
-        if ca2.button("追加"):
+        if ca2.button("追加", use_container_width=True):
             if nw and nw not in st.session_state.search_words:
                 st.session_state.search_words.append(nw)
                 st.session_state.search_counts[nw] = {"NJSS": 0, "入札王": 0, "登録日": today_str}
-                sync_settings() # 🌟 スプレッドシートに同期保存
+                sync_settings()
                 st.rerun()
-        if ca3.button("クリア"):
+        if ca3.button("クリア", use_container_width=True):
             st.session_state.search_words = []; st.session_state.search_counts = {}
-            sync_settings() # 🌟 スプレッドシートに同期保存
+            sync_settings()
             st.rerun()
 
     with st.container(border=True):
@@ -783,7 +803,7 @@ elif current_page == "ワード検索数":
             
             edited = st.data_editor(df_sw, num_rows="dynamic", use_container_width=True, hide_index=True, key="kw_ed")
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("件数を保存してダッシュボードへ反映"):
+            if st.button("件数を保存してダッシュボードへ反映", use_container_width=True):
                 st.session_state.search_words = edited["検索ワード"].dropna().tolist()
                 st.session_state.search_counts = {
                     row["検索ワード"]: {
@@ -793,7 +813,7 @@ elif current_page == "ワード検索数":
                     }
                     for _, row in edited.iterrows() if pd.notna(row["検索ワード"])
                 }
-                sync_settings() # 🌟 スプレッドシートに同期保存
+                sync_settings()
                 st.success("スプレッドシートに永続保存しました。")
         else:
             st.info("上の欄からキーワードを追加してください。")
@@ -828,11 +848,11 @@ elif current_page == "ROI分析":
         mg = s2.number_input("平均粗利率 (%)", value=st.session_state.costs["margin"])
         ab = s3.number_input("年間想定応札数 (件)", value=st.session_state.costs["annual_bids"])
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("設定を保存してグラフを更新"):
+        if st.button("設定を保存してグラフを更新", use_container_width=True):
             st.session_state.costs.update({"n_init":ni,"n_month":nm,"n_opt":no,
                                             "k_init":ki,"k_month":km,"k_opt":ko,
                                             "margin":mg,"win_rate":wr,"annual_bids":ab})
-            sync_settings() # 🌟 スプレッドシートに同期保存
+            sync_settings()
             st.success("スプレッドシートに永続保存しました。"); st.rerun()
 
     p_df, _ = calc_proj()
@@ -920,7 +940,7 @@ elif current_page == "データ管理":
             {"ID":2,"自治体名":"大阪府","担当部署名":"スマートシティ戦略部","案件概要":"BIツールライセンス更新",
              "落札金額(千円)":8000,"NJSS掲載":True,"入札王掲載":True,"自社結果":"失注"},
         ]
-        st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample).to_csv(index=False).encode("utf-8-sig"), file_name="database_sample.csv", mime="text/csv")
+        st.download_button("万能サンプルCSVをダウンロード", data=pd.DataFrame(sample).to_csv(index=False).encode("utf-8-sig"), file_name="database_sample.csv", mime="text/csv", use_container_width=True)
 
     with st.container(border=True):
         sec("CSV一括インポート")
@@ -929,7 +949,7 @@ elif current_page == "データ管理":
             im = pd.read_csv(uf, encoding="utf-8-sig")
             st.dataframe(im.head(), use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("このデータを書き込む"):
+            if st.button("このデータを書き込む", use_container_width=True):
                 try:
                     new_p = []
                     today_str = datetime.date.today().strftime("%Y-%m-%d")
@@ -960,7 +980,7 @@ elif current_page == "データ管理":
                                 new_p.append(row)
                     if new_p:
                         save_bids(pd.concat([load_bids(), pd.DataFrame(new_p)], ignore_index=True))
-                    sync_settings() # 🌟 スプレッドシートに同期保存
+                    sync_settings()
                     st.success("全データを正常に読み込み・保存しました。")
                 except Exception as e:
                     st.error(f"エラー: {e}")
@@ -969,7 +989,7 @@ elif current_page == "データ管理":
         with st.expander("危険操作：全データの初期化"):
             st.caption("スプレッドシートの全案件・設定・ワードを完全消去します。元に戻せません。")
             ok = st.checkbox("すべてのデータを消去することを確認します")
-            if st.button("全データを初期化する"):
+            if st.button("全データを初期化する", use_container_width=True):
                 if ok:
                     try:
                         save_bids(pd.DataFrame(columns=COLS_BIDS))
