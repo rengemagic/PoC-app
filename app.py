@@ -421,6 +421,11 @@ if current_page == "ダッシュボード":
     with r3r:
         with st.container(border=True):
             sec("総合判定レポート")
+            
+            # 👇 【修正】前回のアップデートで消してしまった計算用変数を復活させました！
+            nj_sc = (cov_w=="NJSS") + (sw_w=="NJSS") + (roi_w=="NJSS")
+            ki_sc = (cov_w=="入札王") + (sw_w=="入札王") + (roi_w=="入札王")
+
             v1, v2, v3 = st.columns(3)
             with v1:
                 label = "NJSS" if cov_w=="NJSS" else "入札王" if cov_w=="入札王" else "同等"
@@ -598,12 +603,9 @@ elif current_page == "ROI分析":
             st.session_state.costs.update({"n_init":ni,"n_month":nm,"n_opt":no, "k_init":ki,"k_month":km,"k_opt":ko, "margin":mg,"win_rate":wr,"annual_bids":ab})
             sync_settings(); st.success("スプレッドシートに永続保存しました。"); st.rerun()
 
-    # 🌟【改善】ROIの計算式・ロジックを画面上に明記
     with st.container(border=True):
         sec("ℹ️ ROI（投資対効果）の計算ロジック")
-        
         ap_val = avg_bid * (st.session_state.costs["margin"] / 100) * (st.session_state.costs["win_rate"] / 100) * st.session_state.costs["annual_bids"]
-        
         st.markdown(f"""
         システムは、現在登録されている案件データと上記の設定値をもとに、以下の計算式で**「年間の期待売上」**と**「累積利益」**を自動算出しています。
         
