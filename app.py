@@ -746,6 +746,64 @@ def _demo_ocr():
 
 
 # ─────────────────────────────────────────────────────────────────
+#  JSON PASTE HELPERS  (Copilot連携)
+# ─────────────────────────────────────────────────────────────────
+import json as _json
+
+COPILOT_PROMPT = """\
+以下のHTMLを解析し、入札案件情報を下記JSON形式で出力してください。
+見つからない項目は空文字にしてください。JSONのみ出力してください（説明文・コードブロック記号不要）。
+
+{
+  "自治体名": "",
+  "担当部署名": "",
+  "案件概要": "",
+  "公示日": "YYYY-MM-DD形式",
+  "入札日": "YYYY-MM-DD形式",
+  "履行期間": "",
+  "入札方式": "公募型プロポーザル/一般競争入札/指名競争入札/随意契約 のいずれか",
+  "参加資格": "",
+  "予算(千円)": "数字のみ（カンマなし・千円単位）",
+  "落札金額(千円)": "数字のみ（カンマなし・千円単位）",
+  "落札企業": "",
+  "競合1": "",
+  "競合2": "",
+  "競合3": "",
+  "NJSS掲載": "true または false",
+  "入札王掲載": "true または false"
+}
+
+HTML:
+（ここにページのHTMLソースを貼り付け）
+"""
+
+def parse_json_paste(raw: str) -> dict:
+    """CopilotのJSON出力をパース。コードブロック記号や前後テキストを自動除去。"""
+    raw = raw.strip()
+    # ```json ... ``` 除去
+    if raw.startswith("```"):
+        lines = raw.split("\n")
+        raw = "\n".join(l for l in lines if not l.strip().startswith("```"))
+    # 最初の { 〜 最後の } を切り出す
+    s = raw.find("{")
+    e = raw.rfind("}") + 1
+    if s == -1 or e == 0:
+        return {}
+    try:
+        return _json.loads(raw[s:e])
+    except _json.JSONDecodeError:
+        return {}
+
+def _safe_int(v) -> int:
+    try: return int(str(v).replace(",","").replace("，","").strip())
+    except: return 0
+
+def _safe_bool(v) -> bool:
+    if isinstance(v, bool): return v
+    return str(v).lower() in ("true","1","yes")
+
+
+# ─────────────────────────────────────────────────────────────────
 #  SIDEBAR
 # ─────────────────────────────────────────────────────────────────
 # ナビラベル（フラットSVGアイコン + テキスト）
@@ -998,79 +1056,197 @@ if current_page == "ダッシュボード":
 #  PAGE: DATA INPUT
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "案件データ入力":
-    page_header("案件データ入力", "仕様書・公告OCR読み取り ＋ 手動入力")
+    page_header("案件データ入力", "Copilot JSON貼付 ／ OCR ／ 手動入力")
 
-    file_icon_svg = icon("file", 20, "#0284C7", 1.8)
-    st.markdown(f"""
-    <div class="ocr-banner">
-      <div class="ocr-icon-box">{file_icon_svg}</div>
-      <div>
-        <div class="ocr-title">仕様書・公告ファイルから自動入力（OCR）</div>
-        <div class="ocr-sub">
-          PNG / JPG / PDF をアップロードすると主要項目を自動解析してフォームへ反映します。<br>
-          アップロードされたファイルはOCR処理のみに使用され、サーバーには保存されません。
-          Google Cloud Vision APIキーを設定すると本番動作します（設定方法は「マニュアル」参照）。
-        </div>
-      </div>
-    </div>""", unsafe_allow_html=True)
+    # セッション初期化
+    if "json_parsed" not in st.session_state:
+        st.session_state.json_parsed = {}
 
-    ocr_file = st.file_uploader("ファイルをアップロード（PNG / JPG / PDF）",
-                                type=["png","jpg","jpeg","pdf"], key="ocr_up")
-    if ocr_file:
-        with st.spinner("OCR 解析中..."):
-            st.session_state.ocr_result = ocr_extract(ocr_file)
-        if st.session_state.ocr_result:
-            st.success(f"✓  {len(st.session_state.ocr_result)} 項目を読み取りました。フォームに反映しています。")
+    # ── 入力方法タブ ────────────────────────────────────────────
+    input_tab1, input_tab2, input_tab3 = st.tabs([
+        "Copilot JSON貼付（推奨）",
+        "ファイルOCR",
+        "手動入力のみ",
+    ])
 
-    ocr = st.session_state.ocr_result or {}
-    vd  = vdf(load_data())
+    # ── Tab1: Copilot JSON ──────────────────────────────────────
+    with input_tab1:
+        # Copilotへの案内バナー
+        code_icon = icon("input", 18, "#2563EB", 1.8)
+        st.markdown(f"""
+        <div style="
+          background:linear-gradient(135deg,#EFF6FF,#F0FFF4);
+          border:1.5px solid #BFDBFE; border-radius:14px;
+          padding:1.1rem 1.4rem; margin-bottom:1rem;
+        ">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#2563EB;
+              display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              {code_icon}
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#1D4ED8;">Microsoft Copilot で案件情報を自動抽出</div>
+              <div style="font-size:12px;color:#3B82F6;margin-top:1px;">APIコストゼロ・追加設定不要・今すぐ使える</div>
+            </div>
+          </div>
+          <div style="font-size:13px;color:#1E40AF;line-height:1.75;">
+            <b>手順：</b>
+            ① NJSSや入札王でログイン後、案件ページを開いて「ページのソースを表示（Ctrl+U）」<br>
+            ② 全選択（Ctrl+A）→ コピー（Ctrl+C）<br>
+            ③ 下のプロンプトをCopilotに貼り付け、HTMLを追記して送信<br>
+            ④ Copilotが出力したJSONをアプリに貼り付け → 自動でフォームに反映
+          </div>
+        </div>""", unsafe_allow_html=True)
 
+        # プロンプト表示
+        with st.expander("Copilot に貼り付けるプロンプトを表示"):
+            st.code(COPILOT_PROMPT, language="text")
+            st.caption("このプロンプトをコピーして Copilot に貼り付け、末尾の「（ここにHTML）」の部分にページソースを追記してください。")
+
+        st.markdown("<div style='height:.25rem'></div>", unsafe_allow_html=True)
+
+        # JSON貼り付けエリア
+        json_raw = st.text_area(
+            "Copilot が出力した JSON をここに貼り付け",
+            height=180,
+            placeholder='{\n  "自治体名": "横浜市",\n  "案件概要": "情報システム構築業務",\n  "入札日": "2025-09-01",\n  "予算(千円)": "12000",\n  "入札方式": "公募型プロポーザル",\n  ...\n}',
+            key="json_paste_area",
+        )
+
+        btn_c1, btn_c2 = st.columns([1, 1])
+        with btn_c1:
+            if st.button("JSONを解析してフォームに反映", key="btn_parse", use_container_width=True):
+                if json_raw.strip():
+                    parsed = parse_json_paste(json_raw)
+                    if parsed:
+                        st.session_state.json_parsed = parsed
+                        st.session_state.ocr_result  = {}  # OCR結果はリセット
+                        st.success(f"✓  {len(parsed)} 項目を読み取りました。「手動入力」タブのフォームに反映しています。")
+                    else:
+                        st.error("JSONの解析に失敗しました。Copilotの出力をそのままコピーして貼り付けてください。")
+                else:
+                    st.warning("JSONを貼り付けてから「解析」を押してください。")
+        with btn_c2:
+            if st.button("クリア", key="btn_clear_json", use_container_width=True):
+                st.session_state.json_parsed = {}
+                st.session_state.json_paste_area = ""
+                st.rerun()
+
+        # 解析済みプレビュー
+        if st.session_state.json_parsed:
+            st.markdown("<div style='height:.5rem'></div>", unsafe_allow_html=True)
+            st.markdown('<div style="font-size:12px;font-weight:600;color:var(--ink-3);margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase;">解析結果プレビュー</div>', unsafe_allow_html=True)
+            preview_items = [
+                ("自治体名",    st.session_state.json_parsed.get("自治体名","")),
+                ("案件概要",    st.session_state.json_parsed.get("案件概要","")),
+                ("入札日",      st.session_state.json_parsed.get("入札日","")),
+                ("予算(千円)",  st.session_state.json_parsed.get("予算(千円)","")),
+                ("入札方式",    st.session_state.json_parsed.get("入札方式","")),
+                ("落札金額",    st.session_state.json_parsed.get("落札金額(千円)","")),
+            ]
+            pc1, pc2, pc3 = st.columns(3)
+            for idx, (lbl, val) in enumerate(preview_items):
+                col = [pc1, pc2, pc3][idx % 3]
+                with col:
+                    st.markdown(f"""
+                    <div style="background:var(--surface-2);border:1.5px solid var(--border);
+                      border-radius:var(--r-md);padding:8px 10px;margin-bottom:8px;">
+                      <div style="font-size:10px;color:var(--ink-3);margin-bottom:3px;">{lbl}</div>
+                      <div style="font-size:13px;font-weight:600;color:var(--emerald);">{val or "—"}</div>
+                    </div>""", unsafe_allow_html=True)
+            st.info("フォームに反映済みです。「手動入力」タブで内容を確認・修正してから保存してください。")
+
+    # ── Tab2: OCR ──────────────────────────────────────────────
+    with input_tab2:
+        file_icon_svg = icon("file", 18, "#0284C7", 1.8)
+        st.markdown(f"""
+        <div class="ocr-banner">
+          <div class="ocr-icon-box">{file_icon_svg}</div>
+          <div>
+            <div class="ocr-title">仕様書・公告ファイルから自動入力（OCR）</div>
+            <div class="ocr-sub">
+              PNG / JPG / PDF をアップロードすると主要項目を自動解析してフォームへ反映します。<br>
+              Google Cloud Vision APIキーを設定すると本番動作します（設定方法は「マニュアル」参照）。
+            </div>
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+        ocr_file = st.file_uploader("ファイルをアップロード（PNG / JPG / PDF）",
+                                    type=["png","jpg","jpeg","pdf"], key="ocr_up")
+        if ocr_file:
+            with st.spinner("OCR 解析中..."):
+                st.session_state.ocr_result  = ocr_extract(ocr_file)
+                st.session_state.json_parsed = {}  # JSON結果はリセット
+            if st.session_state.ocr_result:
+                st.success(f"✓  {len(st.session_state.ocr_result)} 項目を読み取りました。「手動入力」タブのフォームに反映しています。")
+
+    with input_tab3:
+        st.caption("以下のフォームで直接入力してください。Copilot JSONまたはOCRで読み取った値が反映済みの場合はそのまま確認・修正できます。")
+
+    # ── データソースのマージ（JSON優先 → OCR → 空）──────────────
+    _jd  = st.session_state.json_parsed or {}
+    _ocd = st.session_state.ocr_result  or {}
+    ocr  = {**_ocd, **_jd}   # json_parsed が OCR を上書き
+
+    vd = vdf(load_data())
+
+    # ── 入力フォーム ────────────────────────────────────────────
     with st.container(border=True):
         with st.form("entry_form", clear_on_submit=True):
             form_div("基本情報")
             c1,c2 = st.columns(2)
             with c1:
                 req_label("自治体名・発注機関")
-                mun = st.text_input("mun", label_visibility="collapsed", placeholder="例：横浜市", value=ocr.get("自治体名",""))
+                mun = st.text_input("mun", label_visibility="collapsed",
+                                    placeholder="例：横浜市", value=ocr.get("自治体名",""))
             with c2:
                 st.markdown('<div class="req-label">担当部署名</div>', unsafe_allow_html=True)
-                dep = st.text_input("dep", label_visibility="collapsed", placeholder="例：デジタル統括本部", value=ocr.get("担当部署名",""))
+                dep = st.text_input("dep", label_visibility="collapsed",
+                                    placeholder="例：デジタル統括本部", value=ocr.get("担当部署名",""))
             req_label("案件名・案件概要")
-            smm = st.text_input("smm", label_visibility="collapsed", placeholder="例：交通データ連携基盤構築業務", value=ocr.get("案件概要",""))
+            smm = st.text_input("smm", label_visibility="collapsed",
+                                placeholder="例：交通データ連携基盤構築業務", value=ocr.get("案件概要",""))
 
             form_div("スケジュール・要件")
             c3,c4,c5 = st.columns(3)
-            pub_d  = c3.date_input("公示日", value=None)
-            bid_d  = c4.date_input("入札日", value=None)
-            per_d  = c5.text_input("履行期間", placeholder="2025-06-01 〜 2026-03-31", value=ocr.get("履行期間",""))
+            # 日付変換
+            def _to_date(s):
+                try:
+                    import datetime as _dt
+                    return _dt.date.fromisoformat(str(s))
+                except: return None
+            pub_d  = c3.date_input("公示日", value=_to_date(ocr.get("公示日")))
+            bid_d  = c4.date_input("入札日", value=_to_date(ocr.get("入札日")))
+            per_d  = c5.text_input("履行期間", placeholder="2025-06-01 〜 2026-03-31",
+                                   value=ocr.get("履行期間",""))
             c6,c7  = st.columns(2)
             methods = ["","公募型プロポーザル","一般競争入札","指名競争入札","随意契約","その他"]
             m_idx   = methods.index(ocr.get("入札方式","")) if ocr.get("入札方式","") in methods else 0
             method  = c6.selectbox("入札方式", methods, index=m_idx)
-            qual    = c7.text_input("参加資格", placeholder="情報処理 Aランク", value=ocr.get("参加資格",""))
+            qual    = c7.text_input("参加資格", placeholder="情報処理 Aランク",
+                                   value=ocr.get("参加資格",""))
 
             form_div("結果・金額")
             c8,c9,c10 = st.columns(3)
-            bv=0
-            try: bv=int(ocr.get("予算(千円)",0))
-            except: pass
-            budget  = c8.number_input("予算額 (千円)", min_value=0, step=100, value=bv)
+            budget   = c8.number_input("予算額 (千円)", min_value=0, step=100,
+                                       value=_safe_int(ocr.get("予算(千円)",0)))
             with c9:
                 req_label("落札金額 (千円)")
-                wbid = st.number_input("wbid", label_visibility="collapsed", min_value=0, step=100)
+                wbid = st.number_input("wbid", label_visibility="collapsed", min_value=0, step=100,
+                                       value=_safe_int(ocr.get("落札金額(千円)",0)))
             our_res = c10.selectbox("自社結果", ["","受注","失注","見送り","辞退"])
             c11,c12 = st.columns(2)
-            wnr = c11.text_input("落札企業")
-            b1  = c12.text_input("競合1")
-            b2  = c11.text_input("競合2")
-            b3  = c12.text_input("競合3")
+            wnr = c11.text_input("落札企業",  value=ocr.get("落札企業",""))
+            b1  = c12.text_input("競合1",     value=ocr.get("競合1",""))
+            b2  = c11.text_input("競合2",     value=ocr.get("競合2",""))
+            b3  = c12.text_input("競合3",     value=ocr.get("競合3",""))
 
             form_div("ツール掲載確認（PoC）")
             st.caption("両ツールで見つかった場合は両方チェック")
             cx1,cx2,cx3 = st.columns(3)
             spc = cx1.checkbox("仕様書あり")
-            njl = cx2.checkbox("NJSS に掲載")
-            kil = cx3.checkbox("入札王に掲載")
+            njl = cx2.checkbox("NJSS に掲載",  value=_safe_bool(ocr.get("NJSS掲載", False)))
+            kil = cx3.checkbox("入札王に掲載", value=_safe_bool(ocr.get("入札王掲載", False)))
 
             form_div("参考URL")
             cu1,cu2 = st.columns(2)
@@ -1084,7 +1260,8 @@ elif current_page == "案件データ入力":
                 if mun and smm and wbid > 0:
                     new_rec = pd.DataFrame([{
                         "ID":len(vd)+1,"自治体名":mun,"担当部署名":dep,"案件概要":smm,
-                        "公示日":pub_d.strftime("%Y-%m-%d") if pub_d else "","入札日":bid_d.strftime("%Y-%m-%d") if bid_d else "",
+                        "公示日":pub_d.strftime("%Y-%m-%d") if pub_d else "",
+                        "入札日":bid_d.strftime("%Y-%m-%d") if bid_d else "",
                         "履行期間":per_d,"入札方式":method,"参加資格":qual,
                         "予算(千円)":budget,"落札金額(千円)":wbid,"自社結果":our_res,
                         "落札企業":wnr,"競合1":b1,"競合2":b2,"競合3":b3,
@@ -1093,7 +1270,8 @@ elif current_page == "案件データ入力":
                     }])
                     try:
                         save_data(pd.concat([vd, new_rec], ignore_index=True))
-                        st.session_state.ocr_result = None
+                        st.session_state.ocr_result  = {}
+                        st.session_state.json_parsed = {}
                         st.success("保存しました。")
                     except Exception as e: st.error(f"保存失敗: {e}")
                 else:
