@@ -66,7 +66,7 @@ h1,h2,h3,h4,h5 {
   font-weight: 700 !important; color: var(--text); letter-spacing: -0.02em;
 }
 
-/* 🌟 アイコンフォントの保護（ハンバーガーメニュー文字化け防止） */
+/* 🌟 アイコンフォントの保護 */
 .material-symbols-rounded, 
 [data-testid="stIconMaterial"], 
 [class*="stIcon"] {
@@ -113,15 +113,15 @@ input, textarea, select { background: transparent !important; }
 
 .kpi {
   background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius-lg); 
-  padding: 1.5rem 1rem; position: relative; overflow: hidden;
+  padding: 1.2rem 1rem; position: relative; overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: all 0.2s ease;
   display: flex; flex-direction: column; justify-content: center; align-items: center;
-  min-height: 155px; text-align: center;
+  min-height: 140px; text-align: center; margin-bottom: 1rem;
 }
 .kpi:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); }
-.kpi-lbl { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--muted) !important; margin-bottom: 8px; }
-.kpi-val { font-size: 2.3rem; font-weight: 700; color: var(--text) !important; line-height: 1; margin-bottom: 6px; letter-spacing: -1px; }
-.kpi-val .unit { font-size: 1.1rem; color: var(--muted) !important; margin-left: 3px; font-weight: 600; letter-spacing: 0; }
+.kpi-lbl { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--muted) !important; margin-bottom: 6px; }
+.kpi-val { font-size: 2.1rem; font-weight: 700; color: var(--text) !important; line-height: 1; margin-bottom: 6px; letter-spacing: -1px; }
+.kpi-val .unit { font-size: 1rem; color: var(--muted) !important; margin-left: 3px; font-weight: 600; letter-spacing: 0; }
 .kpi-sub { font-size: 11px; color: var(--muted) !important; font-weight: 500; }
 .kpi-tag { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; }
 .tag-up { background: rgba(16,185,129,0.15); color: var(--green) !important; }
@@ -178,7 +178,7 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in = True
                     st.rerun()
                 else:
-                    st.error("IDまたはパスワードが正しくありません。")
+                    st.error("IDまたはパスワードが間違っています。")
             st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
@@ -236,10 +236,8 @@ def save_settings(df_new):
 
 def sync_settings():
     rows = []
-    # コストの保存
     for k, v in st.session_state.costs.items():
         rows.append({"種別": "COST", "項目名": k, "値1": v, "値2": "", "値3": ""})
-    # ワードの保存
     for w in st.session_state.search_words:
         d = st.session_state.search_counts.get(w, {})
         rows.append({"種別": "WORD", "項目名": w, "値1": d.get("NJSS", 0), "値2": d.get("入札王", 0), "値3": d.get("登録日", "")})
@@ -247,16 +245,13 @@ def sync_settings():
     df_set = pd.DataFrame(rows, columns=COLS_SETTINGS)
     save_settings(df_set)
 
-# 🔄 初回ロード時に「設定データ」からメモリへ復元する処理
 if "settings_loaded" not in st.session_state:
     df_set = load_settings()
     if not df_set.empty:
-        # COSTの復元
         for _, row in df_set[df_set["種別"] == "COST"].iterrows():
             k = str(row["項目名"])
             if k in st.session_state.costs:
                 st.session_state.costs[k] = int(pd.to_numeric(row["値1"], errors="coerce") or 0)
-        # WORDの復元
         for _, row in df_set[df_set["種別"] == "WORD"].iterrows():
             w = str(row["項目名"])
             if w and w not in st.session_state.search_words:
@@ -291,8 +286,8 @@ def calc_proj():
 #  PLOTLY THEME
 # ─────────────────────────────────────────────────────────────────
 PLY = dict(
-    template="plotly_white",
-    font=dict(family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Arial, sans-serif", color="#64748B"),
+    template="plotly_white", # Light theme by default, but Plotly adjusts reasonably to Streamlit's dark mode overlay
+    font=dict(family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Arial, sans-serif"),
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     margin=dict(l=16, r=16, t=28, b=16),
@@ -354,17 +349,15 @@ def gemini_extract(text_data: str) -> dict:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        
         prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
 
         【🚨 最優先の重要ルール】
-        テキスト内に「全く異なる複数の案件（別の自治体、別の案件名など）」が混在していると判断した場合は、絶対に抽出を行わず、以下のエラー用JSONのみを出力して終了してください。
+        テキスト内に「全く異なる複数の案件」が混在していると判断した場合は、絶対に抽出を行わず以下のJSONのみを出力してください。
         {"error": "multiple_projects"}
 
         【通常の抽出ルール】
-        案件が1つのみの場合は、以下のフォーマットで抽出してください。該当情報がない場合は空文字("")にしてください。
-        予算は千円単位の数値文字列（例: "5000"）に変換してください。
-        ※公示日や入札日は、必ず「YYYY-MM-DD」の形式（例: "2026-04-01"）に変換して出力してください。
+        案件が1つのみの場合は以下のフォーマットで抽出。該当情報がない場合は空文字("")にしてください。予算は千円単位の数値文字列に変換。
+        ※公示日や入札日は、必ず「YYYY-MM-DD」の形式（例: "2026-04-01"）に変換してください。
         
         【抽出フォーマット】
         {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}
@@ -372,28 +365,20 @@ def gemini_extract(text_data: str) -> dict:
         【テキストデータ】
         """ + text_data
         
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"response_mime_type": "application/json"}
-        }
-        
+        payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"response_mime_type": "application/json"}}
         resp = requests.post(url, json=payload, timeout=20)
         res_data = resp.json()
         
         if "candidates" in res_data:
             res_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
             parsed_data = json.loads(res_text)
-            
-            # 複数案件混在エラーのハンドリング
             if parsed_data.get("error") == "multiple_projects":
-                st.error("🚨 【解析中止】テキスト内に「複数の異なる案件」が混在していると判定されました。1案件ずつに分けてから再度お試しください。")
+                st.error("🚨 【解析中止】テキスト内に複数の異なる案件が混在しています。1案件ずつに分けて再度お試しください。")
                 return {}
-                
             return parsed_data
         else:
             st.error("Gemini APIからの応答が不正です。")
             return {}
-            
     except Exception as e:
         if "gemini" not in st.secrets:
             st.warning("⚠️ secrets.toml に [gemini] api_key の設定がありません。")
@@ -409,12 +394,8 @@ def ocr_extract(uploaded_file) -> dict:
         api_key = st.secrets["google_vision"]["api_key"]
         import requests
         b64 = base64.b64encode(raw).decode()
-        payload = {"requests": [{"image": {"content": b64},
-                                  "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]}]}
-        resp = requests.post(
-            f"https://vision.googleapis.com/v1/images:annotate?key={api_key}",
-            json=payload, timeout=20,
-        )
+        payload = {"requests": [{"image": {"content": b64}, "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]}]}
+        resp = requests.post(f"https://vision.googleapis.com/v1/images:annotate?key={api_key}", json=payload, timeout=20)
         text = resp.json()["responses"][0].get("fullTextAnnotation", {}).get("text", "")
         result = {}
         patterns = {
@@ -431,8 +412,7 @@ def ocr_extract(uploaded_file) -> dict:
                 if field == "予算(千円)":
                     try:
                         raw_v = str(int(raw_v.replace(",", "")) // 1000)
-                    except:
-                        pass
+                    except: pass
                 result[field] = raw_v
         return result if result else _demo_ocr()
     except Exception:
@@ -440,10 +420,7 @@ def ocr_extract(uploaded_file) -> dict:
 
 def _demo_ocr():
     st.warning("⚠️ OCRデモモード — Google Vision APIキー未設定のためサンプルデータを表示しています。")
-    return {
-        "自治体名": "東京都", "案件概要": "情報システム調達支援業務", "予算(千円)": "5000",
-        "入札方式": "公募型プロポーザル", "参加資格": "情報処理 Aランク",
-    }
+    return {"自治体名": "東京都", "案件概要": "情報システム調達支援業務", "予算(千円)": "5000", "入札方式": "公募型プロポーザル", "参加資格": "情報処理 Aランク"}
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -504,13 +481,19 @@ if current_page == "ダッシュボード":
     n_p5  = p_df.iloc[-1]["NJSS利益"]  if not p_df.empty else 0
     k_p5  = p_df.iloc[-1]["入札王利益"] if not p_df.empty else 0
 
-    c1,c2,c3,c4,c5 = st.columns(5)
-    with c1: kpi("対象案件数", total, "件", sub="登録済み総案件", color="#3B82F6")
-    with c2: kpi("NJSS 網羅率", f"{nj_c/total*100:.1f}", "%", sub=f"{nj_c}件捕捉", tag="NJSS", tag_type="up" if nj_c >= ki_c else "dn", color="#14B8A6")
-    with c3: kpi("入札王 網羅率", f"{ki_c/total*100:.1f}", "%", sub=f"{ki_c}件捕捉", tag="入札王", tag_type="up" if ki_c >= nj_c else "dn", color="#6366F1")
-    with c4: kpi("NJSS 5年利益", f"{int(n_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#8B5CF6")
-    with c5: kpi("入札王 5年利益", f"{int(k_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#EC4899")
+    # 🌟【改善】KPIカードを2段に分けて、文字潰れを解消
+    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    with kpi_col1: kpi("対象案件数", total, "件", sub="登録済み総案件", color="#3B82F6")
+    with kpi_col2: kpi("NJSS 網羅率", f"{nj_c/total*100:.1f}", "%", sub=f"{nj_c}件捕捉", tag="NJSS", tag_type="up" if nj_c >= ki_c else "dn", color="#14B8A6")
+    with kpi_col3: kpi("入札王 網羅率", f"{ki_c/total*100:.1f}", "%", sub=f"{ki_c}件捕捉", tag="入札王", tag_type="up" if ki_c >= nj_c else "dn", color="#6366F1")
 
+    kpi_col4, kpi_col5 = st.columns(2)
+    with kpi_col4: kpi("NJSS 5年利益", f"{int(n_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#8B5CF6")
+    with kpi_col5: kpi("入札王 5年利益", f"{int(k_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#EC4899")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 🌟【改善】グラフのレイアウト配置変更
     r1l, r1r = st.columns(2)
     with r1l:
         with st.container(border=True):
@@ -518,45 +501,12 @@ if current_page == "ダッシュボード":
             fig = px.bar(x=["NJSS","入札王"], y=[nj_c, ki_c], color=["NJSS","入札王"],
                          color_discrete_map={"NJSS": C1, "入札王": C2}, text=[nj_c, ki_c])
             fig.update_traces(marker_line_width=0, textposition="outside", textfont_size=14)
-            fig.update_layout(**PLY, showlegend=False, height=260)
+            fig.update_layout(**PLY, showlegend=False, height=280)
             fig.update_yaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
             fig.update_xaxes(title="")
             st.plotly_chart(fig, use_container_width=True)
 
     with r1r:
-        with st.container(border=True):
-            sec("競合出現シェア")
-            comp = pd.concat([vd["落札企業"], vd["競合1"], vd["競合2"], vd["競合3"]])
-            comp_df = comp[comp.notna() & (comp != "")].value_counts().head(6).reset_index()
-            comp_df.columns = ["企業名", "回数"]
-            fig2 = px.bar(comp_df, x="回数", y="企業名", orientation="h", text="回数", color_discrete_sequence=[C3])
-            fig2.update_traces(marker_line_width=0, textposition="outside", textfont_size=12)
-            fig2.update_layout(**PLY, showlegend=False, height=260)
-            fig2.update_xaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
-            fig2.update_yaxes(title="")
-            st.plotly_chart(fig2, use_container_width=True)
-
-    r2l, r2r = st.columns([1.1, 0.9])
-    with r2l:
-        with st.container(border=True):
-            sec("キーワード検索精度比較")
-            if st.session_state.search_words and st.session_state.search_counts:
-                sw_df = pd.DataFrame([
-                    {"ワード": w,
-                     "NJSS": st.session_state.search_counts.get(w,{}).get("NJSS",0),
-                     "入札王": st.session_state.search_counts.get(w,{}).get("入札王",0)}
-                    for w in st.session_state.search_words
-                ])
-                fig3 = px.bar(sw_df, x="ワード", y=["NJSS","入札王"], barmode="group",
-                              color_discrete_map={"NJSS": C1, "入札王": C2})
-                fig3.update_traces(marker_line_width=0)
-                fig3.update_layout(**PLY, height=280, legend_title_text="")
-                fig3.update_yaxes(title="ヒット件数", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
-                st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.caption("「ワード検索数」画面からデータを追加してください。")
-
-    with r2r:
         with st.container(border=True):
             sec("総合評価レーダー")
             cov_w = "NJSS" if nj_c > ki_c else "入札王" if ki_c > nj_c else "同等"
@@ -575,57 +525,83 @@ if current_page == "ダッシュボード":
 
             cats = ["網羅率","検索精度","5年ROI","網羅率"]
             fig_r = go.Figure()
-            fig_r.add_trace(go.Scatterpolar(
-                r=[nj_cov,nj_s,nj_ps,nj_cov], theta=cats, fill="toself", name="NJSS",
-                line=dict(color=C1, width=2), fillcolor="rgba(1,118,211,0.15)"))
-            fig_r.add_trace(go.Scatterpolar(
-                r=[ki_cov,ki_s,ki_ps,ki_cov], theta=cats, fill="toself", name="入札王",
-                line=dict(color=C2, width=2, dash="dash"), fillcolor="rgba(20,184,166,0.1)"))
+            fig_r.add_trace(go.Scatterpolar(r=[nj_cov,nj_s,nj_ps,nj_cov], theta=cats, fill="toself", name="NJSS", line=dict(color=C1, width=2), fillcolor="rgba(1,118,211,0.15)"))
+            fig_r.add_trace(go.Scatterpolar(r=[ki_cov,ki_s,ki_ps,ki_cov], theta=cats, fill="toself", name="入札王", line=dict(color=C2, width=2, dash="dash"), fillcolor="rgba(20,184,166,0.1)"))
             fig_r.update_layout(
-                polar=dict(
-                    bgcolor="rgba(0,0,0,0)",
-                    radialaxis=dict(visible=True, range=[0,100], gridcolor="rgba(0,0,0,0.08)", color="#64748B"),
-                    angularaxis=dict(gridcolor="rgba(0,0,0,0.08)", color="#1E293B"),
-                ),
-                paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Arial, sans-serif", color="#64748B"),
+                polar=dict(bgcolor="rgba(0,0,0,0)", radialaxis=dict(visible=True, range=[0,100], gridcolor="rgba(0,0,0,0.08)"), angularaxis=dict(gridcolor="rgba(0,0,0,0.08)")),
+                paper_bgcolor="rgba(0,0,0,0)", font=dict(family="-apple-system, sans-serif"),
                 legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", bgcolor="rgba(0,0,0,0)"),
-                height=260, margin=dict(t=16,b=36,l=16,r=16),
+                height=280, margin=dict(t=16,b=36,l=16,r=16),
             )
             st.plotly_chart(fig_r, use_container_width=True)
 
+    # 🌟【改善】キーワード検索精度を「全幅」で大きく表示し、文字斜め配置で数に対応
     with st.container(border=True):
-        sec("総合判定レポート")
-        nj_sc = (cov_w=="NJSS") + (sw_w=="NJSS") + (roi_w=="NJSS")
-        ki_sc = (cov_w=="入札王") + (sw_w=="入札王") + (roi_w=="入札王")
-
-        v1, v2, v3 = st.columns(3)
-        with v1:
-            label = "NJSS" if cov_w=="NJSS" else "入札王" if cov_w=="入札王" else "同等"
-            color = C1 if cov_w=="NJSS" else C2 if cov_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">1. 網羅率</div><div style="font-size:1.5rem;font-weight:800;color:{color};">{label}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(nj_cov)}% / 入札王 {int(ki_cov)}%</div>', unsafe_allow_html=True)
-        with v2:
-            label2 = sw_w if sw_w != "同等" else "同等"
-            color2 = C1 if sw_w=="NJSS" else C2 if sw_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">2. 検索精度</div><div style="font-size:1.5rem;font-weight:800;color:{color2};">{label2}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">優位ワード数で比較</div>', unsafe_allow_html=True)
-        with v3:
-            label3 = roi_w if roi_w != "同等" else "同等"
-            color3 = C1 if roi_w=="NJSS" else C2 if roi_w=="入札王" else "#64748B"
-            st.markdown(f'<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748B;margin-bottom:8px;">3. 5年ROI</div><div style="font-size:1.5rem;font-weight:800;color:{color3};">{label3}</div><div style="font-size:12px;color:#64748B;margin-top:4px;">NJSS {int(n_p5/10000):,}万 / 入札王 {int(k_p5/10000):,}万</div>', unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        if nj_sc > ki_sc:
-            st.markdown(f'<div class="verdict"><div class="verdict-title">最終推奨ツール：NJSS ({nj_sc}/3項目)</div><div class="verdict-body">各検証データを総合した結果、NJSSの導入を推奨します。過去案件の網羅性と機会損失防止の観点で優位性が確認されました。</div></div>', unsafe_allow_html=True)
-        elif ki_sc > nj_sc:
-            st.markdown(f'<div class="verdict"><div class="verdict-title">最終推奨ツール：入札王 ({ki_sc}/3項目)</div><div class="verdict-body">各検証データを総合した結果、入札王の導入を推奨します。コストパフォーマンスと早期損益分岐点の優位性により、ROI最大化が期待できます。</div></div>', unsafe_allow_html=True)
+        sec("キーワード検索精度比較")
+        if st.session_state.search_words and st.session_state.search_counts:
+            sw_df = pd.DataFrame([
+                {"ワード": w, "NJSS": st.session_state.search_counts.get(w,{}).get("NJSS",0), "入札王": st.session_state.search_counts.get(w,{}).get("入札王",0)}
+                for w in st.session_state.search_words
+            ])
+            fig3 = px.bar(sw_df, x="ワード", y=["NJSS","入札王"], barmode="group", color_discrete_map={"NJSS": C1, "入札王": C2})
+            fig3.update_traces(marker_line_width=0)
+            fig3.update_layout(**PLY, height=350, legend_title_text="")
+            fig3.update_xaxes(tickangle=-45) # ワードが増えても文字が重ならないように斜めに
+            fig3.update_yaxes(title="ヒット件数", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
+            st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.info("両者拮抗 (引き分け)。UIの使いやすさや営業サポート体制など定性要素で最終判断してください。")
+            st.caption("「ワード検索数」画面からデータを追加してください。")
+
+    r3l, r3r = st.columns(2)
+    with r3l:
+        with st.container(border=True):
+            sec("競合出現シェア")
+            comp = pd.concat([vd["落札企業"], vd["競合1"], vd["競合2"], vd["競合3"]])
+            # 🌟【改善】上位6社から10社に拡大し、高さを確保
+            comp_df = comp[comp.notna() & (comp != "")].value_counts().head(10).reset_index()
+            comp_df.columns = ["企業名", "回数"]
+            # データが少ないときは高さを縮め、多いときは高くする
+            h = max(260, 40 * len(comp_df) + 80)
+            fig2 = px.bar(comp_df, x="回数", y="企業名", orientation="h", text="回数", color_discrete_sequence=[C3])
+            fig2.update_traces(marker_line_width=0, textposition="outside", textfont_size=12)
+            fig2.update_layout(**PLY, showlegend=False, height=h)
+            fig2.update_yaxes(autorange="reversed") # 多い順に上から表示
+            fig2.update_xaxes(title="", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
+            st.plotly_chart(fig2, use_container_width=True)
+
+    with r3r:
+        with st.container(border=True):
+            sec("総合判定レポート")
+            nj_sc = (cov_w=="NJSS") + (sw_w=="NJSS") + (roi_w=="NJSS")
+            ki_sc = (cov_w=="入札王") + (sw_w=="入札王") + (roi_w=="入札王")
+
+            v1, v2, v3 = st.columns(3)
+            with v1:
+                label = "NJSS" if cov_w=="NJSS" else "入札王" if cov_w=="入札王" else "同等"
+                color = C1 if cov_w=="NJSS" else C2 if cov_w=="入札王" else "#64748B"
+                st.markdown(f'<div style="font-size:11px;font-weight:700;color:#64748B;margin-bottom:8px;">1. 網羅率</div><div style="font-size:1.5rem;font-weight:800;color:{color};">{label}</div><div style="font-size:11px;color:#64748B;margin-top:4px;">NJSS {int(nj_cov)}% / 入札王 {int(ki_cov)}%</div>', unsafe_allow_html=True)
+            with v2:
+                label2 = sw_w if sw_w != "同等" else "同等"
+                color2 = C1 if sw_w=="NJSS" else C2 if sw_w=="入札王" else "#64748B"
+                st.markdown(f'<div style="font-size:11px;font-weight:700;color:#64748B;margin-bottom:8px;">2. 検索精度</div><div style="font-size:1.5rem;font-weight:800;color:{color2};">{label2}</div><div style="font-size:11px;color:#64748B;margin-top:4px;">優位ワード数</div>', unsafe_allow_html=True)
+            with v3:
+                label3 = roi_w if roi_w != "同等" else "同等"
+                color3 = C1 if roi_w=="NJSS" else C2 if roi_w=="入札王" else "#64748B"
+                st.markdown(f'<div style="font-size:11px;font-weight:700;color:#64748B;margin-bottom:8px;">3. 5年ROI</div><div style="font-size:1.5rem;font-weight:800;color:{color3};">{label3}</div><div style="font-size:11px;color:#64748B;margin-top:4px;">NJSS {int(n_p5/10000):,}万 / 入札王 {int(k_p5/10000):,}万</div>', unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            if nj_sc > ki_sc:
+                st.markdown(f'<div class="verdict"><div class="verdict-title">最終推奨ツール：NJSS ({nj_sc}/3項目)</div><div class="verdict-body">各検証データを総合した結果、NJSSの導入を推奨します。過去案件の網羅性と機会損失防止の観点で優位性が確認されました。</div></div>', unsafe_allow_html=True)
+            elif ki_sc > nj_sc:
+                st.markdown(f'<div class="verdict"><div class="verdict-title">最終推奨ツール：入札王 ({ki_sc}/3項目)</div><div class="verdict-body">各検証データを総合した結果、入札王の導入を推奨します。コストパフォーマンスと早期損益分岐点の優位性により、ROI最大化が期待できます。</div></div>', unsafe_allow_html=True)
+            else:
+                st.info("両者拮抗 (引き分け)。UIの使いやすさや営業サポート体制など定性要素で最終判断してください。")
 
     with st.container(border=True):
         sec("累積期待利益の予測推移（5カ年）")
         fig4 = px.line(p_df, x="年", y=["NJSS利益","入札王利益"], color_discrete_map={"NJSS利益": C1, "入札王利益": C2})
         fig4.update_traces(line_width=3)
-        fig4.update_layout(**PLY, height=250)
+        fig4.update_layout(**PLY, height=300)
         fig4.update_yaxes(title="累積利益 (円)", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
         fig4.update_xaxes(title="経過年数")
         st.plotly_chart(fig4, use_container_width=True)
