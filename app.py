@@ -213,10 +213,12 @@ COLS = [
     "URL1","URL2","URL3","URL4","URL5",
 ]
 
-@st.cache_data(ttl=0)
+# ⚠️修正ポイント：外側で10分キャッシュさせ、Google API制限を回避する
+@st.cache_data(ttl="10m")
 def load_data():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        # 内側のキャッシュは無効化し、外側の@st.cache_dataで管理する
         df = conn.read(spreadsheet=url, ttl="0s")
         return df if "URL1" in df.columns else pd.DataFrame(columns=COLS)
     except:
@@ -230,6 +232,7 @@ def save_data(df_new):
         spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"],
         data=df_new.fillna(""),
     )
+    # データを保存したらキャッシュをクリアして次回最新を読み込ませる
     load_data.clear()
 
 def calc_proj():
@@ -252,7 +255,7 @@ def calc_proj():
 
 
 # ─────────────────────────────────────────────────────────────────
-#  PLOTLY THEME (Mac-style Font Stack)
+#  PLOTLY THEME
 # ─────────────────────────────────────────────────────────────────
 PLY = dict(
     template="plotly_white",
@@ -431,7 +434,6 @@ if current_page == "ダッシュボード":
     n_p5  = p_df.iloc[-1]["NJSS利益"]  if not p_df.empty else 0
     k_p5  = p_df.iloc[-1]["入札王利益"] if not p_df.empty else 0
 
-    # ── KPI row (Colorful Top Borders) ──
     c1,c2,c3,c4,c5 = st.columns(5)
     with c1: kpi("対象案件数", total, "件", sub="登録済み総案件", color="#3B82F6")
     with c2: kpi("NJSS 網羅率", f"{nj_c/total*100:.1f}", "%", sub=f"{nj_c}件捕捉", tag="NJSS", tag_type="up" if nj_c >= ki_c else "dn", color="#14B8A6")
@@ -439,7 +441,6 @@ if current_page == "ダッシュボード":
     with c4: kpi("NJSS 5年利益", f"{int(n_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#8B5CF6")
     with c5: kpi("入札王 5年利益", f"{int(k_p5/10000):,}", "万円", sub="累積期待利益", tag_type="neu", color="#EC4899")
 
-    # ── Row 1: bar charts ──
     r1l, r1r = st.columns(2)
     with r1l:
         with st.container(border=True):
@@ -470,7 +471,6 @@ if current_page == "ダッシュボード":
             fig2.update_yaxes(title="")
             st.plotly_chart(fig2, use_container_width=True)
 
-    # ── Row 2: keyword + ROI ──
     r2l, r2r = st.columns([1.1, 0.9])
     with r2l:
         with st.container(border=True):
@@ -529,7 +529,6 @@ if current_page == "ダッシュボード":
             )
             st.plotly_chart(fig_r, use_container_width=True)
 
-    # ── Verdict ──
     with st.container(border=True):
         sec("総合判定レポート")
         nj_sc = (cov_w=="NJSS") + (sw_w=="NJSS") + (roi_w=="NJSS")
@@ -557,7 +556,6 @@ if current_page == "ダッシュボード":
         else:
             st.info("両者拮抗 (引き分け)。UIの使いやすさや営業サポート体制など定性要素で最終判断してください。")
 
-    # ── ROI forecast ──
     with st.container(border=True):
         sec("累積期待利益の予測推移（5カ年）")
         fig4 = px.line(p_df, x="年", y=["NJSS利益","入札王利益"],
@@ -575,7 +573,6 @@ if current_page == "ダッシュボード":
 elif current_page == "案件データ入力":
     page_header("案件データ入力", "仕様書・公告OCR読み取り + 手動入力")
 
-    # OCR box
     st.markdown("""
     <div class="ocr-box">
       <div class="ocr-title">仕様書・公告ファイルから自動入力（OCR）</div>
