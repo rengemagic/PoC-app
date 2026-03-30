@@ -157,7 +157,8 @@ if not st.session_state.logged_in:
 # ─────────────────────────────────────────────────────────────────
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-COLS_BIDS = ["ID","自治体名","担当部署名","案件概要","公示日","入札日","履行期間","入札方式","参加資格","予算(千円)","落札金額(千円)","自社結果","落札企業","競合1","競合2","競合3","仕様書","NJSS掲載","入札王掲載","URL1","URL2","URL3","URL4","URL5"]
+# 👇 【追加】検索タグと備考フィールドをカラムに追加
+COLS_BIDS = ["ID","自治体名","担当部署名","案件概要","公示日","入札日","履行期間","入札方式","参加資格","予算(千円)","落札金額(千円)","自社結果","落札企業","競合1","競合2","競合3","仕様書","NJSS掲載","入札王掲載","URL1","URL2","URL3","URL4","URL5", "検索タグ", "備考"]
 COLS_SETTINGS = ["種別", "項目名", "値1", "値2", "値3"]
 
 @st.cache_data(ttl="10m")
@@ -165,7 +166,14 @@ def load_bids():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         df = conn.read(spreadsheet=url, worksheet="案件データ", ttl="0s")
-        return df if "URL1" in df.columns else pd.DataFrame(columns=COLS_BIDS)
+        if "URL1" in df.columns:
+            # 👇 【保護機能】旧シートに「検索タグ」「備考」がなくても自動で追加してエラーを防ぐ
+            for col in COLS_BIDS:
+                if col not in df.columns:
+                    df[col] = ""
+            return df
+        else:
+            return pd.DataFrame(columns=COLS_BIDS)
     except: return pd.DataFrame(columns=COLS_BIDS)
 
 @st.cache_data(ttl="10m")
@@ -421,8 +429,6 @@ if current_page == "ダッシュボード":
     with r3r:
         with st.container(border=True):
             sec("総合判定レポート")
-            
-            # 👇 【修正】前回のアップデートで消してしまった計算用変数を復活させました！
             nj_sc = (cov_w=="NJSS") + (sw_w=="NJSS") + (roi_w=="NJSS")
             ki_sc = (cov_w=="入札王") + (sw_w=="入札王") + (roi_w=="入札王")
 
@@ -507,7 +513,9 @@ elif current_page == "案件データ入力":
             try: bv = int(ocr.get("予算(千円)", 0))
             except: bv = 0
             budget   = c8.number_input("予算額 (千円)", min_value=0, step=100, value=bv)
-            with c9: req_label("落札金額 (千円)"); wbid = st.number_input("wbid", label_visibility="collapsed", min_value=0, step=100)
+            with c9:
+                st.markdown('<div class="rl">落札金額 (千円)</div>', unsafe_allow_html=True)
+                wbid = st.number_input("wbid", label_visibility="collapsed", min_value=0, step=100)
             our_res  = c10.selectbox("自社結果", ["","受注","失注","見送り","辞退"])
             c11,c12  = st.columns(2)
             wnr = c11.text_input("落札企業"); b1  = c12.text_input("競合1"); b2  = c11.text_input("競合2"); b3  = c12.text_input("競合3")
@@ -522,17 +530,45 @@ elif current_page == "案件データ入力":
             cu3,cu4 = st.columns(2); url3 = cu3.text_input("URL 3"); url4 = cu4.text_input("URL 4")
             url5 = st.text_input("URL 5")
 
+            # 👇 【追加】タグと備考フィールドの追加
+            form_div("タグ・備考（任意）")
+            tags = st.text_input("検索タグ", placeholder="例: BI, クラウド, 失注理由 (カンマ区切りなど)")
+            remarks = st.text_area("備考", placeholder="案件の所感、特記事項、次回のアクションなどを自由に入力してください", height=80)
+
             st.markdown("<br>", unsafe_allow_html=True)
             if st.form_submit_button("この案件を保存する", use_container_width=True):
-                if mun and smm and wbid > 0:
-                    new_rec = pd.DataFrame([{"ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm, "公示日": pub_d.strftime("%Y-%m-%d") if pub_d else "", "入札日": bid_d.strftime("%Y-%m-%d") if bid_d else "", "履行期間": per_d, "入札方式": method, "参加資格": qual, "予算(千円)": budget, "落札金額(千円)": wbid, "自社結果": our_res, "落札企業": wnr, "競合1": b1, "競合2": b2, "競合3": b3, "仕様書": spc, "NJSS掲載": njl, "入札王掲載": kil, "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5}])
+                if mun and smm:
+                    # 👇 【追加】保存データの中に「検索タグ」と「備考」を追加
+                    new_rec = pd.DataFrame([{
+                        "ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm, 
+                        "公示日": pub_d.strftime("%Y-%m-%d") if pub_d else "", 
+                        "入札日": bid_d.strftime("%Y-%m-%d") if bid_d else "", 
+                        "履行期間": per_d, "入札方式": method, "参加資格": qual, 
+                        "予算(千円)": budget, "落札金額(千円)": wbid, "自社結果": our_res, 
+                        "落札企業": wnr, "競合1": b1, "競合2": b2, "競合3": b3, 
+                        "仕様書": spc, "NJSS掲載": njl, "入札王掲載": kil, 
+                        "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5,
+                        "検索タグ": tags, "備考": remarks
+                    }])
                     try:
                         save_bids(pd.concat([vd, new_rec], ignore_index=True)); st.session_state.ocr_result = None; st.success("保存しました。")
                     except Exception as e: st.error(f"保存失敗: {e}")
-                else: st.error("「自治体名」「案件名」「落札金額(1以上)」は必須です。")
+                else: st.error("「自治体名・発注機関」「案件名・案件概要」は必須です。")
 
     if not vd.empty:
-        with st.container(border=True): sec("登録済みデータ一覧"); st.dataframe(vd, hide_index=True, use_container_width=True)
+        with st.container(border=True): 
+            sec("登録済みデータ一覧")
+            # 👇 【追加】登録済みデータを絞り込むための検索窓
+            search_q = st.text_input("🔍 キーワードで絞り込み", placeholder="自治体名、案件名、タグ、備考などで検索...")
+            if search_q:
+                # 入力された文字が含まれる行だけを抽出
+                mask = vd.apply(lambda row: row.astype(str).str.contains(search_q, case=False, na=False).any(), axis=1)
+                display_df = vd[mask]
+            else:
+                display_df = vd
+            
+            st.caption(f"表示件数: {len(display_df)} 件")
+            st.dataframe(display_df, hide_index=True, use_container_width=True)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -609,7 +645,7 @@ elif current_page == "ROI分析":
         st.markdown(f"""
         システムは、現在登録されている案件データと上記の設定値をもとに、以下の計算式で**「年間の期待売上」**と**「累積利益」**を自動算出しています。
         
-        * **1案件あたりの平均落札額:** `¥{int(avg_bid):,}` （※現在登録されている全案件の落札額の平均値です）
+        * **1案件あたりの平均落札額:** `¥{int(avg_bid):,}` （※現在登録されている全案件のうち、落札額が入っている案件の平均値です）
         * **年間期待売上:** `¥{int(ap_val):,}` （計算式: `平均落札金額 × 粗利率({st.session_state.costs["margin"]}%) × 受注率({st.session_state.costs["win_rate"]}%) × 年間応札数({st.session_state.costs["annual_bids"]}件)`）
         * **累積利益:** `(年間期待売上 × 経過年数) - 累積コスト(初期費用 ＋ 月額・オプション費用の年数分)`
         """)
