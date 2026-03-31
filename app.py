@@ -160,6 +160,15 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 COLS_BIDS = ["ID","自治体名","担当部署名","案件概要","公示日","入札日","履行期間","入札方式","参加資格","予算(千円)","落札金額(千円)","自社結果","落札企業","競合1","競合2","競合3","仕様書","NJSS掲載","入札王掲載","URL1","URL2","URL3","URL4","URL5", "検索タグ", "備考"]
 COLS_SETTINGS = ["種別", "項目名", "値1", "値2", "値3", "値4", "値5"]
 
+# 👇 【安全装置】空欄や文字が来ても絶対にエラーを出さず「0」に変換する関数
+def safe_int(val):
+    try:
+        if pd.isna(val) or val == "":
+            return 0
+        return int(float(str(val).replace(',', '')))
+    except (ValueError, TypeError):
+        return 0
+
 @st.cache_data(ttl="10m")
 def load_bids():
     try:
@@ -211,15 +220,16 @@ if "settings_loaded" not in st.session_state:
     df_set = load_settings()
     if not df_set.empty:
         for _, row in df_set[df_set["種別"] == "COST"].iterrows():
-            k = str(row["項目名"]); 
-            if k in st.session_state.costs: st.session_state.costs[k] = int(pd.to_numeric(row["値1"], errors="coerce") or 0)
+            k = str(row["項目名"])
+            if k in st.session_state.costs: 
+                st.session_state.costs[k] = safe_int(row["値1"]) # 安全変換を使用
         
         for _, row in df_set[df_set["種別"] == "WORD"].iterrows():
             w = str(row["項目名"])
             if w and w not in st.session_state.search_words:
                 st.session_state.search_words.append(w)
-                v1 = int(pd.to_numeric(row.get("値1"), errors="coerce") or 0)
-                v2 = int(pd.to_numeric(row.get("値2"), errors="coerce") or 0)
+                v1 = safe_int(row.get("値1")) # 安全変換を使用
+                v2 = safe_int(row.get("値2")) # 安全変換を使用
                 
                 if "値4" not in row or pd.isna(row["値4"]) or str(row.get("値4")).strip() == "":
                     st.session_state.search_counts[w] = {
@@ -231,8 +241,8 @@ if "settings_loaded" not in st.session_state:
                     st.session_state.search_counts[w] = {
                         "NJSS_現在": v1,
                         "入札王_現在": v2,
-                        "NJSS_過去1年": int(pd.to_numeric(row.get("値3"), errors="coerce") or 0),
-                        "入札王_過去1年": int(pd.to_numeric(row.get("値4"), errors="coerce") or 0),
+                        "NJSS_過去1年": safe_int(row.get("値3")), # 安全変換を使用
+                        "入札王_過去1年": safe_int(row.get("値4")), # 安全変換を使用
                         "登録日": str(row.get("値5", ""))
                     }
     st.session_state.settings_loaded = True
@@ -616,13 +626,11 @@ elif current_page == "ワード検索数":
             st.session_state.search_words = []; st.session_state.search_counts = {}
             sync_settings(); st.rerun()
             
-        # 👇【追加】CSVアップロード機能
         st.markdown("<div style='height: 1px; background: var(--line2); margin: 16px 0;'></div>", unsafe_allow_html=True)
         st.markdown("<div style='font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;'>📁 CSVファイルから一括追加（1行目を「キーワード」としてください）</div>", unsafe_allow_html=True)
         up_csv = st.file_uploader("CSVアップロード", type=["csv"], label_visibility="collapsed")
         if up_csv:
             try:
-                # UTF-8とShift-JISの両方に対応
                 try: df_kw = pd.read_csv(up_csv, encoding="utf-8-sig")
                 except UnicodeDecodeError: df_kw = pd.read_csv(up_csv, encoding="shift-jis")
                 
@@ -664,10 +672,10 @@ elif current_page == "ワード検索数":
                 st.session_state.search_words = edited["検索ワード"].dropna().tolist()
                 st.session_state.search_counts = {
                     row["検索ワード"]: {
-                        "NJSS_現在": int(row.get("NJSS 現在(件)",0) or 0), 
-                        "入札王_現在": int(row.get("入札王 現在(件)",0) or 0), 
-                        "NJSS_過去1年": int(row.get("NJSS 過去1年(件)",0) or 0), 
-                        "入札王_過去1年": int(row.get("入札王 過去1年(件)",0) or 0), 
+                        "NJSS_現在": safe_int(row.get("NJSS 現在(件)")), 
+                        "入札王_現在": safe_int(row.get("入札王 現在(件)")), 
+                        "NJSS_過去1年": safe_int(row.get("NJSS 過去1年(件)")), 
+                        "入札王_過去1年": safe_int(row.get("入札王 過去1年(件)")), 
                         "登録日": str(row.get("登録日", today_str))
                     } for _, row in edited.iterrows() if pd.notna(row["検索ワード"])
                 }
@@ -768,14 +776,18 @@ elif current_page == "データ管理":
         sec("CSV一括インポート")
         uf = st.file_uploader("CSVをアップロード", type="csv")
         if uf:
-            im = pd.read_csv(uf, encoding="utf-8-sig"); st.dataframe(im.head(), use_container_width=True)
-            if st.button("このデータを書き込む", use_container_width=True):
-                try:
+            try:
+                try: im = pd.read_csv(uf, encoding="utf-8-sig")
+                except UnicodeDecodeError: im = pd.read_csv(uf, encoding="shift-jis")
+                
+                st.dataframe(im.head(), use_container_width=True)
+                if st.button("このデータを書き込む", use_container_width=True):
                     new_p = []; today_str = datetime.date.today().strftime("%Y-%m-%d")
                     for _, row in im.iterrows():
                         tag = str(row.get("ID",""))
                         if tag == "SETTING_COST":
-                            item = str(row.get("自治体名","")); val = int(pd.to_numeric(row.get("落札金額(千円)",0), errors="coerce") or 0)
+                            item = str(row.get("自治体名",""))
+                            val = safe_int(row.get("落札金額(千円)"))
                             if "NJSS初期" in item: st.session_state.costs["n_init"] = val
                             elif "NJSS月額" in item: st.session_state.costs["n_month"] = val
                             elif "入札王初期" in item: st.session_state.costs["k_init"] = val
@@ -787,12 +799,12 @@ elif current_page == "データ管理":
                             w = str(row.get("自治体名",""))
                             if w:
                                 if w not in st.session_state.search_words: st.session_state.search_words.append(w)
-                                st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": int(pd.to_numeric(row.get("案件概要",0), errors="coerce") or 0), "入札王_過去1年": int(pd.to_numeric(row.get("落札企業",0), errors="coerce") or 0), "登録日": today_str}
+                                st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": safe_int(row.get("案件概要")), "入札王_過去1年": safe_int(row.get("落札企業")), "登録日": today_str}
                         else:
                             if pd.notna(row.get("自治体名")) and str(row.get("自治体名")).strip(): new_p.append(row)
                     if new_p: save_bids(pd.concat([load_bids(), pd.DataFrame(new_p)], ignore_index=True))
                     sync_settings(); st.success("全データを正常に読み込み・保存しました。")
-                except Exception as e: st.error(f"エラー: {e}")
+            except Exception as e: st.error(f"エラー: {e}")
 
     with st.container(border=True):
         with st.expander("危険操作：全データの初期化"):
