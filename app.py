@@ -158,7 +158,6 @@ if not st.session_state.logged_in:
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 COLS_BIDS = ["ID","自治体名","担当部署名","案件概要","公示日","入札日","履行期間","入札方式","参加資格","予算(千円)","落札金額(千円)","自社結果","落札企業","競合1","競合2","競合3","仕様書","NJSS掲載","入札王掲載","URL1","URL2","URL3","URL4","URL5", "検索タグ", "備考"]
-# 👇 【追加】「値4」「値5」を追加して現在・過去1年を保存できるように拡張
 COLS_SETTINGS = ["種別", "項目名", "値1", "値2", "値3", "値4", "値5"]
 
 @st.cache_data(ttl="10m")
@@ -180,7 +179,6 @@ def load_settings():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         df = conn.read(spreadsheet=url, worksheet="設定データ", ttl="0s")
-        # 👇 【保護機能】旧シートに値4,値5がなくてもエラーを出さずに自動追加する
         for c in ["値4", "値5"]:
             if c not in df.columns: df[c] = ""
         return df if "種別" in df.columns else pd.DataFrame(columns=COLS_SETTINGS)
@@ -201,7 +199,6 @@ def sync_settings():
     for k, v in st.session_state.costs.items(): rows.append({"種別": "COST", "項目名": k, "値1": v, "値2": "", "値3": "", "値4": "", "値5": ""})
     for w in st.session_state.search_words:
         d = st.session_state.search_counts.get(w, {})
-        # 👇 【変更】値1=NJSS現在, 値2=入札王現在, 値3=NJSS過去1年, 値4=入札王過去1年, 値5=日付
         rows.append({"種別": "WORD", "項目名": w, 
                      "値1": d.get("NJSS_現在", 0), 
                      "値2": d.get("入札王_現在", 0), 
@@ -221,20 +218,16 @@ if "settings_loaded" not in st.session_state:
             w = str(row["項目名"])
             if w and w not in st.session_state.search_words:
                 st.session_state.search_words.append(w)
-                
-                # 👇 【後方互換性】旧バージョンで登録されたデータは「過去1年」の方に寄せて扱う（現在受付中は少ないため）
                 v1 = int(pd.to_numeric(row.get("値1"), errors="coerce") or 0)
                 v2 = int(pd.to_numeric(row.get("値2"), errors="coerce") or 0)
                 
                 if "値4" not in row or pd.isna(row["値4"]) or str(row.get("値4")).strip() == "":
-                    # 旧バージョンのデータの場合
                     st.session_state.search_counts[w] = {
                         "NJSS_現在": 0, "入札王_現在": 0, 
                         "NJSS_過去1年": v1, "入札王_過去1年": v2, 
                         "登録日": str(row.get("値3", ""))
                     }
                 else:
-                    # 新バージョンのデータの場合
                     st.session_state.search_counts[w] = {
                         "NJSS_現在": v1,
                         "入札王_現在": v2,
@@ -417,7 +410,6 @@ if current_page == "ダッシュボード":
             sec("総合評価レーダー", note="ℹ️ 計算式: 網羅率(%), 検索精度(勝敗割合), 5年ROI(最大利益に対する相対スコア)の3要素")
             cov_w = "NJSS" if nj_c > ki_c else "入札王" if ki_c > nj_c else "同等"
             
-            # 👇 【変更】勝敗の比較を「現在＋過去1年」の合計数で行うように修正
             nj_sw = sum(1 for v in st.session_state.search_counts.values() if (v.get("NJSS_現在",0)+v.get("NJSS_過去1年",0)) > (v.get("入札王_現在",0)+v.get("入札王_過去1年",0)))
             ki_sw = sum(1 for v in st.session_state.search_counts.values() if (v.get("入札王_現在",0)+v.get("入札王_過去1年",0)) > (v.get("NJSS_現在",0)+v.get("NJSS_過去1年",0)))
             
@@ -440,7 +432,6 @@ if current_page == "ダッシュボード":
     with st.container(border=True):
         sec("キーワード検索精度比較 (現在＋過去1年の総計)", note="ℹ️ 計算式: 「ワード検索数」画面で入力された「現在受付中＋過去1年」の合計ヒット件数")
         if st.session_state.search_words and st.session_state.search_counts:
-            # 👇 【変更】棒グラフの表示も「現在＋過去1年の合算値」を表示するように変更
             sw_df = pd.DataFrame([{
                 "ワード": w, 
                 "NJSS (総計)": st.session_state.search_counts.get(w,{}).get("NJSS_現在",0) + st.session_state.search_counts.get(w,{}).get("NJSS_過去1年",0), 
@@ -612,7 +603,8 @@ elif current_page == "ワード検索数":
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
     with st.container(border=True):
-        sec("キーワードの追加")
+        sec("キーワードの追加・CSV一括インポート")
+        
         ca1,ca2,ca3 = st.columns([2,1,1])
         nw = ca1.text_input("キーワード", placeholder="例: BIツール、DX推進", label_visibility="collapsed")
         if ca2.button("追加", use_container_width=True):
@@ -623,12 +615,40 @@ elif current_page == "ワード検索数":
         if ca3.button("クリア", use_container_width=True):
             st.session_state.search_words = []; st.session_state.search_counts = {}
             sync_settings(); st.rerun()
+            
+        # 👇【追加】CSVアップロード機能
+        st.markdown("<div style='height: 1px; background: var(--line2); margin: 16px 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px; font-weight:600; color:var(--text); margin-bottom:8px;'>📁 CSVファイルから一括追加（1行目を「キーワード」としてください）</div>", unsafe_allow_html=True)
+        up_csv = st.file_uploader("CSVアップロード", type=["csv"], label_visibility="collapsed")
+        if up_csv:
+            try:
+                # UTF-8とShift-JISの両方に対応
+                try: df_kw = pd.read_csv(up_csv, encoding="utf-8-sig")
+                except UnicodeDecodeError: df_kw = pd.read_csv(up_csv, encoding="shift-jis")
+                
+                if "キーワード" in df_kw.columns:
+                    add_count = 0
+                    for w in df_kw["キーワード"].dropna().astype(str):
+                        w = w.strip()
+                        if w and w not in st.session_state.search_words:
+                            st.session_state.search_words.append(w)
+                            st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": 0, "入札王_過去1年": 0, "登録日": today_str}
+                            add_count += 1
+                    if add_count > 0:
+                        sync_settings()
+                        st.success(f"🎉 {add_count}件のキーワードを一括追加しました！")
+                        st.rerun()
+                    else:
+                        st.info("追加できる新しいキーワードがありませんでした（すべて登録済みか空データ）。")
+                else:
+                    st.error("🚨 CSVの1行目（見出し）に「キーワード」という列が見つかりません。")
+            except Exception as e:
+                st.error(f"CSVの読み込みに失敗しました: {e}")
 
     with st.container(border=True):
         sec("ヒット件数テーブル（セル直接編集可）")
         st.caption("※ 各ツールの検索画面で「現在受付中」と「過去1年（終了済み）」を絞り込んで件数を入力してください。")
         if st.session_state.search_words:
-            # 👇 【変更】「現在」と「過去1年」を入力できるようにテーブルの列を拡張
             df_sw = pd.DataFrame([{
                 "検索ワード": w, 
                 "NJSS 現在(件)":  st.session_state.search_counts.get(w,{}).get("NJSS_現在",0), 
@@ -767,7 +787,6 @@ elif current_page == "データ管理":
                             w = str(row.get("自治体名",""))
                             if w:
                                 if w not in st.session_state.search_words: st.session_state.search_words.append(w)
-                                # 👇 データ管理でのインポート時は過去1年として扱う
                                 st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": int(pd.to_numeric(row.get("案件概要",0), errors="coerce") or 0), "入札王_過去1年": int(pd.to_numeric(row.get("落札企業",0), errors="coerce") or 0), "登録日": today_str}
                         else:
                             if pd.notna(row.get("自治体名")) and str(row.get("自治体名")).strip(): new_p.append(row)
