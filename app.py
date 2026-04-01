@@ -289,8 +289,8 @@ def gemini_extract(text_data: str) -> dict:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
         
-        # 👇 【重要修正】ここで「-latest」を追加し、確実に見つかる名前を指定しています！
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}"
+        # 👇 【完全解決】APIのモデル名を正しい最新版「gemini-2.5-flash」に戻しました！！
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
         prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
         【抽出ルール】該当なしは空文字("")。予算は千円単位の数値文字列に。公示日や入札日は「YYYY-MM-DD」形式。
