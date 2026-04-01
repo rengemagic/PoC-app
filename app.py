@@ -288,35 +288,46 @@ def gemini_extract(text_data: str) -> dict:
     try:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        # 【修正1】正しい安定版のモデル（gemini-1.5-flash）に変更しました
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         
-        prompt = """以下の入札案件に関するテキストデータを解析しJSON形式のみで出力してください。マークダウン(```json)などは不要です。
-        【🚨 重要】複数の異なる案件が混在していると判断した場合は絶対に抽出を行わず {"error": "multiple_projects"} を出力してください。
-        【抽出】該当なしは空文字("")。予算は千円単位の数値文字列に。公示日や入札日は「YYYY-MM-DD」形式。
-        {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}\nテキスト:\n""" + text_data
+        prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
+        【抽出ルール】該当なしは空文字("")。予算は千円単位の数値文字列に。公示日や入札日は「YYYY-MM-DD」形式。
+        {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}
         
-        # 👇 【修正】APIエラーをキャッチしやすく調整
-        resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=20)
+        テキスト:
+        """ + text_data
+        
+        # 安全にJSONを出力させる設定を復活
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "response_mime_type": "application/json"
+            }
+        }
+        
+        resp = requests.post(url, json=payload, timeout=20)
         
         if resp.status_code == 429:
             st.error("⏳ APIの無料枠制限（リクエスト過多）に達しました。1分ほど待ってから再度お試しください！")
             return {}
         elif resp.status_code != 200:
-            st.error(f"⚠️ Gemini APIエラー ({resp.status_code}): 時間をおいて再度お試しください。")
+            # 【修正2】Googleから返ってくる本当のエラーメッセージを画面に表示する
+            try:
+                err_detail = resp.json().get("error", {}).get("message", resp.text)
+            except:
+                err_detail = resp.text
+            st.error(f"⚠️ Gemini APIエラー (コード: {resp.status_code}): \n詳細: {err_detail}")
             return {}
 
         res_data = resp.json()
         if "candidates" in res_data:
             raw_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
-            # 👇 【修正】AIが勝手にマークダウンを付けた場合に備えた強力な除去処理
+            # 不要なマークダウン記号などを念のため除去
             clean_text = raw_text.replace("```json", "").replace("```", "").strip()
-            
             try:
-                parsed = json.loads(clean_text)
-                if parsed.get("error") == "multiple_projects":
-                    st.warning("🚨 【解析中止】テキスト内に複数の異なる案件が混在しています。1案件ずつに分けて再度お試しください。")
-                    return {}
-                return parsed
+                return json.loads(clean_text)
             except json.JSONDecodeError:
                 st.error("⚠️ AIの回答形式が乱れました。お手数ですが、もう一度ボタンを押してください。")
                 return {}
@@ -325,11 +336,11 @@ def gemini_extract(text_data: str) -> dict:
             return {}
             
     except requests.exceptions.Timeout:
-        st.error("⏳ 通信タイムアウト：テキストが長すぎるか、ネットワークが混雑しています。")
+        st.error("⏳ 通信タイムアウト：テキストが長すぎるか、ネットワークが混雑しています。少しテキストを減らしてお試しください。")
         return {}
     except Exception as e:
         if "gemini" not in st.secrets: st.warning("⚠️ secrets.toml に [gemini] api_key の設定がありません。")
-        else: st.error(f"🚨 予期せぬエラーが発生しました: {e}")
+        else: st.error(f"🚨 通信エラーが発生しました: {e}")
         return {}
 
 def ocr_extract(uploaded_file) -> dict:
@@ -339,7 +350,7 @@ def ocr_extract(uploaded_file) -> dict:
         api_key = st.secrets["google_vision"]["api_key"]
         import requests
         b64 = base64.b64encode(raw).decode()
-        resp = requests.post(f"[https://vision.googleapis.com/v1/images:annotate?key=](https://vision.googleapis.com/v1/images:annotate?key=){api_key}", json={"requests": [{"image": {"content": b64}, "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]}]}, timeout=20)
+        resp = requests.post(f"https://vision.googleapis.com/v1/images:annotate?key={api_key}", json={"requests": [{"image": {"content": b64}, "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]}]}, timeout=20)
         text = resp.json()["responses"][0].get("fullTextAnnotation", {}).get("text", "")
         result = {}
         patterns = {"自治体名": r"((?:東京都|北海道|(?:大阪|京都)府|.+?[都道府県])[\s　]*(?:[^\s　]+[市区町村])?)", "案件概要": r"(?:業務名|件名|案件名)\s*[：:]\s*(.+)", "予算(千円)": r"(?:予算額?|上限額?|限度額?)[^\d]*(\d[\d,]+)", "入札方式": r"(公募型プロポーザル|一般競争入札|指名競争入札|随意契約)", "参加資格": r"(?:参加資格|資格要件)\s*[：:]\s*(.+)"}
@@ -759,7 +770,7 @@ elif current_page == "マニュアル":
     with tabs[1]:
         with st.container(border=True):
             sec("AI機能（Gemini & Vision）のAPIキー設定")
-            st.markdown("**1. Google AI Studio で Gemini API キーを取得する（テキスト解析用）**\n[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) にアクセスし、「Create API key」からキーを発行。\n**2. Google Cloud Console で Vision API キーを取得する（画像解析用）**\n「Cloud Vision API」を有効化後、APIとサービス > 認証情報からキーを発行。\n**3. Secrets設定画面にキーを追記**\nStreamlit Cloud の Settings → Secrets タブに以下を追加：")
+            st.markdown("**1. Google AI Studio で Gemini API キーを取得する（テキスト解析用）**\nhttps://aistudio.google.com/app/apikey にアクセスし、「Create API key」からキーを発行。\n**2. Google Cloud Console で Vision API キーを取得する（画像解析用）**\n「Cloud Vision API」を有効化後、APIとサービス > 認証情報からキーを発行。\n**3. Secrets設定画面にキーを追記**\nStreamlit Cloud の Settings → Secrets タブに以下を追加：")
             st.code('[gemini]\napi_key = "AIzaSy..."\n\n[google_vision]\napi_key = "AIzaSy..."', language="toml")
     with tabs[2]:
         with st.container(border=True):
