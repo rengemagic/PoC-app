@@ -160,14 +160,11 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 COLS_BIDS = ["ID","自治体名","担当部署名","案件概要","公示日","入札日","履行期間","入札方式","参加資格","予算(千円)","落札金額(千円)","自社結果","落札企業","競合1","競合2","競合3","仕様書","NJSS掲載","入札王掲載","URL1","URL2","URL3","URL4","URL5", "検索タグ", "備考"]
 COLS_SETTINGS = ["種別", "項目名", "値1", "値2", "値3", "値4", "値5"]
 
-# 👇 【安全装置】空欄や文字が来ても絶対にエラーを出さず「0」に変換する関数
 def safe_int(val):
     try:
-        if pd.isna(val) or val == "":
-            return 0
+        if pd.isna(val) or val == "": return 0
         return int(float(str(val).replace(',', '')))
-    except (ValueError, TypeError):
-        return 0
+    except (ValueError, TypeError): return 0
 
 @st.cache_data(ttl="10m")
 def load_bids():
@@ -176,11 +173,9 @@ def load_bids():
         df = conn.read(spreadsheet=url, worksheet="案件データ", ttl="0s")
         if "URL1" in df.columns:
             for col in COLS_BIDS:
-                if col not in df.columns:
-                    df[col] = ""
+                if col not in df.columns: df[col] = ""
             return df
-        else:
-            return pd.DataFrame(columns=COLS_BIDS)
+        else: return pd.DataFrame(columns=COLS_BIDS)
     except: return pd.DataFrame(columns=COLS_BIDS)
 
 @st.cache_data(ttl="10m")
@@ -208,12 +203,7 @@ def sync_settings():
     for k, v in st.session_state.costs.items(): rows.append({"種別": "COST", "項目名": k, "値1": v, "値2": "", "値3": "", "値4": "", "値5": ""})
     for w in st.session_state.search_words:
         d = st.session_state.search_counts.get(w, {})
-        rows.append({"種別": "WORD", "項目名": w, 
-                     "値1": d.get("NJSS_現在", 0), 
-                     "値2": d.get("入札王_現在", 0), 
-                     "値3": d.get("NJSS_過去1年", 0), 
-                     "値4": d.get("入札王_過去1年", 0), 
-                     "値5": d.get("登録日", "")})
+        rows.append({"種別": "WORD", "項目名": w, "値1": d.get("NJSS_現在", 0), "値2": d.get("入札王_現在", 0), "値3": d.get("NJSS_過去1年", 0), "値4": d.get("入札王_過去1年", 0), "値5": d.get("登録日", "")})
     save_settings(pd.DataFrame(rows, columns=COLS_SETTINGS))
 
 if "settings_loaded" not in st.session_state:
@@ -221,30 +211,16 @@ if "settings_loaded" not in st.session_state:
     if not df_set.empty:
         for _, row in df_set[df_set["種別"] == "COST"].iterrows():
             k = str(row["項目名"])
-            if k in st.session_state.costs: 
-                st.session_state.costs[k] = safe_int(row["値1"]) # 安全変換を使用
-        
+            if k in st.session_state.costs: st.session_state.costs[k] = safe_int(row["値1"])
         for _, row in df_set[df_set["種別"] == "WORD"].iterrows():
             w = str(row["項目名"])
             if w and w not in st.session_state.search_words:
                 st.session_state.search_words.append(w)
-                v1 = safe_int(row.get("値1")) # 安全変換を使用
-                v2 = safe_int(row.get("値2")) # 安全変換を使用
-                
+                v1, v2 = safe_int(row.get("値1")), safe_int(row.get("値2"))
                 if "値4" not in row or pd.isna(row["値4"]) or str(row.get("値4")).strip() == "":
-                    st.session_state.search_counts[w] = {
-                        "NJSS_現在": 0, "入札王_現在": 0, 
-                        "NJSS_過去1年": v1, "入札王_過去1年": v2, 
-                        "登録日": str(row.get("値3", ""))
-                    }
+                    st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": v1, "入札王_過去1年": v2, "登録日": str(row.get("値3", ""))}
                 else:
-                    st.session_state.search_counts[w] = {
-                        "NJSS_現在": v1,
-                        "入札王_現在": v2,
-                        "NJSS_過去1年": safe_int(row.get("値3")), # 安全変換を使用
-                        "入札王_過去1年": safe_int(row.get("値4")), # 安全変換を使用
-                        "登録日": str(row.get("値5", ""))
-                    }
+                    st.session_state.search_counts[w] = {"NJSS_現在": v1, "入札王_現在": v2, "NJSS_過去1年": safe_int(row.get("値3")), "入札王_過去1年": safe_int(row.get("値4")), "登録日": str(row.get("値5", ""))}
     st.session_state.settings_loaded = True
 
 def calc_proj():
@@ -313,22 +289,47 @@ def gemini_extract(text_data: str) -> dict:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        prompt = """以下の入札案件に関するテキストデータを解析しJSON形式のみで出力してください。
+        
+        prompt = """以下の入札案件に関するテキストデータを解析しJSON形式のみで出力してください。マークダウン(```json)などは不要です。
         【🚨 重要】複数の異なる案件が混在していると判断した場合は絶対に抽出を行わず {"error": "multiple_projects"} を出力してください。
         【抽出】該当なしは空文字("")。予算は千円単位の数値文字列に。公示日や入札日は「YYYY-MM-DD」形式。
         {"自治体名":"","担当部署名":"","案件概要":"","公示日":"","入札日":"","履行期間":"","入札方式":"","参加資格":"","予算(千円)":""}\nテキスト:\n""" + text_data
-        resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"response_mime_type": "application/json"}}, timeout=20)
+        
+        # 👇 【修正】APIエラーをキャッチしやすく調整
+        resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=20)
+        
+        if resp.status_code == 429:
+            st.error("⏳ APIの無料枠制限（リクエスト過多）に達しました。1分ほど待ってから再度お試しください！")
+            return {}
+        elif resp.status_code != 200:
+            st.error(f"⚠️ Gemini APIエラー ({resp.status_code}): 時間をおいて再度お試しください。")
+            return {}
+
         res_data = resp.json()
         if "candidates" in res_data:
-            parsed = json.loads(res_data["candidates"][0]["content"]["parts"][0]["text"])
-            if parsed.get("error") == "multiple_projects":
-                st.error("🚨 【解析中止】テキスト内に複数の異なる案件が混在しています。1案件ずつに分けて再度お試しください。")
+            raw_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+            # 👇 【修正】AIが勝手にマークダウンを付けた場合に備えた強力な除去処理
+            clean_text = raw_text.replace("```json", "").replace("```", "").strip()
+            
+            try:
+                parsed = json.loads(clean_text)
+                if parsed.get("error") == "multiple_projects":
+                    st.warning("🚨 【解析中止】テキスト内に複数の異なる案件が混在しています。1案件ずつに分けて再度お試しください。")
+                    return {}
+                return parsed
+            except json.JSONDecodeError:
+                st.error("⚠️ AIの回答形式が乱れました。お手数ですが、もう一度ボタンを押してください。")
                 return {}
-            return parsed
+        else:
+            st.error("⚠️ AIから予期せぬ応答が返ってきました。再度お試しください。")
+            return {}
+            
+    except requests.exceptions.Timeout:
+        st.error("⏳ 通信タイムアウト：テキストが長すぎるか、ネットワークが混雑しています。")
         return {}
     except Exception as e:
         if "gemini" not in st.secrets: st.warning("⚠️ secrets.toml に [gemini] api_key の設定がありません。")
-        else: st.error(f"Gemini APIエラー: {e}")
+        else: st.error(f"🚨 予期せぬエラーが発生しました: {e}")
         return {}
 
 def ocr_extract(uploaded_file) -> dict:
@@ -338,7 +339,7 @@ def ocr_extract(uploaded_file) -> dict:
         api_key = st.secrets["google_vision"]["api_key"]
         import requests
         b64 = base64.b64encode(raw).decode()
-        resp = requests.post(f"https://vision.googleapis.com/v1/images:annotate?key={api_key}", json={"requests": [{"image": {"content": b64}, "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]}]}, timeout=20)
+        resp = requests.post(f"[https://vision.googleapis.com/v1/images:annotate?key=](https://vision.googleapis.com/v1/images:annotate?key=){api_key}", json={"requests": [{"image": {"content": b64}, "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]}]}, timeout=20)
         text = resp.json()["responses"][0].get("fullTextAnnotation", {}).get("text", "")
         result = {}
         patterns = {"自治体名": r"((?:東京都|北海道|(?:大阪|京都)府|.+?[都道府県])[\s　]*(?:[^\s　]+[市区町村])?)", "案件概要": r"(?:業務名|件名|案件名)\s*[：:]\s*(.+)", "予算(千円)": r"(?:予算額?|上限額?|限度額?)[^\d]*(\d[\d,]+)", "入札方式": r"(公募型プロポーザル|一般競争入札|指名競争入札|随意契約)", "参加資格": r"(?:参加資格|資格要件)\s*[：:]\s*(.+)"}
@@ -758,7 +759,7 @@ elif current_page == "マニュアル":
     with tabs[1]:
         with st.container(border=True):
             sec("AI機能（Gemini & Vision）のAPIキー設定")
-            st.markdown("**1. Google AI Studio で Gemini API キーを取得する（テキスト解析用）**\nhttps://aistudio.google.com/app/apikey にアクセスし、「Create API key」からキーを発行。\n**2. Google Cloud Console で Vision API キーを取得する（画像解析用）**\n「Cloud Vision API」を有効化後、APIとサービス > 認証情報からキーを発行。\n**3. Secrets設定画面にキーを追記**\nStreamlit Cloud の Settings → Secrets タブに以下を追加：")
+            st.markdown("**1. Google AI Studio で Gemini API キーを取得する（テキスト解析用）**\n[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) にアクセスし、「Create API key」からキーを発行。\n**2. Google Cloud Console で Vision API キーを取得する（画像解析用）**\n「Cloud Vision API」を有効化後、APIとサービス > 認証情報からキーを発行。\n**3. Secrets設定画面にキーを追記**\nStreamlit Cloud の Settings → Secrets タブに以下を追加：")
             st.code('[gemini]\napi_key = "AIzaSy..."\n\n[google_vision]\napi_key = "AIzaSy..."', language="toml")
     with tabs[2]:
         with st.container(border=True):
