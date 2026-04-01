@@ -288,8 +288,9 @@ def gemini_extract(text_data: str) -> dict:
     try:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
-        # 【修正1】正しい安定版のモデル（gemini-1.5-flash）に変更しました
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        
+        # 👇 【重要修正】ここで「-latest」を追加し、確実に見つかる名前を指定しています！
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}"
         
         prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
         【抽出ルール】該当なしは空文字("")。予算は千円単位の数値文字列に。公示日や入札日は「YYYY-MM-DD」形式。
@@ -298,7 +299,6 @@ def gemini_extract(text_data: str) -> dict:
         テキスト:
         """ + text_data
         
-        # 安全にJSONを出力させる設定を復活
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
@@ -313,7 +313,6 @@ def gemini_extract(text_data: str) -> dict:
             st.error("⏳ APIの無料枠制限（リクエスト過多）に達しました。1分ほど待ってから再度お試しください！")
             return {}
         elif resp.status_code != 200:
-            # 【修正2】Googleから返ってくる本当のエラーメッセージを画面に表示する
             try:
                 err_detail = resp.json().get("error", {}).get("message", resp.text)
             except:
@@ -324,7 +323,6 @@ def gemini_extract(text_data: str) -> dict:
         res_data = resp.json()
         if "candidates" in res_data:
             raw_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
-            # 不要なマークダウン記号などを念のため除去
             clean_text = raw_text.replace("```json", "").replace("```", "").strip()
             try:
                 return json.loads(clean_text)
