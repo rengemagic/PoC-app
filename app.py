@@ -166,6 +166,9 @@ def safe_int(val):
         return int(float(str(val).replace(',', '')))
     except (ValueError, TypeError): return 0
 
+def is_truthy(val):
+    return str(val).upper() in ["TRUE", "1", "1.0", "YES"]
+
 @st.cache_data(ttl="10m")
 def load_bids():
     try:
@@ -203,7 +206,7 @@ def sync_settings():
     for k, v in st.session_state.costs.items(): rows.append({"種別": "COST", "項目名": k, "値1": v, "値2": "", "値3": "", "値4": "", "値5": ""})
     for w in st.session_state.search_words:
         d = st.session_state.search_counts.get(w, {})
-        rows.append({"種別": "WORD", "項目名": w, "値1": d.get("NJSS_現在", 0), "値2": d.get("入札王_現在", 0), "値3": d.get("NJSS_過去1年", 0), "値4": d.get("入札王_過去1年", 0), "値5": d.get("登録日", "")})
+        rows.append({"種別": "WORD", "項目名": w, "値1": d.get("NJSS_入札案件", 0), "値2": d.get("入札王_入札案件", 0), "値3": d.get("NJSS_落札結果", 0), "値4": d.get("入札王_落札結果", 0), "値5": d.get("登録日", "")})
     save_settings(pd.DataFrame(rows, columns=COLS_SETTINGS))
 
 if "settings_loaded" not in st.session_state:
@@ -218,9 +221,9 @@ if "settings_loaded" not in st.session_state:
                 st.session_state.search_words.append(w)
                 v1, v2 = safe_int(row.get("値1")), safe_int(row.get("値2"))
                 if "値4" not in row or pd.isna(row["値4"]) or str(row.get("値4")).strip() == "":
-                    st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": v1, "入札王_過去1年": v2, "登録日": str(row.get("値3", ""))}
+                    st.session_state.search_counts[w] = {"NJSS_入札案件": 0, "入札王_入札案件": 0, "NJSS_落札結果": v1, "入札王_落札結果": v2, "登録日": str(row.get("値3", ""))}
                 else:
-                    st.session_state.search_counts[w] = {"NJSS_現在": v1, "入札王_現在": v2, "NJSS_過去1年": safe_int(row.get("値3")), "入札王_過去1年": safe_int(row.get("値4")), "登録日": str(row.get("値5", ""))}
+                    st.session_state.search_counts[w] = {"NJSS_入札案件": v1, "入札王_入札案件": v2, "NJSS_落札結果": safe_int(row.get("値3")), "入札王_落札結果": safe_int(row.get("値4")), "登録日": str(row.get("値5", ""))}
     st.session_state.settings_loaded = True
 
 def calc_proj():
@@ -289,7 +292,6 @@ def gemini_extract(text_data: str) -> dict:
         api_key = st.secrets["gemini"]["api_key"]
         import requests
         
-        # 👇 【完全解決】APIのモデル名を正しい最新版「gemini-2.5-flash」に戻しました！！
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
         prompt = """以下の入札案件に関するテキストデータを解析し、JSON形式のみで出力してください。
@@ -430,8 +432,8 @@ if current_page == "ダッシュボード":
             sec("総合評価レーダー", note="ℹ️ 計算式: 網羅率(%), 検索精度(勝敗割合), 5年ROI(最大利益に対する相対スコア)の3要素")
             cov_w = "NJSS" if nj_c > ki_c else "入札王" if ki_c > nj_c else "同等"
             
-            nj_sw = sum(1 for v in st.session_state.search_counts.values() if (v.get("NJSS_現在",0)+v.get("NJSS_過去1年",0)) > (v.get("入札王_現在",0)+v.get("入札王_過去1年",0)))
-            ki_sw = sum(1 for v in st.session_state.search_counts.values() if (v.get("入札王_現在",0)+v.get("入札王_過去1年",0)) > (v.get("NJSS_現在",0)+v.get("NJSS_過去1年",0)))
+            nj_sw = sum(1 for v in st.session_state.search_counts.values() if (v.get("NJSS_入札案件",0)+v.get("NJSS_落札結果",0)) > (v.get("入札王_入札案件",0)+v.get("入札王_落札結果",0)))
+            ki_sw = sum(1 for v in st.session_state.search_counts.values() if (v.get("入札王_入札案件",0)+v.get("入札王_落札結果",0)) > (v.get("NJSS_入札案件",0)+v.get("NJSS_落札結果",0)))
             
             sw_w  = "NJSS" if nj_sw > ki_sw else "入札王" if ki_sw > nj_sw else "同等"
             roi_w = "NJSS" if n_p5 > k_p5 else "入札王" if k_p5 > n_p5 else "同等"
@@ -450,12 +452,12 @@ if current_page == "ダッシュボード":
             st.plotly_chart(fig_r, use_container_width=True)
 
     with st.container(border=True):
-        sec("キーワード検索精度比較 (現在＋過去1年の総計)", note="ℹ️ 計算式: 「ワード検索数」画面で入力された「現在受付中＋過去1年」の合計ヒット件数")
+        sec("キーワード検索精度比較 (総計)", note="ℹ️ 計算式: 「ワード検索数」画面で入力された「入札案件＋落札結果」の合計ヒット件数")
         if st.session_state.search_words and st.session_state.search_counts:
             sw_df = pd.DataFrame([{
                 "ワード": w, 
-                "NJSS (総計)": st.session_state.search_counts.get(w,{}).get("NJSS_現在",0) + st.session_state.search_counts.get(w,{}).get("NJSS_過去1年",0), 
-                "入札王 (総計)": st.session_state.search_counts.get(w,{}).get("入札王_現在",0) + st.session_state.search_counts.get(w,{}).get("入札王_過去1年",0)
+                "NJSS (総計)": st.session_state.search_counts.get(w,{}).get("NJSS_入札案件",0) + st.session_state.search_counts.get(w,{}).get("NJSS_落札結果",0), 
+                "入札王 (総計)": st.session_state.search_counts.get(w,{}).get("入札王_入札案件",0) + st.session_state.search_counts.get(w,{}).get("入札王_落札結果",0)
             } for w in st.session_state.search_words])
             fig3 = px.bar(sw_df, x="ワード", y=["NJSS (総計)","入札王 (総計)"], barmode="group", color_discrete_map={"NJSS (総計)": C1, "入札王 (総計)": C2})
             fig3.update_traces(marker_line_width=0); fig3.update_layout(**PLY, height=350, legend_title_text=""); fig3.update_xaxes(tickangle=-45); fig3.update_yaxes(title="総ヒット件数", gridcolor="rgba(0,0,0,0.05)", zeroline=False)
@@ -537,6 +539,8 @@ elif current_page == "案件データ入力":
     with st.container(border=True):
         with st.form("entry_form", clear_on_submit=True):
             form_div("基本情報")
+            st.caption("💡 【自動マージ機能】すでに同じ「自治体名」と「案件名」のデータが登録されている場合、新しく行を追加するのではなく、自動で既存データと情報を統合（マージ）します。")
+            
             c1, c2 = st.columns(2)
             with c1: req_label("自治体名・発注機関"); mun = st.text_input("mun", label_visibility="collapsed", placeholder="例: 横浜市", value=ocr.get("自治体名",""))
             with c2: st.markdown('<div class="rl">担当部署名</div>', unsafe_allow_html=True); dep = st.text_input("dep", label_visibility="collapsed", placeholder="例: デジタル統括本部", value=ocr.get("担当部署名",""))
@@ -585,20 +589,76 @@ elif current_page == "案件データ入力":
             st.markdown("<br>", unsafe_allow_html=True)
             if st.form_submit_button("この案件を保存する", use_container_width=True):
                 if mun and smm:
-                    new_rec = pd.DataFrame([{
-                        "ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm, 
-                        "公示日": pub_d.strftime("%Y-%m-%d") if pub_d else "", 
-                        "入札日": bid_d.strftime("%Y-%m-%d") if bid_d else "", 
-                        "履行期間": per_d, "入札方式": method, "参加資格": qual, 
-                        "予算(千円)": budget, "落札金額(千円)": wbid, "自社結果": our_res, 
-                        "落札企業": wnr, "競合1": b1, "競合2": b2, "競合3": b3, 
-                        "仕様書": spc, "NJSS掲載": njl, "入札王掲載": kil, 
-                        "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5,
-                        "検索タグ": tags, "備考": remarks
-                    }])
-                    try:
-                        save_bids(pd.concat([vd, new_rec], ignore_index=True)); st.session_state.ocr_result = None; st.success("保存しました。")
-                    except Exception as e: st.error(f"保存失敗: {e}")
+                    mun_clean = mun.strip()
+                    smm_clean = smm.strip()
+                    
+                    # 👇【重要】自動マージ（重複チェック）のロジック
+                    mask = (vd["自治体名"].astype(str).str.strip() == mun_clean) & (vd["案件概要"].astype(str).str.strip() == smm_clean)
+                    dup_idx = vd[mask].index
+                    
+                    if len(dup_idx) > 0:
+                        # 既に同じデータが存在する場合（情報を統合）
+                        idx = dup_idx[0]
+                        row = vd.loc[idx]
+                        
+                        # ツールチェックボックスは「片方でもTrueならTrue」に統合
+                        vd.at[idx, "仕様書"] = is_truthy(row.get("仕様書")) or spc
+                        vd.at[idx, "NJSS掲載"] = is_truthy(row.get("NJSS掲載")) or njl
+                        vd.at[idx, "入札王掲載"] = is_truthy(row.get("入札王掲載")) or kil
+                        
+                        # 新しく入力された項目で既存データを上書き・補完
+                        if dep: vd.at[idx, "担当部署名"] = dep
+                        if pub_d: vd.at[idx, "公示日"] = pub_d.strftime("%Y-%m-%d")
+                        if bid_d: vd.at[idx, "入札日"] = bid_d.strftime("%Y-%m-%d")
+                        if per_d: vd.at[idx, "履行期間"] = per_d
+                        if method: vd.at[idx, "入札方式"] = method
+                        if qual: vd.at[idx, "参加資格"] = qual
+                        if budget > 0: vd.at[idx, "予算(千円)"] = budget
+                        if wbid > 0: vd.at[idx, "落札金額(千円)"] = wbid
+                        if our_res: vd.at[idx, "自社結果"] = our_res
+                        if wnr: vd.at[idx, "落札企業"] = wnr
+                        if b1: vd.at[idx, "競合1"] = b1
+                        if b2: vd.at[idx, "競合2"] = b2
+                        if b3: vd.at[idx, "競合3"] = b3
+                        if url1: vd.at[idx, "URL1"] = url1
+                        if url2: vd.at[idx, "URL2"] = url2
+                        if url3: vd.at[idx, "URL3"] = url3
+                        if url4: vd.at[idx, "URL4"] = url4
+                        if url5: vd.at[idx, "URL5"] = url5
+                        
+                        # タグと備考は追記する
+                        if tags:
+                            e_tag = str(row.get("検索タグ", ""))
+                            vd.at[idx, "検索タグ"] = tags if e_tag == "nan" or not e_tag.strip() else f"{e_tag}, {tags}"
+                        if remarks:
+                            e_rem = str(row.get("備考", ""))
+                            vd.at[idx, "備考"] = remarks if e_rem == "nan" or not e_rem.strip() else f"{e_rem}\n{remarks}"
+
+                        try:
+                            save_bids(vd)
+                            st.session_state.ocr_result = None
+                            st.success(f"✨ 既存データ（ID: {row['ID']}）と重複を検知したため、情報を自動で統合（マージ）しました！")
+                        except Exception as e:
+                            st.error(f"保存失敗: {e}")
+                            
+                    else:
+                        # 全く新しいデータの場合は新規追加
+                        new_rec = pd.DataFrame([{
+                            "ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm, 
+                            "公示日": pub_d.strftime("%Y-%m-%d") if pub_d else "", 
+                            "入札日": bid_d.strftime("%Y-%m-%d") if bid_d else "", 
+                            "履行期間": per_d, "入札方式": method, "参加資格": qual, 
+                            "予算(千円)": budget, "落札金額(千円)": wbid, "自社結果": our_res, 
+                            "落札企業": wnr, "競合1": b1, "競合2": b2, "競合3": b3, 
+                            "仕様書": spc, "NJSS掲載": njl, "入札王掲載": kil, 
+                            "URL1": url1, "URL2": url2, "URL3": url3, "URL4": url4, "URL5": url5,
+                            "検索タグ": tags, "備考": remarks
+                        }])
+                        try:
+                            save_bids(pd.concat([vd, new_rec], ignore_index=True))
+                            st.session_state.ocr_result = None
+                            st.success("🎉 新規案件として保存しました。")
+                        except Exception as e: st.error(f"保存失敗: {e}")
                 else: st.error("「自治体名・発注機関」「案件名・案件概要」は必須です。")
 
     if not vd.empty:
@@ -630,7 +690,7 @@ elif current_page == "ワード検索数":
         if ca2.button("追加", use_container_width=True):
             if nw and nw not in st.session_state.search_words:
                 st.session_state.search_words.append(nw); 
-                st.session_state.search_counts[nw] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": 0, "入札王_過去1年": 0, "登録日": today_str}
+                st.session_state.search_counts[nw] = {"NJSS_入札案件": 0, "入札王_入札案件": 0, "NJSS_落札結果": 0, "入札王_落札結果": 0, "登録日": today_str}
                 sync_settings(); st.rerun()
         if ca3.button("クリア", use_container_width=True):
             st.session_state.search_words = []; st.session_state.search_counts = {}
@@ -650,7 +710,7 @@ elif current_page == "ワード検索数":
                         w = w.strip()
                         if w and w not in st.session_state.search_words:
                             st.session_state.search_words.append(w)
-                            st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": 0, "入札王_過去1年": 0, "登録日": today_str}
+                            st.session_state.search_counts[w] = {"NJSS_入札案件": 0, "入札王_入札案件": 0, "NJSS_落札結果": 0, "入札王_落札結果": 0, "登録日": today_str}
                             add_count += 1
                     if add_count > 0:
                         sync_settings()
@@ -665,14 +725,14 @@ elif current_page == "ワード検索数":
 
     with st.container(border=True):
         sec("ヒット件数テーブル（セル直接編集可）")
-        st.caption("※ 各ツールの検索画面で「現在受付中」と「過去1年（終了済み）」を絞り込んで件数を入力してください。")
+        st.caption("※ 各ツールの検索画面で「入札案件」と「落札結果」の件数をそれぞれ入力してください。")
         if st.session_state.search_words:
             df_sw = pd.DataFrame([{
                 "検索ワード": w, 
-                "NJSS 現在(件)":  st.session_state.search_counts.get(w,{}).get("NJSS_現在",0), 
-                "入札王 現在(件)": st.session_state.search_counts.get(w,{}).get("入札王_現在",0),
-                "NJSS 過去1年(件)":  st.session_state.search_counts.get(w,{}).get("NJSS_過去1年",0), 
-                "入札王 過去1年(件)": st.session_state.search_counts.get(w,{}).get("入札王_過去1年",0),
+                "NJSS 入札案件(件)":  st.session_state.search_counts.get(w,{}).get("NJSS_入札案件",0), 
+                "入札王 入札案件(件)": st.session_state.search_counts.get(w,{}).get("入札王_入札案件",0),
+                "NJSS 落札結果(件)":  st.session_state.search_counts.get(w,{}).get("NJSS_落札結果",0), 
+                "入札王 落札結果(件)": st.session_state.search_counts.get(w,{}).get("入札王_落札結果",0),
                 "登録日": st.session_state.search_counts.get(w,{}).get("登録日", today_str)
             } for w in st.session_state.search_words])
             
@@ -682,10 +742,10 @@ elif current_page == "ワード検索数":
                 st.session_state.search_words = edited["検索ワード"].dropna().tolist()
                 st.session_state.search_counts = {
                     row["検索ワード"]: {
-                        "NJSS_現在": safe_int(row.get("NJSS 現在(件)")), 
-                        "入札王_現在": safe_int(row.get("入札王 現在(件)")), 
-                        "NJSS_過去1年": safe_int(row.get("NJSS 過去1年(件)")), 
-                        "入札王_過去1年": safe_int(row.get("入札王 過去1年(件)")), 
+                        "NJSS_入札案件": safe_int(row.get("NJSS 入札案件(件)")), 
+                        "入札王_入札案件": safe_int(row.get("入札王 入札案件(件)")), 
+                        "NJSS_落札結果": safe_int(row.get("NJSS 落札結果(件)")), 
+                        "入札王_落札結果": safe_int(row.get("入札王 落札結果(件)")), 
                         "登録日": str(row.get("登録日", today_str))
                     } for _, row in edited.iterrows() if pd.notna(row["検索ワード"])
                 }
@@ -809,7 +869,7 @@ elif current_page == "データ管理":
                             w = str(row.get("自治体名",""))
                             if w:
                                 if w not in st.session_state.search_words: st.session_state.search_words.append(w)
-                                st.session_state.search_counts[w] = {"NJSS_現在": 0, "入札王_現在": 0, "NJSS_過去1年": safe_int(row.get("案件概要")), "入札王_過去1年": safe_int(row.get("落札企業")), "登録日": today_str}
+                                st.session_state.search_counts[w] = {"NJSS_入札案件": 0, "入札王_入札案件": 0, "NJSS_落札結果": safe_int(row.get("案件概要")), "入札王_落札結果": safe_int(row.get("落札企業")), "登録日": today_str}
                         else:
                             if pd.notna(row.get("自治体名")) and str(row.get("自治体名")).strip(): new_p.append(row)
                     if new_p: save_bids(pd.concat([load_bids(), pd.DataFrame(new_p)], ignore_index=True))
