@@ -343,6 +343,54 @@ def gemini_extract(text_data: str) -> dict:
         else: st.error(f"🚨 通信エラーが発生しました: {e}")
         return {}
 
+def gemini_extract_counts(text_data: str) -> dict:
+    if not text_data.strip(): return {}
+    try:
+        api_key = st.secrets["gemini"]["api_key"]
+        import requests
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        
+        prompt = """以下の入札情報検索ツールの画面テキストから、検索条件と件数を抽出し、JSON形式のみで出力してください。
+        【抽出ルール】
+        ・"ツール名": "NJSS" または "入札王" (テキスト内にULURUやNJSSがあればNJSSとするなど推測してください)
+        ・"キーワード": 検索したキーワード（例：「〇〇に関する落札情報」の〇〇部分などから推測）
+        ・"入札案件数": 現在受付中の案件数。「受付中」「公募中」などの件数を抽出。該当する数値がなければ0。
+        ・"落札結果数": 落札された件数。「落札結果 (165)」などから数値を抽出。該当なしは0。
+        
+        フォーマット例:
+        {"ツール名":"NJSS", "キーワード":"BIツール", "入札案件数":0, "落札結果数":165}
+        
+        テキスト:
+        """ + text_data
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"}
+        }
+        
+        resp = requests.post(url, json=payload, timeout=20)
+        
+        if resp.status_code == 429:
+            st.error("⏳ APIの無料枠制限（リクエスト過多）に達しました。1分ほど待ってから再度お試しください！")
+            return {}
+        elif resp.status_code != 200:
+            st.error(f"⚠️ Gemini APIエラー (コード: {resp.status_code})")
+            return {}
+
+        res_data = resp.json()
+        if "candidates" in res_data:
+            raw_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+            clean_text = raw_text.replace("```json", "").replace("```", "").strip()
+            try:
+                return json.loads(clean_text)
+            except json.JSONDecodeError:
+                return {}
+        return {}
+            
+    except Exception as e:
+        return {}
+
 def ocr_extract(uploaded_file) -> dict:
     if uploaded_file is None: return {}
     raw = uploaded_file.read()
@@ -592,21 +640,17 @@ elif current_page == "案件データ入力":
                     mun_clean = mun.strip()
                     smm_clean = smm.strip()
                     
-                    # 👇【重要】自動マージ（重複チェック）のロジック
                     mask = (vd["自治体名"].astype(str).str.strip() == mun_clean) & (vd["案件概要"].astype(str).str.strip() == smm_clean)
                     dup_idx = vd[mask].index
                     
                     if len(dup_idx) > 0:
-                        # 既に同じデータが存在する場合（情報を統合）
                         idx = dup_idx[0]
                         row = vd.loc[idx]
                         
-                        # ツールチェックボックスは「片方でもTrueならTrue」に統合
                         vd.at[idx, "仕様書"] = is_truthy(row.get("仕様書")) or spc
                         vd.at[idx, "NJSS掲載"] = is_truthy(row.get("NJSS掲載")) or njl
                         vd.at[idx, "入札王掲載"] = is_truthy(row.get("入札王掲載")) or kil
                         
-                        # 新しく入力された項目で既存データを上書き・補完
                         if dep: vd.at[idx, "担当部署名"] = dep
                         if pub_d: vd.at[idx, "公示日"] = pub_d.strftime("%Y-%m-%d")
                         if bid_d: vd.at[idx, "入札日"] = bid_d.strftime("%Y-%m-%d")
@@ -626,7 +670,6 @@ elif current_page == "案件データ入力":
                         if url4: vd.at[idx, "URL4"] = url4
                         if url5: vd.at[idx, "URL5"] = url5
                         
-                        # タグと備考は追記する
                         if tags:
                             e_tag = str(row.get("検索タグ", ""))
                             vd.at[idx, "検索タグ"] = tags if e_tag == "nan" or not e_tag.strip() else f"{e_tag}, {tags}"
@@ -642,7 +685,6 @@ elif current_page == "案件データ入力":
                             st.error(f"保存失敗: {e}")
                             
                     else:
-                        # 全く新しいデータの場合は新規追加
                         new_rec = pd.DataFrame([{
                             "ID": len(vd)+1, "自治体名": mun, "担当部署名": dep, "案件概要": smm, 
                             "公示日": pub_d.strftime("%Y-%m-%d") if pub_d else "", 
@@ -679,12 +721,49 @@ elif current_page == "案件データ入力":
 #  PAGE: KEYWORD
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "ワード検索数":
-    page_header("ワード検索数比較", "同一キーワードで両ツールを実測→件数を入力")
+    page_header("ワード検索数比較", "AIテキスト解析または手動入力で件数を記録")
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
-    with st.container(border=True):
-        sec("キーワードの追加・CSV一括インポート")
+    tab_ai, tab_manual = st.tabs(["✨ 検索結果を貼り付けてAI自動入力", "手動・CSVで追加"])
+    
+    with tab_ai:
+        st.markdown('<div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">NJSSや入札王の検索結果画面の文字をすべてコピーして、ここに貼り付けてください。<br>AIが「ツール名」「キーワード」「入札案件の件数」「落札結果の件数」を自動的に読み取って表に追加します。</div>', unsafe_allow_html=True)
+        search_text = st.text_area("検索結果のテキスト", height=150, placeholder="ここに検索結果の画面テキストをペースト...", label_visibility="collapsed")
         
+        if st.button("テキストをAIで解析して追加する ✨", type="primary", use_container_width=True):
+            if search_text.strip():
+                with st.spinner("AIが検索結果を解析中..."):
+                    res = gemini_extract_counts(search_text)
+                    if res and "キーワード" in res and res["キーワード"]:
+                        w = res["キーワード"]
+                        tool = res.get("ツール名", "")
+                        b_cnt = res.get("入札案件数", 0)
+                        w_cnt = res.get("落札結果数", 0)
+                        
+                        if w not in st.session_state.search_words:
+                            st.session_state.search_words.append(w)
+                            st.session_state.search_counts[w] = {"NJSS_入札案件": 0, "入札王_入札案件": 0, "NJSS_落札結果": 0, "入札王_落札結果": 0, "登録日": today_str}
+                        
+                        if "NJSS" in tool.upper():
+                            st.session_state.search_counts[w]["NJSS_入札案件"] = b_cnt
+                            st.session_state.search_counts[w]["NJSS_落札結果"] = w_cnt
+                            st.success(f"🎉 NJSSの「{w}」の検索結果を読み取りました！")
+                        elif "入札王" in tool:
+                            st.session_state.search_counts[w]["入札王_入札案件"] = b_cnt
+                            st.session_state.search_counts[w]["入札王_落札結果"] = w_cnt
+                            st.success(f"🎉 入札王の「{w}」の検索結果を読み取りました！")
+                        else:
+                            st.warning(f"⚠️ 件数（入札:{b_cnt} / 落札:{w_cnt}）は読み取れましたが、ツール名が特定できませんでした。下の表から手動で入力してください。")
+                        
+                        sync_settings()
+                        st.rerun()
+                    else:
+                        st.error("⚠️ テキストからキーワードや件数を読み取れませんでした。")
+            else:
+                st.warning("テキストを入力してください。")
+
+    with tab_manual:
+        st.markdown('<div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">キーワードを手動で追加したり、CSVで一括インポートします。</div>', unsafe_allow_html=True)
         ca1,ca2,ca3 = st.columns([2,1,1])
         nw = ca1.text_input("キーワード", placeholder="例: BIツール、DX推進", label_visibility="collapsed")
         if ca2.button("追加", use_container_width=True):
@@ -725,7 +804,7 @@ elif current_page == "ワード検索数":
 
     with st.container(border=True):
         sec("ヒット件数テーブル（セル直接編集可）")
-        st.caption("※ 各ツールの検索画面で「入札案件」と「落札結果」の件数をそれぞれ入力してください。")
+        st.caption("※ 上記の「AIテキスト解析」で自動入力させるか、表の数値を直接書き換えて保存してください。")
         if st.session_state.search_words:
             df_sw = pd.DataFrame([{
                 "検索ワード": w, 
@@ -750,7 +829,7 @@ elif current_page == "ワード検索数":
                     } for _, row in edited.iterrows() if pd.notna(row["検索ワード"])
                 }
                 sync_settings(); st.success("スプレッドシートに永続保存しました。")
-        else: st.info("上の欄からキーワードを追加してください。")
+        else: st.info("上のタブからキーワードや検索結果を追加してください。")
 
 
 # ─────────────────────────────────────────────────────────────────
