@@ -30,8 +30,8 @@ _defaults = {
         "labor_search_hour": 1.5,      
         "labor_cost_per_hour": 3000,   
         "marketing_annual": 500000,    
-        "tool_bid_increase_rate": 40,  # 新規: 応札件数の増加率(%)
-        "tool_win_rate_boost": 5,      # 新規: 勝率の向上(ポイント)
+        "tool_bid_increase_rate": 40,  
+        "tool_win_rate_boost": 5,      
     },
 }
 for k, v in _defaults.items():
@@ -95,6 +95,11 @@ footer { display: none !important; }
 .vs-item.highlight { font-weight: 700; color: #0176D3; background: rgba(1,118,211,0.05); padding: 4px; border-radius: 4px; border:none;}
 .vs-total { font-size: 15px; font-weight: 700; color: #0F172A; margin-top: 15px; padding: 10px; background: #E2E8F0; border-radius: 8px; text-align: center;}
 .vs-total-large { font-size: 22px; font-weight: 800; color: #0F172A; margin-top: 10px; padding: 15px; background: #DBEAFE; border-radius: 8px; text-align: center; border: 2px solid #93C5FD;}
+
+/* ロジック表示ボックスCSS */
+.logic-box { background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 1.2rem; margin-top: 0.5rem; font-size: 0.9rem; color: #334155; }
+.logic-box strong { color: #0F172A; font-size: 1rem; display: block; margin-top: 10px; }
+.logic-eq { color: var(--accent); font-family: monospace; font-size: 1.05rem; margin: 6px 0 16px 0; display: block; background: #FFFFFF; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-weight: bold;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,13 +191,10 @@ def calc_roi_data():
     gross_profit_per_bid = avg_bid * (c["margin"]/100)
 
     # パターンA: 現状（人力）の売上
-    # 売上 = 応札数 × 勝率 × 1案件粗利
     base_sales = c["annual_bids"] * (c["win_rate"]/100) * gross_profit_per_bid
     
-    # パターンB: ツール導入時の売上
-    # ツールの恩恵1: 見逃し防止で応札件数が増える
+    # パターンB: ツール導入時の売上計算
     tool_bids = c["annual_bids"] * (1 + c.get("tool_bid_increase_rate", 40)/100)
-    # ツールの恩恵2: 過去の競合データ分析で勝率が上がる
     tool_win_rate = (c["win_rate"] + c.get("tool_win_rate_boost", 5)) / 100
     tool_sales = (tool_bids * tool_win_rate) * gross_profit_per_bid
 
@@ -203,7 +205,6 @@ def calc_roi_data():
     rows = []
     cum_man = 0; cum_nj = 0; cum_ki = 0
     for y in range(1, 6):
-        # 利益 = 売上 - (各コスト)
         man_profit = base_sales - (annual_manual_cost + market_cost)
         cum_man += man_profit
         
@@ -221,8 +222,8 @@ def calc_roi_data():
             "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit)
         })
 
-    # データ一式を返す（単年利益・5年累計利益の表示用）
-    return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales
+    # 結果をまとめて返す
+    return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid
 
 # ─────────────────────────────────────────────────────────────────
 #  UI HELPERS & API
@@ -298,7 +299,8 @@ if current_page == "ダッシュボード":
 
     df  = load_bids()
     vd  = vdf(df)
-    df_roi, _, _, _, _ = calc_roi_data()
+    # 戻り値の数に合わせてアンパック
+    df_roi, _, _, _, _, _, _, _ = calc_roi_data()
 
     if vd.empty:
         st.info("データがありません。「案件データ入力」から登録してください。")
@@ -587,12 +589,12 @@ elif current_page == "ワード検索数":
         else: st.info("キーワードを追加してください。")
 
 # ─────────────────────────────────────────────────────────────────
-#  PAGE: ROI (大幅アップデート版)
+#  PAGE: ROI (最強メリットの計算ロジック＆結果表示付き)
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "ROI分析":
     page_header("事業性・ROI分析", "人力（As-Is）とツール導入時（To-Be）の収益構造の比較")
 
-    df_roi, avg_bid, ann_manual_cost, base_sales, tool_sales = calc_roi_data()
+    df_roi, avg_bid, ann_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid = calc_roi_data()
     c = st.session_state.costs
 
     col_set1, col_set2 = st.columns([1, 2])
@@ -632,9 +634,33 @@ elif current_page == "ROI分析":
             sync_settings(); st.rerun()
 
     with col_set2:
-        st.markdown('<div class="sec">3. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
+        # 新規追加：KPIの計算結果と算出ロジックの可視化
+        st.markdown('<div class="sec">3. ツール導入による営業KPIの向上（計算結果）</div>', unsafe_allow_html=True)
         
-        # 1年目・5年累計の数値を抽出
+        k1, k2, k3 = st.columns(3)
+        with k1: st.metric("年間応札数", f"{int(tool_bids)} 件", f"見逃し防止で +{int(tool_bids - c['annual_bids'])}件")
+        with k2: st.metric("平均受注率", f"{int(tool_win_rate*100)} %", f"データ分析で +{c['tool_win_rate_boost']}pt")
+        with k3: st.metric("1案件あたりの平均粗利", f"¥{int(gross_profit_per_bid/10000):,} 万", "")
+        
+        with st.expander("📊 ツールの付加価値による「期待売上」の算出ロジック", expanded=False):
+            st.markdown(f"""
+            <div class="logic-box">
+                <strong>① 現状の年間期待売上（粗利ベース）</strong>
+                <span class="logic-eq">想定応札数({c['annual_bids']}件) × 現状勝率({c['win_rate']}%) × 1案件平均粗利(¥{int(gross_profit_per_bid):,}) ＝ ¥{int(base_sales):,}</span>
+                
+                <strong>② ツール導入時の年間期待売上（粗利ベース）</strong>
+                <span class="logic-eq">向上後応札数({int(tool_bids)}件) × 向上後勝率({int(tool_win_rate*100)}%) × 1案件平均粗利(¥{int(gross_profit_per_bid):,}) ＝ ¥{int(tool_sales):,}</span>
+                
+                <ul style="font-size:0.85rem; color:#64748b; margin-top:0;">
+                    <li>※ 向上後応札数 ＝ 現状({c['annual_bids']}件) × (1 ＋ 増加率{c['tool_bid_increase_rate']}%)</li>
+                    <li>※ 向上後勝率 ＝ 現状({c['win_rate']}%) ＋ 勝率向上({c['tool_win_rate_boost']}%)</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+        st.markdown('<div class="sec">4. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
+        
         man_1y = df_roi.iloc[0]["人力(単年)"]
         nj_1y  = df_roi.iloc[0]["NJSS(単年)"]
         man_5y = df_roi.iloc[-1]["人力+ﾏｰｹ (累積)"]
@@ -676,7 +702,7 @@ elif current_page == "ROI分析":
             """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="sec">4. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">5. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
         
         tab_graph, tab_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示（詳細）"])
         with tab_graph:
