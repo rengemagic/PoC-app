@@ -729,15 +729,13 @@ elif current_page == "ROI分析":
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     # ─────────────────────────────────────────────────────────────────
-    #  NEW: サマリーレポート セクション (白背景・受注件数によるペイ計算)
+    #  NEW: サマリーレポート セクション (算出根拠追加)
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown('<div class="sec" style="font-size:1.3rem;">6. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
     st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。")
     
     diff_5y = nj_5y - man_5y
-    
-    # 費用回収に必要な受注件数の計算（初年度の全費用 / 1案件の粗利）
     nj_first_year_cost = c["n_init"] + nj_monthly_annual
     be_orders_1y = (nj_first_year_cost / gross_profit_per_bid) if gross_profit_per_bid > 0 else 0
     
@@ -752,7 +750,17 @@ elif current_page == "ROI分析":
         st.markdown('<div class="rep-h2">1. 導入の目的と背景</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="rep-text">現在、入札案件の検索において1日あたり <b>{c["labor_search_hour"]} 時間</b> の人力作業が発生しており、担当者の工数圧迫および案件の「見逃し」が課題となっている。本ツールを導入することで、検索業務を自動化し工数を削減するとともに、データに基づく競合分析により受注率の向上を目指す。</div>', unsafe_allow_html=True)
         
-        st.markdown('<div class="rep-h2">2. 定量的な期待効果</div>', unsafe_allow_html=True)
+        # 新規追加：算出根拠の表示
+        st.markdown('<div class="rep-h2">2. 試算の前提条件（算出根拠）</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <ul class="rep-ul">
+            <li><b>平均落札金額</b>: 約 {int(avg_bid/10000):,} 万円 <span style="font-size:12px;color:#64748b;">（※登録済み過去案件のデータより算出）</span></li>
+            <li><b>基本受注率</b>: {c['win_rate']} %</li>
+            <li><b>平均粗利率</b>: {c['margin']} %</li>
+        </ul>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('<div class="rep-h2">3. 定量的な期待効果</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
             <li><b>応札機会の拡大</b>: 網羅的な案件収集により見逃しを防ぎ、応札数が年間 {c['annual_bids']}件 から <span class="rep-hi">{int(tool_bids)}件</span> へ増加。</li>
@@ -761,7 +769,7 @@ elif current_page == "ROI分析":
         </ul>
         """, unsafe_allow_html=True)
         
-        st.markdown('<div class="rep-h2">3. コストと費用回収に必要な受注件数</div>', unsafe_allow_html=True)
+        st.markdown('<div class="rep-h2">4. コストと費用回収に必要な受注件数</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
             <li><b>初期費用</b>: ¥{c['n_init']:,}</li>
@@ -771,7 +779,7 @@ elif current_page == "ROI分析":
         """, unsafe_allow_html=True)
         
     with col_rep2:
-        st.markdown('<div class="rep-h2" style="margin-top: 0px;">4. 5年累計 利益・コストシミュレーション</div>', unsafe_allow_html=True)
+        st.markdown('<div class="rep-h2" style="margin-top: 0px;">5. 5年累計 利益・コストシミュレーション</div>', unsafe_allow_html=True)
         
         fig_rep = go.Figure()
         fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益", marker_color="#94A3B8"))
