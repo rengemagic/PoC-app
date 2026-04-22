@@ -28,6 +28,7 @@ _defaults = {
         "k_init": 0, "k_month": 30000, "k_opt": 0,
         "margin": 30, "win_rate": 20, "annual_bids": 30,
         "labor_search_hour": 1.5,      
+        "tool_labor_search_hour": 0.5, # <- ツール導入後の確認時間
         "labor_cost_per_hour": 3000,   
         "marketing_annual": 500000,    
         "tool_bid_increase_rate": 40,  
@@ -189,7 +190,7 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE (WITH TOOLTIP DATA)
+#  NEW ROI ENGINE (WITH TOOLTIP DATA AND TOOL LABOR COST)
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
@@ -204,6 +205,7 @@ def calc_roi_data():
     tool_sales = (tool_bids * tool_win_rate) * gross_profit_per_bid
 
     annual_manual_cost = c["labor_cost_per_hour"] * c["labor_search_hour"] * 240
+    annual_tool_labor_cost = c["labor_cost_per_hour"] * c.get("tool_labor_search_hour", 0.5) * 240
     market_cost = c["marketing_annual"]
 
     rows = []
@@ -216,12 +218,12 @@ def calc_roi_data():
         cum_man += man_profit
         cum_man_cost += man_cost_y
         
-        nj_cost_y = (c["n_init"] if y==1 else c["n_opt"]) + (c["n_month"] * 12) + market_cost
+        nj_cost_y = (c["n_init"] if y==1 else c["n_opt"]) + (c["n_month"] * 12) + market_cost + annual_tool_labor_cost
         nj_profit = tool_sales - nj_cost_y
         cum_nj += nj_profit
         cum_nj_cost += nj_cost_y
         
-        ki_cost_y = (c["k_init"] if y==1 else c["k_opt"]) + (c["k_month"] * 12) + market_cost
+        ki_cost_y = (c["k_init"] if y==1 else c["k_opt"]) + (c["k_month"] * 12) + market_cost + annual_tool_labor_cost
         ki_profit = tool_sales - ki_cost_y
         cum_ki += ki_profit
         cum_ki_cost += ki_cost_y
@@ -233,19 +235,19 @@ def calc_roi_data():
             "人力コスト(累積)": int(cum_man_cost), "NJSSコスト(累積)": int(cum_nj_cost), "入札王コスト(累積)": int(cum_ki_cost),
             # HTMLテーブルのホバー用計算式データ
             "tt_人力+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(man_profit/10000):,}万)\n[単年利益内訳] ベース売上 - (人力検索コスト + マーケ費)",
-            "tt_NJSS+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(nj_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (NJSS費用 + マーケ費)",
-            "tt_入札王+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(ki_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (入札王費用 + マーケ費)",
+            "tt_NJSS+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(nj_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (NJSS費用 + ツール運用人件費 + マーケ費)",
+            "tt_入札王+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(ki_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (入札王費用 + ツール運用人件費 + マーケ費)",
             "tt_人力コスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(man_cost_y/10000):,}万)\n[今年コスト内訳] 人力検索コスト(¥{int(annual_manual_cost/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)",
-            "tt_NJSSコスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(nj_cost_y/10000):,}万)\n[今年コスト内訳] NJSS費用(¥{int((nj_cost_y - market_cost)/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)\n※初年度は初期費用を含みます",
-            "tt_入札王コスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(ki_cost_y/10000):,}万)\n[今年コスト内訳] 入札王費用(¥{int((ki_cost_y - market_cost)/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)\n※初年度は初期費用を含みます"
+            "tt_NJSSコスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(nj_cost_y/10000):,}万)\n[今年コスト内訳] NJSS費用(¥{int((nj_cost_y - market_cost - annual_tool_labor_cost)/10000):,}万) + ツール運用人件費(¥{int(annual_tool_labor_cost/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)\n※初年度は初期費用を含みます",
+            "tt_入札王コスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(ki_cost_y/10000):,}万)\n[今年コスト内訳] 入札王費用(¥{int((ki_cost_y - market_cost - annual_tool_labor_cost)/10000):,}万) + ツール運用人件費(¥{int(annual_tool_labor_cost/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)\n※初年度は初期費用を含みます"
         })
 
     man_profit_m = (base_sales - annual_manual_cost - market_cost) / 12
-    nj_profit_m  = (tool_sales - (c["n_month"]*12 + market_cost)) / 12
+    nj_profit_m  = (tool_sales - (c["n_month"]*12 + market_cost + (annual_tool_labor_cost/12))) / 12
     nj_diff_m = nj_profit_m - man_profit_m
     nj_be_months = (c["n_init"] / nj_diff_m) if nj_diff_m > 0 else 9999
 
-    return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m
+    return pd.DataFrame(rows), avg_bid, annual_manual_cost, annual_tool_labor_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m
 
 # ─────────────────────────────────────────────────────────────────
 #  UI HELPERS & API
@@ -321,7 +323,7 @@ if current_page == "ダッシュボード":
 
     df  = load_bids()
     vd  = vdf(df)
-    df_roi, _, _, _, _, _, _, _, _, _ = calc_roi_data()
+    df_roi, _, _, _, _, _, _, _, _, _, _ = calc_roi_data()
 
     if vd.empty:
         st.info("データがありません。「案件データ入力」から登録してください。")
@@ -625,7 +627,7 @@ elif current_page == "ワード検索数":
 elif current_page == "ROI分析":
     page_header("事業性・ROI分析", "人力（As-Is）とツール導入時（To-Be）の収益構造の比較")
 
-    df_roi, avg_bid, ann_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m = calc_roi_data()
+    df_roi, avg_bid, ann_manual_cost, ann_tool_labor_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m = calc_roi_data()
     c = st.session_state.costs
 
     col_set1, col_set2 = st.columns([1, 2])
@@ -648,6 +650,10 @@ elif current_page == "ROI分析":
             st.session_state.costs["tool_bid_increase_rate"] = st.slider("見逃し防止による 応札数の増加率（%）", 0, 100, int(c.get("tool_bid_increase_rate", 40)), help="ツールで網羅的に検索できるようになることで、今まで見逃していた案件に気付き、応札数がどれくらい増えるかの想定値です。")
             st.session_state.costs["tool_win_rate_boost"] = st.slider("競合データ分析による 勝率の向上（+ポイント）", 0, 20, int(c.get("tool_win_rate_boost", 5)), help="過去の落札金額や競合他社の傾向をツールで分析することで、勝率が現在から何ポイント上がるかの想定値です。")
             
+            st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+            st.caption("【ツール利用時の人件費】")
+            st.session_state.costs["tool_labor_search_hour"] = st.number_input("ツール利用時の1日の確認時間（h）", value=float(c.get("tool_labor_search_hour", 0.5)), step=0.5, help="ツールが自動収集した案件をチェックし、社内に展開するための1日あたりの作業時間です。")
+
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
             st.caption("【ツール利用コスト】")
             cx1, cx2 = st.columns(2)
@@ -682,7 +688,34 @@ elif current_page == "ROI分析":
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown('<div class="sec">4. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">4. 業務効率化（時間削減・コスト削減効果）</div>', unsafe_allow_html=True)
+        man_h = c["labor_search_hour"] * 240
+        tool_h = c.get("tool_labor_search_hour", 0.5) * 240
+        diff_h = man_h - tool_h
+        diff_c = ann_manual_cost - ann_tool_labor_cost
+
+        kpi_t1, kpi_t2 = st.columns(2)
+        with kpi_t1: st.metric("年間作業時間の削減", f"▲ {int(diff_h)} 時間", f"現状 {int(man_h)}h → 導入後 {int(tool_h)}h", delta_color="inverse")
+        with kpi_t2: st.metric("年間人件費の削減", f"▲ ¥{int(diff_c/10000):,} 万", f"現状 ¥{int(ann_manual_cost/10000)}万 → 導入後 ¥{int(ann_tool_labor_cost/10000)}万", delta_color="inverse")
+
+        df_time = pd.DataFrame([
+            {"方式": "ツール導入後", "年間作業時間 (時間)": tool_h, "年間人件費 (万円)": ann_tool_labor_cost / 10000, "種類": "導入後"},
+            {"方式": "人力（現状）", "年間作業時間 (時間)": man_h, "年間人件費 (万円)": ann_manual_cost / 10000, "種類": "現状"}
+        ])
+
+        tc1, tc2 = st.columns(2)
+        with tc1:
+            fig_t1 = px.bar(df_time, x="年間作業時間 (時間)", y="方式", color="種類", orientation='h', text="年間作業時間 (時間)", color_discrete_map={"現状": "#94A3B8", "導入後": "#10B981"})
+            fig_t1.update_traces(textposition='outside', texttemplate='%{text:,.0f} h', marker_line_width=0)
+            fig_t1.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=40, t=0, b=0), showlegend=False, yaxis_title="", height=120)
+            st.plotly_chart(fig_t1, use_container_width=True)
+        with tc2:
+            fig_t2 = px.bar(df_time, x="年間人件費 (万円)", y="方式", color="種類", orientation='h', text="年間人件費 (万円)", color_discrete_map={"現状": "#94A3B8", "導入後": "#10B981"})
+            fig_t2.update_traces(textposition='outside', texttemplate='¥%{text:,.0f} 万', marker_line_width=0)
+            fig_t2.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=40, t=0, b=0), showlegend=False, yaxis_title="", height=120)
+            st.plotly_chart(fig_t2, use_container_width=True)
+
+        st.markdown('<div class="sec">5. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
         
         man_1y = df_roi.iloc[0]["人力(単年)"]
         nj_1y  = df_roi.iloc[0]["NJSS(単年)"]
@@ -714,7 +747,7 @@ elif current_page == "ROI分析":
             <div class="vs-box" style="border: 2px solid {C1}; background: #F0F9FF;">
                 <div class="vs-title" style="color: {C1};">🚀 ツール導入（NJSS ＋ マーケティング）</div>
                 <div class="vs-item highlight"><span>年間粗利額 (分析・網羅によるUP)</span><span>¥{int(tool_sales/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#10B981; font-weight:bold;">人力検索コスト</span><span style="color:#10B981; font-weight:bold;">¥0 (不要)</span></div>
+                <div class="vs-item"><span style="color:#10B981; font-weight:bold;">ツール運用人件費</span><span style="color:#10B981; font-weight:bold;">- ¥{int(ann_tool_labor_cost/10000):,}万</span></div>
                 <div class="vs-item"><span style="color:#EF4444;">NJSS利用費(初期含まず)</span><span style="color:#EF4444;">- ¥{int(nj_monthly_annual/10000):,}万</span></div>
                 <div class="vs-item"><span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span></div>
                 <div class="vs-total" style="color:{C1};">単年 純利益<br><span style="font-size:1.2rem;">¥{int(nj_1y/10000):,}万</span></div>
@@ -726,7 +759,7 @@ elif current_page == "ROI分析":
             """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="sec">5. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">6. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
         
         tab_graph, tab_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示（詳細）"])
         with tab_graph:
@@ -749,10 +782,10 @@ elif current_page == "ROI分析":
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     # ─────────────────────────────────────────────────────────────────
-    #  NEW: サマリーレポート セクション (算出根拠・ツールチップ・入札王追加)
+    #  NEW: サマリーレポート セクション
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown('<div class="sec" style="font-size:1.3rem;">6. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec" style="font-size:1.3rem;">7. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
     st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。\n\n🔍 **テーブルの数値にカーソルを合わせると、計算式と内訳が確認できます。**")
     
     diff_5y_n = nj_5y - man_5y
@@ -774,7 +807,7 @@ elif current_page == "ROI分析":
     
     with col_rep1:
         st.markdown('<div class="rep-h2">1. 比較シミュレーションの前提</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="rep-text">本レポートでは、今後新たに入札市場へ参入するにあたり、<b>「ツールを使用せず人力のみで運用した場合」</b>と<b>「入札情報収集ツール（NJSS・入札王）を導入した場合」</b>の収益性を比較しています。<br><br><span style="font-size:13px; color:#475569;">※現在、人力での検索業務は行っていませんが、今後ツール未導入のまま入札に参加した場合に発生する「検索人件費（1日 {c["labor_search_hour"]} 時間想定）」と「案件の見逃し（機会損失）」を可視化するため、比較対象（ベースライン）として設定しています。</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="rep-text">本レポートでは、今後新たに入札市場へ参入するにあたり、<b>「ツールを使用せず人力のみで運用した場合」</b>と<b>「入札情報収集ツール（NJSS・入札王）を導入した場合」</b>の収益性を比較しています。<br><br><span style="font-size:13px; color:#475569;">※現在、人力での検索業務は行っていませんが、今後ツール未導入のまま入札に参加した場合に発生する「検索人件費（1日 {c["labor_search_hour"]} 時間想定）」と「案件の見逃し（機会損失）」を可視化するため、比較対象（ベースライン）として設定しています。ツール導入後も日々の確認・仕分け作業として1日 {c.get("tool_labor_search_hour", 0.5)} 時間の人件費が発生する前提で現実的な算出を行っています。</span></div>', unsafe_allow_html=True)
         
         st.markdown('<div class="rep-h2">2. 試算の前提条件（算出根拠）</div>', unsafe_allow_html=True)
         st.markdown(f"""
@@ -790,7 +823,8 @@ elif current_page == "ROI分析":
         <ul class="rep-ul">
             <li><b>応札機会の拡大</b>: 網羅的な案件収集により見逃しを防ぎ、応札数が年間 {c['annual_bids']}件 から <span class="rep-hi">{int(tool_bids)}件</span> へ増加。</li>
             <li><b>勝率の向上</b>: 過去の落札データ・仕様書分析を通じた戦略的な値付けにより、勝率が {c['win_rate']}% から <span class="rep-hi">{int(tool_win_rate*100)}%</span> に向上。</li>
-            <li><b>5年間の純利益創出</b>: 人力継続時と比較し、5年間で追加の利益（キャッシュフロー）を創出。<br><b>→ <span class="rep-hi">NJSS 約 {int(diff_5y_n/10000):,} 万円 / 入札王 約 {int(diff_5y_k/10000):,} 万円</span></b></li>
+            <li><b>業務効率化（人件費削減）</b>: 検索にかかる時間を年間 {int(man_h)}時間 から {int(tool_h)}時間に削減し、約 {int(diff_c/10000):,}万円分の見えない人件費を削減。</li>
+            <li><b>5年間の純利益創出</b>: 上記売上増・コスト減の相乗効果により、5年間で追加の利益（キャッシュフロー）を創出。<br><b>→ <span class="rep-hi">NJSS 約 {int(diff_5y_n/10000):,} 万円 / 入札王 約 {int(diff_5y_k/10000):,} 万円</span></b></li>
         </ul>
         """, unsafe_allow_html=True)
         
@@ -846,7 +880,6 @@ elif current_page == "ROI分析":
             table_html += f'<tr style="border-bottom: 1px solid #E2E8F0; background: #FFFFFF;"><td style="text-align:left; padding:5px; color:{color}; font-weight:{weight};">{label}</td>'
             for idx, val in enumerate(df_roi[col_name]):
                 tt_text = df_roi[tt_col].iloc[idx] # dataframeからホバー用のテキストを取得
-                # title属性を追加し、cursorをhelpにしてホバー可能であることを明示
                 table_html += f'<td title="{tt_text}" style="text-align:right; padding:5px; color:{color}; font-weight:{weight}; background: #FFFFFF; cursor: help;">{int(val/10000):,}</td>'
             table_html += '</tr>'
         table_html += '</table>'
@@ -918,7 +951,7 @@ elif current_page == "データ管理":
                 if ok:
                     try:
                         save_bids(pd.DataFrame(columns=COLS_BIDS)); save_settings(pd.DataFrame(columns=COLS_SETTINGS))
-                        st.session_state.update({"search_words": [], "search_counts": {}, "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,"k_opt":0,"margin":30,"win_rate":20,"annual_bids":30,"labor_search_hour":1.5,"labor_cost_per_hour":3000,"marketing_annual":500000,"tool_bid_increase_rate":40,"tool_win_rate_boost":5}})
+                        st.session_state.update({"search_words": [], "search_counts": {}, "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,"k_opt":0,"margin":30,"win_rate":20,"annual_bids":30,"labor_search_hour":1.5,"tool_labor_search_hour":0.5,"labor_cost_per_hour":3000,"marketing_annual":500000,"tool_bid_increase_rate":40,"tool_win_rate_boost":5}})
                         st.success("初期化完了。")
                     except Exception as e: st.error(f"エラー: {e}")
                 else: st.error("確認チェックを入れてください。")
