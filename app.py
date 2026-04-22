@@ -100,6 +100,14 @@ footer { display: none !important; }
 .logic-box { background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 1.2rem; margin-top: 0.5rem; font-size: 0.9rem; color: #334155; }
 .logic-box strong { color: #0F172A; font-size: 1rem; display: block; margin-top: 10px; }
 .logic-eq { color: var(--accent); font-family: monospace; font-size: 1.05rem; margin: 6px 0 16px 0; display: block; background: #FFFFFF; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-weight: bold;}
+
+/* サマリーレポート用CSS */
+.report-wrap { background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 10px;}
+.rep-title { font-size: 22px; font-weight: 800; color: #0F172A; border-bottom: 3px solid #0176D3; padding-bottom: 12px; margin-bottom: 25px; text-align: center;}
+.rep-h2 { font-size: 16px; font-weight: 800; color: #0176D3; margin-top: 25px; margin-bottom: 12px; background: #F0F9FF; padding: 8px 12px; border-left: 5px solid #0176D3; border-radius: 0 4px 4px 0;}
+.rep-text { font-size: 14.5px; color: #334155; line-height: 1.7; margin-bottom: 10px;}
+.rep-ul { margin-top: 5px; padding-left: 20px; font-size: 14.5px; color: #334155; line-height: 1.8;}
+.rep-hi { font-weight: 800; color: #E11D48; font-size: 16px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -180,25 +188,20 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE (最強のメリット追加版)
+#  NEW ROI ENGINE (損益分岐期間の返却追加)
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
     avg_bid = pd.to_numeric(df["落札金額(千円)"], errors="coerce").fillna(0).mean() * 1000 if not df.empty and (pd.to_numeric(df["落札金額(千円)"], errors="coerce").fillna(0) > 0).any() else 0
     c = st.session_state.costs
 
-    # 1案件あたりの粗利額
     gross_profit_per_bid = avg_bid * (c["margin"]/100)
-
-    # パターンA: 現状（人力）の売上
     base_sales = c["annual_bids"] * (c["win_rate"]/100) * gross_profit_per_bid
     
-    # パターンB: ツール導入時の売上計算
     tool_bids = c["annual_bids"] * (1 + c.get("tool_bid_increase_rate", 40)/100)
     tool_win_rate = (c["win_rate"] + c.get("tool_win_rate_boost", 5)) / 100
     tool_sales = (tool_bids * tool_win_rate) * gross_profit_per_bid
 
-    # コスト
     annual_manual_cost = c["labor_cost_per_hour"] * c["labor_search_hour"] * 240
     market_cost = c["marketing_annual"]
 
@@ -222,8 +225,14 @@ def calc_roi_data():
             "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit)
         })
 
-    # 結果をまとめて返す
-    return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid
+    # 損益分岐の計算 (月割り)
+    man_profit_m = (base_sales - annual_manual_cost - market_cost) / 12
+    nj_profit_m  = (tool_sales - (c["n_month"]*12 + market_cost)) / 12
+    nj_diff_m = nj_profit_m - man_profit_m
+    nj_be_months = (c["n_init"] / nj_diff_m) if nj_diff_m > 0 else 9999
+
+    # 変数を10個返す
+    return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m
 
 # ─────────────────────────────────────────────────────────────────
 #  UI HELPERS & API
@@ -299,8 +308,8 @@ if current_page == "ダッシュボード":
 
     df  = load_bids()
     vd  = vdf(df)
-    # 戻り値の数に合わせてアンパック
-    df_roi, _, _, _, _, _, _, _ = calc_roi_data()
+    # 戻り値を10個受け取る
+    df_roi, _, _, _, _, _, _, _, _, _ = calc_roi_data()
 
     if vd.empty:
         st.info("データがありません。「案件データ入力」から登録してください。")
@@ -589,12 +598,12 @@ elif current_page == "ワード検索数":
         else: st.info("キーワードを追加してください。")
 
 # ─────────────────────────────────────────────────────────────────
-#  PAGE: ROI (最強メリットの計算ロジック＆結果表示付き)
+#  PAGE: ROI 
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "ROI分析":
     page_header("事業性・ROI分析", "人力（As-Is）とツール導入時（To-Be）の収益構造の比較")
 
-    df_roi, avg_bid, ann_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid = calc_roi_data()
+    df_roi, avg_bid, ann_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m = calc_roi_data()
     c = st.session_state.costs
 
     col_set1, col_set2 = st.columns([1, 2])
@@ -634,9 +643,7 @@ elif current_page == "ROI分析":
             sync_settings(); st.rerun()
 
     with col_set2:
-        # 新規追加：KPIの計算結果と算出ロジックの可視化
         st.markdown('<div class="sec">3. ツール導入による営業KPIの向上（計算結果）</div>', unsafe_allow_html=True)
-        
         k1, k2, k3 = st.columns(3)
         with k1: st.metric("年間応札数", f"{int(tool_bids)} 件", f"見逃し防止で +{int(tool_bids - c['annual_bids'])}件")
         with k2: st.metric("平均受注率", f"{int(tool_win_rate*100)} %", f"データ分析で +{c['tool_win_rate_boost']}pt")
@@ -650,14 +657,8 @@ elif current_page == "ROI分析":
                 
                 <strong>② ツール導入時の年間期待売上（粗利ベース）</strong>
                 <span class="logic-eq">向上後応札数({int(tool_bids)}件) × 向上後勝率({int(tool_win_rate*100)}%) × 1案件平均粗利(¥{int(gross_profit_per_bid):,}) ＝ ¥{int(tool_sales):,}</span>
-                
-                <ul style="font-size:0.85rem; color:#64748b; margin-top:0;">
-                    <li>※ 向上後応札数 ＝ 現状({c['annual_bids']}件) × (1 ＋ 増加率{c['tool_bid_increase_rate']}%)</li>
-                    <li>※ 向上後勝率 ＝ 現状({c['win_rate']}%) ＋ 勝率向上({c['tool_win_rate_boost']}%)</li>
-                </ul>
             </div>
             """, unsafe_allow_html=True)
-
 
         st.markdown('<div class="sec">4. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
         
@@ -716,6 +717,75 @@ elif current_page == "ROI分析":
                 {"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "入札王+ﾏｰｹ (累積)": "{:,.0f}", "人力(単年)": "{:,.0f}", "NJSS(単年)": "{:,.0f}", "入札王(単年)": "{:,.0f}"}
             )
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
+
+    # ─────────────────────────────────────────────────────────────────
+    #  NEW: サマリーレポート セクション
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown('<div class="sec" style="font-size:1.3rem;">6. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
+    st.info("💡 以下のレポート内容は、そのままコピーしてPowerPoint等のスライドや稟議書に貼り付けてご活用いただけます。")
+    
+    diff_5y = nj_5y - man_5y
+    
+    st.markdown(f"""
+    <div class="report-wrap">
+        <div class="rep-title">【提案】入札情報収集ツール（NJSS）の導入による売上拡大および業務効率化</div>
+    """, unsafe_allow_html=True)
+    
+    col_rep1, col_rep2 = st.columns([1.2, 1])
+    
+    with col_rep1:
+        st.markdown('<div class="rep-h2">1. 導入の目的と背景</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="rep-text">現在、入札案件の検索において1日あたり <b>{c["labor_search_hour"]} 時間</b> の人力作業が発生しており、担当者の工数圧迫および案件の「見逃し」が課題となっている。本ツールを導入することで、検索業務を自動化し工数を削減するとともに、データに基づく競合分析により受注率の向上を目指す。</div>', unsafe_allow_html=True)
+        
+        st.markdown('<div class="rep-h2">2. 定量的な期待効果</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <ul class="rep-ul">
+            <li><b>応札機会の拡大</b>: 網羅的な案件収集により、見逃しを防ぎ、応札数が年間 {c['annual_bids']}件 から <span class="rep-hi">{int(tool_bids)}件</span> へ増加。</li>
+            <li><b>勝率の向上</b>: 過去の落札データ・仕様書分析を通じた戦略的な値付けにより、勝率が {c['win_rate']}% から <span class="rep-hi">{int(tool_win_rate*100)}%</span> に向上。</li>
+            <li><b>5年間の純利益創出</b>: 人力継続時と比較し、5年間で <span class="rep-hi">約 {int(diff_5y/10000):,} 万円</span> の追加利益（キャッシュフロー）を創出見込み。</li>
+        </ul>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('<div class="rep-h2">3. コストと投資回収（ペイバック）</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <ul class="rep-ul">
+            <li><b>初期費用</b>: ¥{c['n_init']:,}</li>
+            <li><b>月額利用料</b>: ¥{c['n_month']:,} （年間 ¥{nj_monthly_annual:,}）</li>
+            <li><b>投資回収期間</b>: <span class="rep-hi">約 {max(1, int(nj_be_months))} ヶ月</span><br><span style="font-size:12px;color:#64748b;">※工数削減と売上増加の差引効果により、早期に初期費用を回収し黒字化する。</span></li>
+        </ul>
+        """, unsafe_allow_html=True)
+        
+    with col_rep2:
+        st.markdown('<div class="rep-h2" style="margin-top: 25px;">4. 5年累計 純利益シミュレーション</div>', unsafe_allow_html=True)
+        # グラフを描画
+        fig_rep = px.bar(
+            x=["現状（人力継続）", "ツール導入（NJSS）"], 
+            y=[man_5y, nj_5y],
+            text=[f"¥{int(man_5y/10000):,}万", f"¥{int(nj_5y/10000):,}万"],
+            color=["現状（人力継続）", "ツール導入（NJSS）"],
+            color_discrete_map={"現状（人力継続）": "#94A3B8", "ツール導入（NJSS）": C1}
+        )
+        fig_rep.update_traces(textposition='auto', textfont_size=16, textfont_color="white", marker_line_width=0)
+        fig_rep.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            showlegend=False,
+            yaxis_title="純利益 (円)",
+            xaxis_title="",
+            height=320,
+            margin=dict(l=10, r=10, t=10, b=10)
+        )
+        st.plotly_chart(fig_rep, use_container_width=True)
+        
+        st.markdown(f"""
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:15px; border-radius:8px; text-align:center; margin-top:10px;">
+            <div style="font-size:13px; color:#475569; font-weight:bold;">ツール導入による追加利益（5年間）</div>
+            <div style="font-size:24px; color:#E11D48; font-weight:900; margin-top:5px;">＋ ¥{int(diff_5y/10000):,} 万</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True) # wrap 終了
 
 # ─────────────────────────────────────────────────────────────────
 #  PAGE: MANUAL & DATA MANAGEMENT
