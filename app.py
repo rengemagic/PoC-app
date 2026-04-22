@@ -725,21 +725,23 @@ elif current_page == "ROI分析":
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益(累積)", mode="lines+markers", line=dict(color="#94A3B8", width=3)))
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSS+ﾏｰｹ (累積)"], name="NJSS 純利益(累積)", mode="lines+markers", line=dict(color=C1, width=3)))
+            fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["入札王+ﾏｰｹ (累積)"], name="入札王 純利益(累積)", mode="lines+markers", line=dict(color=C2, width=3)))
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力コスト(累積)"], name="現状 コスト(累積)", mode="lines", line=dict(color="#CBD5E1", width=2, dash="dot")))
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSSコスト(累積)"], name="NJSS コスト(累積)", mode="lines", line=dict(color="#93C5FD", width=2, dash="dot")))
+            fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["入札王コスト(累積)"], name="入札王 コスト(累積)", mode="lines", line=dict(color="#5EEAD4", width=2, dash="dot")))
             
             fig.update_layout(**PLY, hovermode="x unified", yaxis_title="累積金額 (円)", height=350)
             st.plotly_chart(fig, use_container_width=True)
             
         with tab_table:
             st.caption("単位：円（全コスト差し引き後の手元に残る純利益、および累積コスト）")
-            styled_df = df_roi[["年度", "人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "人力コスト(累積)", "NJSSコスト(累積)"]].style.format(
-                {"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "人力コスト(累積)": "{:,.0f}", "NJSSコスト(累積)": "{:,.0f}"}
+            styled_df = df_roi[["年度", "人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "入札王+ﾏｰｹ (累積)", "人力コスト(累積)", "NJSSコスト(累積)", "入札王コスト(累積)"]].style.format(
+                {"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "入札王+ﾏｰｹ (累積)": "{:,.0f}", "人力コスト(累積)": "{:,.0f}", "NJSSコスト(累積)": "{:,.0f}", "入札王コスト(累積)": "{:,.0f}"}
             )
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     # ─────────────────────────────────────────────────────────────────
-    #  NEW: サマリーレポート セクション (算出根拠追加)
+    #  NEW: サマリーレポート セクション (入札王データ追加)
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown('<div class="sec" style="font-size:1.3rem;">6. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
@@ -792,8 +794,11 @@ elif current_page == "ROI分析":
         
         fig_rep = go.Figure()
         fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益", marker_color="#94A3B8"))
+        fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["入札王+ﾏｰｹ (累積)"], name="入札王 純利益", marker_color=C2))
         fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["NJSS+ﾏｰｹ (累積)"], name="NJSS 純利益", marker_color=C1))
+        
         fig_rep.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力コスト(累積)"], name="現状 コスト", mode="lines+markers", line=dict(color="#64748B", dash="dash", width=2)))
+        fig_rep.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["入札王コスト(累積)"], name="入札王 コスト", mode="lines+markers", line=dict(color="#0F766E", width=2)))
         fig_rep.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSSコスト(累積)"], name="NJSS コスト", mode="lines+markers", line=dict(color="#0284C7", width=2)))
 
         fig_rep.update_layout(
@@ -806,23 +811,25 @@ elif current_page == "ROI分析":
         
         metrics = [
             ("NJSS 純利益 (累積)", "NJSS+ﾏｰｹ (累積)", C1, "bold"),
+            ("入札王 純利益 (累積)", "入札王+ﾏｰｹ (累積)", C2, "bold"),
             ("現状 純利益 (累積)", "人力+ﾏｰｹ (累積)", "#475569", "normal"),
             ("NJSS コスト (累積)", "NJSSコスト(累積)", "#0284C7", "normal"),
+            ("入札王 コスト (累積)", "入札王コスト(累積)", "#0D9488", "normal"),
             ("現状 コスト (累積)", "人力コスト(累積)", "#64748B", "normal")
         ]
         
         table_html = """
-        <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-top: 5px; background: #FFFFFF; border: 1px solid #E2E8F0;">
+        <table style="width:100%; border-collapse: collapse; font-size: 11.5px; margin-top: 5px; background: #FFFFFF; border: 1px solid #E2E8F0;">
             <tr style="border-bottom: 2px solid #CBD5E1;">
-                <th style="text-align:left; padding:6px; color:#475569;">項目 (万円)</th>
+                <th style="text-align:left; padding:5px; color:#475569;">項目 (万円)</th>
         """
-        for y in df_roi["年度"]: table_html += f'<th style="text-align:right; padding:6px; color:#475569;">{y}</th>'
+        for y in df_roi["年度"]: table_html += f'<th style="text-align:right; padding:5px; color:#475569;">{y}</th>'
         table_html += '</tr>'
         
         for label, col_name, color, weight in metrics:
-            table_html += f'<tr style="border-bottom: 1px solid #E2E8F0; background: #FFFFFF;"><td style="text-align:left; padding:6px; color:{color}; font-weight:{weight};">{label}</td>'
+            table_html += f'<tr style="border-bottom: 1px solid #E2E8F0; background: #FFFFFF;"><td style="text-align:left; padding:5px; color:{color}; font-weight:{weight};">{label}</td>'
             for val in df_roi[col_name]:
-                table_html += f'<td style="text-align:right; padding:6px; color:{color}; font-weight:{weight}; background: #FFFFFF;">{int(val/10000):,}</td>'
+                table_html += f'<td style="text-align:right; padding:5px; color:{color}; font-weight:{weight}; background: #FFFFFF;">{int(val/10000):,}</td>'
             table_html += '</tr>'
         table_html += '</table>'
         
