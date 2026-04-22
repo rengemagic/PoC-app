@@ -773,8 +773,8 @@ elif current_page == "ROI分析":
     col_rep1, col_rep2 = st.columns([1.2, 1])
     
     with col_rep1:
-        st.markdown('<div class="rep-h2">1. 導入の目的と背景</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="rep-text">現在、入札案件の検索において1日あたり <b>{c["labor_search_hour"]} 時間</b> の人力作業が発生しており、担当者の工数圧迫および案件の「見逃し」が課題となっている。本ツールを導入することで、検索業務を自動化し工数を削減するとともに、データに基づく競合分析により受注率の向上を目指す。</div>', unsafe_allow_html=True)
+        st.markdown('<div class="rep-h2">1. 比較シミュレーションの前提</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="rep-text">本レポートでは、今後新たに入札市場へ参入するにあたり、<b>「ツールを使用せず人力のみで運用した場合」</b>と<b>「入札情報収集ツール（NJSS・入札王）を導入した場合」</b>の収益性を比較しています。<br><br><span style="font-size:13px; color:#475569;">※現在、人力での検索業務は行っていませんが、今後ツール未導入のまま入札に参加した場合に発生する「検索人件費（1日 {c["labor_search_hour"]} 時間想定）」と「案件の見逃し（機会損失）」を可視化するため、比較対象（ベースライン）として設定しています。</span></div>', unsafe_allow_html=True)
         
         st.markdown('<div class="rep-h2">2. 試算の前提条件（算出根拠）</div>', unsafe_allow_html=True)
         st.markdown(f"""
