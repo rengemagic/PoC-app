@@ -688,6 +688,7 @@ elif current_page == "ROI分析":
         nj_1y  = df_roi.iloc[0]["NJSS(単年)"]
         man_5y = df_roi.iloc[-1]["人力+ﾏｰｹ (累積)"]
         nj_5y  = df_roi.iloc[-1]["NJSS+ﾏｰｹ (累積)"]
+        ki_5y  = df_roi.iloc[-1]["入札王+ﾏｰｹ (累積)"]
         
         market_c = c["marketing_annual"]
         nj_monthly_annual = c["n_month"] * 12
@@ -755,7 +756,7 @@ elif current_page == "ROI分析":
     st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。\n\n🔍 **テーブルの数値にカーソルを合わせると、計算式と内訳が確認できます。**")
     
     diff_5y_n = nj_5y - man_5y
-    diff_5y_k = k_p5 - man_5y
+    diff_5y_k = ki_5y - man_5y
     
     nj_first_year_cost = c["n_init"] + nj_monthly_annual
     be_orders_1y_n = (nj_first_year_cost / gross_profit_per_bid) if gross_profit_per_bid > 0 else 0
