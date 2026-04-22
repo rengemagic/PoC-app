@@ -374,9 +374,19 @@ if current_page == "ダッシュボード":
                 "NJSS": st.session_state.search_counts.get(w,{}).get("NJSS_入札案件",0) + st.session_state.search_counts.get(w,{}).get("NJSS_落札結果",0), 
                 "入札王": st.session_state.search_counts.get(w,{}).get("入札王_入札案件",0) + st.session_state.search_counts.get(w,{}).get("入札王_落札結果",0)
             } for w in st.session_state.search_words])
-            fig3 = px.bar(sw_df, x="ワード", y=["NJSS","入札王"], barmode="group", color_discrete_map={"NJSS": C1, "入札王": C2})
-            fig3.update_traces(marker_line_width=0); fig3.update_layout(**PLY, height=350, legend_title_text=""); fig3.update_xaxes(tickangle=-45); fig3.update_yaxes(title="総ヒット件数")
-            st.plotly_chart(fig3, use_container_width=True)
+            
+            tab_kw_graph, tab_kw_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示"])
+            
+            with tab_kw_graph:
+                fig3 = px.bar(sw_df, x="ワード", y=["NJSS","入札王"], barmode="group", color_discrete_map={"NJSS": C1, "入札王": C2})
+                fig3.update_traces(marker_line_width=0); fig3.update_layout(**PLY, height=350, legend_title_text=""); fig3.update_xaxes(tickangle=-45); fig3.update_yaxes(title="総ヒット件数")
+                st.plotly_chart(fig3, use_container_width=True)
+                
+            with tab_kw_table:
+                disp_df = sw_df.rename(columns={"NJSS": "NJSS (件)", "入札王": "入札王 (件)"})
+                st.dataframe(disp_df, hide_index=True, use_container_width=True)
+        else:
+            st.info("キーワードデータがありません。「ワード検索数」画面から追加してください。")
 
     with st.container(border=True):
         sec("累積純利益の推移（5カ年・全コスト差引後）")
@@ -750,7 +760,6 @@ elif current_page == "ROI分析":
         st.markdown('<div class="rep-h2">1. 導入の目的と背景</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="rep-text">現在、入札案件の検索において1日あたり <b>{c["labor_search_hour"]} 時間</b> の人力作業が発生しており、担当者の工数圧迫および案件の「見逃し」が課題となっている。本ツールを導入することで、検索業務を自動化し工数を削減するとともに、データに基づく競合分析により受注率の向上を目指す。</div>', unsafe_allow_html=True)
         
-        # 新規追加：算出根拠の表示
         st.markdown('<div class="rep-h2">2. 試算の前提条件（算出根拠）</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
