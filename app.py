@@ -101,13 +101,14 @@ footer { display: none !important; }
 .logic-box strong { color: #0F172A; font-size: 1rem; display: block; margin-top: 10px; }
 .logic-eq { color: var(--accent); font-family: monospace; font-size: 1.05rem; margin: 6px 0 16px 0; display: block; background: #FFFFFF; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-weight: bold;}
 
-/* サマリーレポート用CSS */
-.report-wrap { background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 10px;}
-.rep-title { font-size: 22px; font-weight: 800; color: #0F172A; border-bottom: 3px solid #0176D3; padding-bottom: 12px; margin-bottom: 25px; text-align: center;}
-.rep-h2 { font-size: 16px; font-weight: 800; color: #0176D3; margin-top: 25px; margin-bottom: 12px; background: #F0F9FF; padding: 8px 12px; border-left: 5px solid #0176D3; border-radius: 0 4px 4px 0;}
-.rep-text { font-size: 14.5px; color: #334155; line-height: 1.7; margin-bottom: 10px;}
-.rep-ul { margin-top: 5px; padding-left: 20px; font-size: 14.5px; color: #334155; line-height: 1.8;}
+/* サマリーレポート用CSS（完全白背景・フラットデザイン） */
+.report-wrap { background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 0px; padding: 30px; margin-top: 10px;}
+.rep-title { font-size: 22px; font-weight: 800; color: #0F172A; border-bottom: 3px solid #0176D3; padding-bottom: 12px; margin-bottom: 25px; text-align: center; background: #FFFFFF;}
+.rep-h2 { font-size: 16px; font-weight: 800; color: #0176D3; margin-top: 25px; margin-bottom: 12px; background: #FFFFFF; padding: 4px 12px; border-left: 5px solid #0176D3;}
+.rep-text { font-size: 14.5px; color: #334155; line-height: 1.7; margin-bottom: 10px; background: #FFFFFF;}
+.rep-ul { margin-top: 5px; padding-left: 20px; font-size: 14.5px; color: #334155; line-height: 1.8; background: #FFFFFF;}
 .rep-hi { font-weight: 800; color: #E11D48; font-size: 16px;}
+.rep-box { background: #FFFFFF; border: 2px solid #E2E8F0; padding: 15px; text-align: center; margin-top: 15px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -188,7 +189,7 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE (累積コスト追加版)
+#  NEW ROI ENGINE
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
@@ -387,7 +388,7 @@ if current_page == "ダッシュボード":
 #  PAGE: DATA INPUT
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "案件データ入力":
-    page_header("案件データ入力", "AIによる自動入力 + 手初入力")
+    page_header("案件データ入力", "AIによる自動入力 + 手動入力")
     
     st.markdown('<div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">案件のWebテキストをコピーして貼り付けると、Gemini AIが自動で項目を振り分けます。</div>', unsafe_allow_html=True)
     pasted_text = st.text_area("案件テキスト", height=150, placeholder="ここにテキストをペースト...", label_visibility="collapsed")
@@ -712,10 +713,8 @@ elif current_page == "ROI分析":
         tab_graph, tab_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示（詳細）"])
         with tab_graph:
             fig = go.Figure()
-            # 利益（実線）
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益(累積)", mode="lines+markers", line=dict(color="#94A3B8", width=3)))
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSS+ﾏｰｹ (累積)"], name="NJSS 純利益(累積)", mode="lines+markers", line=dict(color=C1, width=3)))
-            # コスト（点線）
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力コスト(累積)"], name="現状 コスト(累積)", mode="lines", line=dict(color="#CBD5E1", width=2, dash="dot")))
             fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSSコスト(累積)"], name="NJSS コスト(累積)", mode="lines", line=dict(color="#93C5FD", width=2, dash="dot")))
             
@@ -730,15 +729,17 @@ elif current_page == "ROI分析":
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     # ─────────────────────────────────────────────────────────────────
-    #  NEW: サマリーレポート セクション
+    #  NEW: サマリーレポート セクション (白背景・受注件数によるペイ計算)
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown('<div class="sec" style="font-size:1.3rem;">6. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
-    st.info("💡 以下のレポート内容は、そのままコピーしてPowerPoint等のスライドや稟議書に貼り付けてご活用いただけます。")
+    st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。")
     
     diff_5y = nj_5y - man_5y
-    man_orders = c['annual_bids'] * (c['win_rate']/100)
-    nj_orders = tool_bids * tool_win_rate
+    
+    # 費用回収に必要な受注件数の計算（初年度の全費用 / 1案件の粗利）
+    nj_first_year_cost = c["n_init"] + nj_monthly_annual
+    be_orders_1y = (nj_first_year_cost / gross_profit_per_bid) if gross_profit_per_bid > 0 else 0
     
     st.markdown(f"""
     <div class="report-wrap">
@@ -760,19 +761,18 @@ elif current_page == "ROI分析":
         </ul>
         """, unsafe_allow_html=True)
         
-        st.markdown('<div class="rep-h2">3. コストと年間受注件数</div>', unsafe_allow_html=True)
+        st.markdown('<div class="rep-h2">3. コストと費用回収に必要な受注件数</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
             <li><b>初期費用</b>: ¥{c['n_init']:,}</li>
             <li><b>月額利用料</b>: ¥{c['n_month']:,} （年間 ¥{nj_monthly_annual:,}）</li>
-            <li><b>年間受注件数</b>: 現状 {man_orders:.1f} 件 → <span class="rep-hi">ツール導入後 {nj_orders:.1f} 件</span><br><span style="font-size:12px;color:#64748b;">※案件網羅率アップと勝率向上により、年間受注数が大幅に増加し、ツール費用を大きく上回る売上に直結する。</span></li>
+            <li><b>コスト回収に必要な受注件数</b>: <span class="rep-hi">年間 約 {be_orders_1y:.1f} 件</span><br><span style="font-size:12px;color:#64748b;">※1案件あたりの平均粗利（¥{int(gross_profit_per_bid/10000):,}万）をもとに算出。年間でこの件数さえ受注できればツール費用は完全にペイでき、それ以上はすべて自社の純利益となる。</span></li>
         </ul>
         """, unsafe_allow_html=True)
         
     with col_rep2:
         st.markdown('<div class="rep-h2" style="margin-top: 0px;">4. 5年累計 利益・コストシミュレーション</div>', unsafe_allow_html=True)
         
-        # 複合グラフ（利益＝棒グラフ、コスト＝折れ線グラフ）
         fig_rep = go.Figure()
         fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益", marker_color="#94A3B8"))
         fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["NJSS+ﾏｰｹ (累積)"], name="NJSS 純利益", marker_color=C1))
@@ -787,7 +787,6 @@ elif current_page == "ROI分析":
         )
         st.plotly_chart(fig_rep, use_container_width=True)
         
-        # きれいにコピーできるHTMLテーブルの生成
         metrics = [
             ("NJSS 純利益 (累積)", "NJSS+ﾏｰｹ (累積)", C1, "bold"),
             ("現状 純利益 (累積)", "人力+ﾏｰｹ (累積)", "#475569", "normal"),
@@ -796,24 +795,24 @@ elif current_page == "ROI分析":
         ]
         
         table_html = """
-        <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-top: 5px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <tr style="background-color: #F8FAFC; border-bottom: 2px solid #CBD5E1;">
+        <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-top: 5px; background: #FFFFFF; border: 1px solid #E2E8F0;">
+            <tr style="border-bottom: 2px solid #CBD5E1;">
                 <th style="text-align:left; padding:6px; color:#475569;">項目 (万円)</th>
         """
         for y in df_roi["年度"]: table_html += f'<th style="text-align:right; padding:6px; color:#475569;">{y}</th>'
         table_html += '</tr>'
         
         for label, col_name, color, weight in metrics:
-            table_html += f'<tr style="border-bottom: 1px solid #E2E8F0;"><td style="text-align:left; padding:6px; color:{color}; font-weight:{weight};">{label}</td>'
+            table_html += f'<tr style="border-bottom: 1px solid #E2E8F0; background: #FFFFFF;"><td style="text-align:left; padding:6px; color:{color}; font-weight:{weight};">{label}</td>'
             for val in df_roi[col_name]:
-                table_html += f'<td style="text-align:right; padding:6px; color:{color}; font-weight:{weight};">{int(val/10000):,}</td>'
+                table_html += f'<td style="text-align:right; padding:6px; color:{color}; font-weight:{weight}; background: #FFFFFF;">{int(val/10000):,}</td>'
             table_html += '</tr>'
         table_html += '</table>'
         
         st.markdown(table_html, unsafe_allow_html=True)
         
         st.markdown(f"""
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:15px; border-radius:8px; text-align:center; margin-top:15px;">
+        <div class="rep-box">
             <div style="font-size:13px; color:#475569; font-weight:bold;">ツール導入による追加利益（5年間）</div>
             <div style="font-size:24px; color:#E11D48; font-weight:900; margin-top:5px;">＋ ¥{int(diff_5y/10000):,} 万</div>
         </div>
