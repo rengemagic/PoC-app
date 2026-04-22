@@ -188,7 +188,7 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE (損益分岐期間の返却追加)
+#  NEW ROI ENGINE (累積コスト追加版)
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
@@ -207,31 +207,36 @@ def calc_roi_data():
 
     rows = []
     cum_man = 0; cum_nj = 0; cum_ki = 0
+    cum_man_cost = 0; cum_nj_cost = 0; cum_ki_cost = 0
+
     for y in range(1, 6):
-        man_profit = base_sales - (annual_manual_cost + market_cost)
+        man_cost_y = annual_manual_cost + market_cost
+        man_profit = base_sales - man_cost_y
         cum_man += man_profit
+        cum_man_cost += man_cost_y
         
-        nj_tool_cost = (c["n_init"] if y==1 else c["n_opt"]) + (c["n_month"] * 12)
-        nj_profit = tool_sales - (nj_tool_cost + market_cost)
+        nj_cost_y = (c["n_init"] if y==1 else c["n_opt"]) + (c["n_month"] * 12) + market_cost
+        nj_profit = tool_sales - nj_cost_y
         cum_nj += nj_profit
+        cum_nj_cost += nj_cost_y
         
-        ki_tool_cost = (c["k_init"] if y==1 else c["k_opt"]) + (c["k_month"] * 12)
-        ki_profit = tool_sales - (ki_tool_cost + market_cost)
+        ki_cost_y = (c["k_init"] if y==1 else c["k_opt"]) + (c["k_month"] * 12) + market_cost
+        ki_profit = tool_sales - ki_cost_y
         cum_ki += ki_profit
+        cum_ki_cost += ki_cost_y
 
         rows.append({
             "年度": f"{y}年目",
             "人力+ﾏｰｹ (累積)": int(cum_man), "NJSS+ﾏｰｹ (累積)": int(cum_nj), "入札王+ﾏｰｹ (累積)": int(cum_ki),
-            "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit)
+            "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit),
+            "人力コスト(累積)": int(cum_man_cost), "NJSSコスト(累積)": int(cum_nj_cost), "入札王コスト(累積)": int(cum_ki_cost)
         })
 
-    # 損益分岐の計算 (月割り)
     man_profit_m = (base_sales - annual_manual_cost - market_cost) / 12
     nj_profit_m  = (tool_sales - (c["n_month"]*12 + market_cost)) / 12
     nj_diff_m = nj_profit_m - man_profit_m
     nj_be_months = (c["n_init"] / nj_diff_m) if nj_diff_m > 0 else 9999
 
-    # 変数を10個返す
     return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales, tool_bids, tool_win_rate, gross_profit_per_bid, nj_be_months, nj_diff_m
 
 # ─────────────────────────────────────────────────────────────────
@@ -308,7 +313,6 @@ if current_page == "ダッシュボード":
 
     df  = load_bids()
     vd  = vdf(df)
-    # 戻り値を10個受け取る
     df_roi, _, _, _, _, _, _, _, _, _ = calc_roi_data()
 
     if vd.empty:
@@ -383,7 +387,7 @@ if current_page == "ダッシュボード":
 #  PAGE: DATA INPUT
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "案件データ入力":
-    page_header("案件データ入力", "AIによる自動入力 + 手動入力")
+    page_header("案件データ入力", "AIによる自動入力 + 手初入力")
     
     st.markdown('<div style="font-size:13px; color:var(--muted); margin-bottom:1rem;">案件のWebテキストをコピーして貼り付けると、Gemini AIが自動で項目を振り分けます。</div>', unsafe_allow_html=True)
     pasted_text = st.text_area("案件テキスト", height=150, placeholder="ここにテキストをペースト...", label_visibility="collapsed")
@@ -707,14 +711,21 @@ elif current_page == "ROI分析":
         
         tab_graph, tab_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示（詳細）"])
         with tab_graph:
-            fig = px.line(df_roi, x="年度", y=["人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "入札王+ﾏｰｹ (累積)"], color_discrete_map={"人力+ﾏｰｹ (累積)": "#94A3B8", "NJSS+ﾏｰｹ (累積)": C1, "入札王+ﾏｰｹ (累積)": C2})
-            fig.update_traces(line_width=3, marker=dict(size=8))
-            fig.update_layout(**PLY, hovermode="x unified", yaxis_title="累積純利益 (円)", height=350)
+            fig = go.Figure()
+            # 利益（実線）
+            fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益(累積)", mode="lines+markers", line=dict(color="#94A3B8", width=3)))
+            fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSS+ﾏｰｹ (累積)"], name="NJSS 純利益(累積)", mode="lines+markers", line=dict(color=C1, width=3)))
+            # コスト（点線）
+            fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力コスト(累積)"], name="現状 コスト(累積)", mode="lines", line=dict(color="#CBD5E1", width=2, dash="dot")))
+            fig.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSSコスト(累積)"], name="NJSS コスト(累積)", mode="lines", line=dict(color="#93C5FD", width=2, dash="dot")))
+            
+            fig.update_layout(**PLY, hovermode="x unified", yaxis_title="累積金額 (円)", height=350)
             st.plotly_chart(fig, use_container_width=True)
+            
         with tab_table:
-            st.caption("単位：円（全コスト差し引き後の手元に残る純利益）")
-            styled_df = df_roi[["年度", "人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "入札王+ﾏｰｹ (累積)", "人力(単年)", "NJSS(単年)", "入札王(単年)"]].style.format(
-                {"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "入札王+ﾏｰｹ (累積)": "{:,.0f}", "人力(単年)": "{:,.0f}", "NJSS(単年)": "{:,.0f}", "入札王(単年)": "{:,.0f}"}
+            st.caption("単位：円（全コスト差し引き後の手元に残る純利益、および累積コスト）")
+            styled_df = df_roi[["年度", "人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "人力コスト(累積)", "NJSSコスト(累積)"]].style.format(
+                {"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "人力コスト(累積)": "{:,.0f}", "NJSSコスト(累積)": "{:,.0f}"}
             )
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
@@ -726,6 +737,8 @@ elif current_page == "ROI分析":
     st.info("💡 以下のレポート内容は、そのままコピーしてPowerPoint等のスライドや稟議書に貼り付けてご活用いただけます。")
     
     diff_5y = nj_5y - man_5y
+    man_orders = c['annual_bids'] * (c['win_rate']/100)
+    nj_orders = tool_bids * tool_win_rate
     
     st.markdown(f"""
     <div class="report-wrap">
@@ -741,51 +754,72 @@ elif current_page == "ROI分析":
         st.markdown('<div class="rep-h2">2. 定量的な期待効果</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
-            <li><b>応札機会の拡大</b>: 網羅的な案件収集により、見逃しを防ぎ、応札数が年間 {c['annual_bids']}件 から <span class="rep-hi">{int(tool_bids)}件</span> へ増加。</li>
+            <li><b>応札機会の拡大</b>: 網羅的な案件収集により見逃しを防ぎ、応札数が年間 {c['annual_bids']}件 から <span class="rep-hi">{int(tool_bids)}件</span> へ増加。</li>
             <li><b>勝率の向上</b>: 過去の落札データ・仕様書分析を通じた戦略的な値付けにより、勝率が {c['win_rate']}% から <span class="rep-hi">{int(tool_win_rate*100)}%</span> に向上。</li>
             <li><b>5年間の純利益創出</b>: 人力継続時と比較し、5年間で <span class="rep-hi">約 {int(diff_5y/10000):,} 万円</span> の追加利益（キャッシュフロー）を創出見込み。</li>
         </ul>
         """, unsafe_allow_html=True)
         
-        st.markdown('<div class="rep-h2">3. コストと投資回収（ペイバック）</div>', unsafe_allow_html=True)
+        st.markdown('<div class="rep-h2">3. コストと年間受注件数</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
             <li><b>初期費用</b>: ¥{c['n_init']:,}</li>
             <li><b>月額利用料</b>: ¥{c['n_month']:,} （年間 ¥{nj_monthly_annual:,}）</li>
-            <li><b>投資回収期間</b>: <span class="rep-hi">約 {max(1, int(nj_be_months))} ヶ月</span><br><span style="font-size:12px;color:#64748b;">※工数削減と売上増加の差引効果により、早期に初期費用を回収し黒字化する。</span></li>
+            <li><b>年間受注件数</b>: 現状 {man_orders:.1f} 件 → <span class="rep-hi">ツール導入後 {nj_orders:.1f} 件</span><br><span style="font-size:12px;color:#64748b;">※案件網羅率アップと勝率向上により、年間受注数が大幅に増加し、ツール費用を大きく上回る売上に直結する。</span></li>
         </ul>
         """, unsafe_allow_html=True)
         
     with col_rep2:
-        st.markdown('<div class="rep-h2" style="margin-top: 25px;">4. 5年累計 純利益シミュレーション</div>', unsafe_allow_html=True)
-        # グラフを描画
-        fig_rep = px.bar(
-            x=["現状（人力継続）", "ツール導入（NJSS）"], 
-            y=[man_5y, nj_5y],
-            text=[f"¥{int(man_5y/10000):,}万", f"¥{int(nj_5y/10000):,}万"],
-            color=["現状（人力継続）", "ツール導入（NJSS）"],
-            color_discrete_map={"現状（人力継続）": "#94A3B8", "ツール導入（NJSS）": C1}
-        )
-        fig_rep.update_traces(textposition='auto', textfont_size=16, textfont_color="white", marker_line_width=0)
+        st.markdown('<div class="rep-h2" style="margin-top: 0px;">4. 5年累計 利益・コストシミュレーション</div>', unsafe_allow_html=True)
+        
+        # 複合グラフ（利益＝棒グラフ、コスト＝折れ線グラフ）
+        fig_rep = go.Figure()
+        fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["人力+ﾏｰｹ (累積)"], name="現状 純利益", marker_color="#94A3B8"))
+        fig_rep.add_trace(go.Bar(x=df_roi["年度"], y=df_roi["NJSS+ﾏｰｹ (累積)"], name="NJSS 純利益", marker_color=C1))
+        fig_rep.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["人力コスト(累積)"], name="現状 コスト", mode="lines+markers", line=dict(color="#64748B", dash="dash", width=2)))
+        fig_rep.add_trace(go.Scatter(x=df_roi["年度"], y=df_roi["NJSSコスト(累積)"], name="NJSS コスト", mode="lines+markers", line=dict(color="#0284C7", width=2)))
+
         fig_rep.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            showlegend=False,
-            yaxis_title="純利益 (円)",
-            xaxis_title="",
-            height=320,
-            margin=dict(l=10, r=10, t=10, b=10)
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+            legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center", font=dict(size=10)),
+            yaxis_title="累積金額 (円)", xaxis_title="", height=320,
+            margin=dict(l=10, r=10, t=10, b=10), barmode="group"
         )
         st.plotly_chart(fig_rep, use_container_width=True)
         
+        # きれいにコピーできるHTMLテーブルの生成
+        metrics = [
+            ("NJSS 純利益 (累積)", "NJSS+ﾏｰｹ (累積)", C1, "bold"),
+            ("現状 純利益 (累積)", "人力+ﾏｰｹ (累積)", "#475569", "normal"),
+            ("NJSS コスト (累積)", "NJSSコスト(累積)", "#0284C7", "normal"),
+            ("現状 コスト (累積)", "人力コスト(累積)", "#64748B", "normal")
+        ]
+        
+        table_html = """
+        <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-top: 5px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <tr style="background-color: #F8FAFC; border-bottom: 2px solid #CBD5E1;">
+                <th style="text-align:left; padding:6px; color:#475569;">項目 (万円)</th>
+        """
+        for y in df_roi["年度"]: table_html += f'<th style="text-align:right; padding:6px; color:#475569;">{y}</th>'
+        table_html += '</tr>'
+        
+        for label, col_name, color, weight in metrics:
+            table_html += f'<tr style="border-bottom: 1px solid #E2E8F0;"><td style="text-align:left; padding:6px; color:{color}; font-weight:{weight};">{label}</td>'
+            for val in df_roi[col_name]:
+                table_html += f'<td style="text-align:right; padding:6px; color:{color}; font-weight:{weight};">{int(val/10000):,}</td>'
+            table_html += '</tr>'
+        table_html += '</table>'
+        
+        st.markdown(table_html, unsafe_allow_html=True)
+        
         st.markdown(f"""
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:15px; border-radius:8px; text-align:center; margin-top:10px;">
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:15px; border-radius:8px; text-align:center; margin-top:15px;">
             <div style="font-size:13px; color:#475569; font-weight:bold;">ツール導入による追加利益（5年間）</div>
             <div style="font-size:24px; color:#E11D48; font-weight:900; margin-top:5px;">＋ ¥{int(diff_5y/10000):,} 万</div>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True) # wrap 終了
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────
 #  PAGE: MANUAL & DATA MANAGEMENT
