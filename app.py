@@ -189,7 +189,7 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE
+#  NEW ROI ENGINE (WITH TOOLTIP DATA)
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
@@ -230,7 +230,14 @@ def calc_roi_data():
             "年度": f"{y}年目",
             "人力+ﾏｰｹ (累積)": int(cum_man), "NJSS+ﾏｰｹ (累積)": int(cum_nj), "入札王+ﾏｰｹ (累積)": int(cum_ki),
             "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit),
-            "人力コスト(累積)": int(cum_man_cost), "NJSSコスト(累積)": int(cum_nj_cost), "入札王コスト(累積)": int(cum_ki_cost)
+            "人力コスト(累積)": int(cum_man_cost), "NJSSコスト(累積)": int(cum_nj_cost), "入札王コスト(累積)": int(cum_ki_cost),
+            # HTMLテーブルのホバー用計算式データ
+            "tt_人力+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(man_profit/10000):,}万)\n[単年利益内訳] ベース売上 - (人力検索コスト + マーケ費)",
+            "tt_NJSS+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(nj_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (NJSS費用 + マーケ費)",
+            "tt_入札王+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(ki_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (入札王費用 + マーケ費)",
+            "tt_人力コスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(man_cost_y/10000):,}万)\n[今年コスト内訳] 人力検索コスト(¥{int(annual_manual_cost/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)",
+            "tt_NJSSコスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(nj_cost_y/10000):,}万)\n[今年コスト内訳] NJSS費用(¥{int((nj_cost_y - market_cost)/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)\n※初年度は初期費用を含みます",
+            "tt_入札王コスト(累積)": f"【計算式】前年までの累積コスト ＋ 今年のコスト(¥{int(ki_cost_y/10000):,}万)\n[今年コスト内訳] 入札王費用(¥{int((ki_cost_y - market_cost)/10000):,}万) + マーケ費(¥{int(market_cost/10000):,}万)\n※初年度は初期費用を含みます"
         })
 
     man_profit_m = (base_sales - annual_manual_cost - market_cost) / 12
@@ -625,33 +632,33 @@ elif current_page == "ROI分析":
     with col_set1:
         st.markdown('<div class="sec">1. 基本前提（人力・現状）</div>', unsafe_allow_html=True)
         with st.container(border=True):
-            st.session_state.costs["annual_bids"] = st.number_input("年間想定応札数（件）", value=int(c["annual_bids"]))
-            st.session_state.costs["win_rate"] = st.slider("平均受注率（%）", 0, 100, int(c["win_rate"]))
-            st.session_state.costs["margin"] = st.slider("平均粗利率（%）", 0, 100, int(c["margin"]))
-            st.session_state.costs["marketing_annual"] = st.number_input("年間マーケティング費用（円）", value=int(c["marketing_annual"]), step=10000)
+            st.session_state.costs["annual_bids"] = st.number_input("年間想定応札数（件）", value=int(c["annual_bids"]), help="現在、手動で検索して応札できている年間の想定件数です。")
+            st.session_state.costs["win_rate"] = st.slider("平均受注率（%）", 0, 100, int(c["win_rate"]), help="応札した案件のうち、実際に受注できる確率の現状ベースです。")
+            st.session_state.costs["margin"] = st.slider("平均粗利率（%）", 0, 100, int(c["margin"]), help="1案件あたりの売上から原価を引いた、自社に残る粗利の割合です。")
+            st.session_state.costs["marketing_annual"] = st.number_input("年間マーケティング費用（円）", value=int(c["marketing_annual"]), step=10000, help="入札以外の営業・マーケティングにかかっている年間費用（比較用）です。")
             
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
             st.caption("【人力運用時の隠れたコスト】")
-            st.session_state.costs["labor_search_hour"] = st.number_input("1日の手動検索時間（h）", value=float(c["labor_search_hour"]), step=0.5)
-            st.session_state.costs["labor_cost_per_hour"] = st.number_input("担当者時給（円）", value=int(c["labor_cost_per_hour"]), step=100)
+            st.session_state.costs["labor_search_hour"] = st.number_input("1日の手動検索時間（h）", value=float(c["labor_search_hour"]), step=0.5, help="1日あたり、担当者が入札サイトを手動で巡回・検索している時間です。")
+            st.session_state.costs["labor_cost_per_hour"] = st.number_input("担当者時給（円）", value=int(c["labor_cost_per_hour"]), step=100, help="手動検索を行っている担当者の時給換算コストです。（見えない人件費の可視化）")
             
         st.markdown('<div class="sec" style="margin-top:15px;">2. 🚀 ツールの付加価値と費用</div>', unsafe_allow_html=True)
         with st.container(border=True):
             st.caption("【ツールの導入メリット（売上拡大）】")
-            st.session_state.costs["tool_bid_increase_rate"] = st.slider("見逃し防止による 応札数の増加率（%）", 0, 100, int(c.get("tool_bid_increase_rate", 40)))
-            st.session_state.costs["tool_win_rate_boost"] = st.slider("競合データ分析による 勝率の向上（+ポイント）", 0, 20, int(c.get("tool_win_rate_boost", 5)))
+            st.session_state.costs["tool_bid_increase_rate"] = st.slider("見逃し防止による 応札数の増加率（%）", 0, 100, int(c.get("tool_bid_increase_rate", 40)), help="ツールで網羅的に検索できるようになることで、今まで見逃していた案件に気付き、応札数がどれくらい増えるかの想定値です。")
+            st.session_state.costs["tool_win_rate_boost"] = st.slider("競合データ分析による 勝率の向上（+ポイント）", 0, 20, int(c.get("tool_win_rate_boost", 5)), help="過去の落札金額や競合他社の傾向をツールで分析することで、勝率が現在から何ポイント上がるかの想定値です。")
             
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
             st.caption("【ツール利用コスト】")
             cx1, cx2 = st.columns(2)
             with cx1:
                 st.caption("NJSS 費用")
-                ni = st.number_input("初期", value=c["n_init"], key="ni", label_visibility="collapsed")
-                nm = st.number_input("月額", value=c["n_month"], key="nm", label_visibility="collapsed")
+                ni = st.number_input("初期", value=c["n_init"], key="ni", label_visibility="collapsed", help="NJSSの初期費用")
+                nm = st.number_input("月額", value=c["n_month"], key="nm", label_visibility="collapsed", help="NJSSの月額費用")
             with cx2:
                 st.caption("入札王 費用")
-                ki = st.number_input("初期", value=c["k_init"], key="ki", label_visibility="collapsed")
-                km = st.number_input("月額", value=c["k_month"], key="km", label_visibility="collapsed")
+                ki = st.number_input("初期", value=c["k_init"], key="ki", label_visibility="collapsed", help="入札王の初期費用")
+                km = st.number_input("月額", value=c["k_month"], key="km", label_visibility="collapsed", help="入札王の月額費用")
 
         if st.button("設定を保存してシミュレーション更新", use_container_width=True, type="primary"):
             st.session_state.costs.update({"n_init":ni,"n_month":nm,"k_init":ki,"k_month":km})
@@ -741,19 +748,25 @@ elif current_page == "ROI分析":
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     # ─────────────────────────────────────────────────────────────────
-    #  NEW: サマリーレポート セクション (入札王データ追加)
+    #  NEW: サマリーレポート セクション (算出根拠・ツールチップ・入札王追加)
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown('<div class="sec" style="font-size:1.3rem;">6. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
-    st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。")
+    st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。\n\n🔍 **テーブルの数値にカーソルを合わせると、計算式と内訳が確認できます。**")
     
-    diff_5y = nj_5y - man_5y
+    diff_5y_n = nj_5y - man_5y
+    diff_5y_k = k_p5 - man_5y
+    
     nj_first_year_cost = c["n_init"] + nj_monthly_annual
-    be_orders_1y = (nj_first_year_cost / gross_profit_per_bid) if gross_profit_per_bid > 0 else 0
+    be_orders_1y_n = (nj_first_year_cost / gross_profit_per_bid) if gross_profit_per_bid > 0 else 0
+    
+    ki_monthly_annual = c["k_month"] * 12
+    ki_first_year_cost = c["k_init"] + ki_monthly_annual
+    be_orders_1y_k = (ki_first_year_cost / gross_profit_per_bid) if gross_profit_per_bid > 0 else 0
     
     st.markdown(f"""
     <div class="report-wrap">
-        <div class="rep-title">【提案】入札情報収集ツール（NJSS）の導入による売上拡大および業務効率化</div>
+        <div class="rep-title">【提案】入札情報収集ツールの導入による売上拡大および業務効率化</div>
     """, unsafe_allow_html=True)
     
     col_rep1, col_rep2 = st.columns([1.2, 1])
@@ -776,16 +789,16 @@ elif current_page == "ROI分析":
         <ul class="rep-ul">
             <li><b>応札機会の拡大</b>: 網羅的な案件収集により見逃しを防ぎ、応札数が年間 {c['annual_bids']}件 から <span class="rep-hi">{int(tool_bids)}件</span> へ増加。</li>
             <li><b>勝率の向上</b>: 過去の落札データ・仕様書分析を通じた戦略的な値付けにより、勝率が {c['win_rate']}% から <span class="rep-hi">{int(tool_win_rate*100)}%</span> に向上。</li>
-            <li><b>5年間の純利益創出</b>: 人力継続時と比較し、5年間で <span class="rep-hi">約 {int(diff_5y/10000):,} 万円</span> の追加利益（キャッシュフロー）を創出見込み。</li>
+            <li><b>5年間の純利益創出</b>: 人力継続時と比較し、5年間で追加の利益（キャッシュフロー）を創出。<br><b>→ <span class="rep-hi">NJSS 約 {int(diff_5y_n/10000):,} 万円 / 入札王 約 {int(diff_5y_k/10000):,} 万円</span></b></li>
         </ul>
         """, unsafe_allow_html=True)
         
         st.markdown('<div class="rep-h2">4. コストと費用回収に必要な受注件数</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <ul class="rep-ul">
-            <li><b>初期費用</b>: ¥{c['n_init']:,}</li>
-            <li><b>月額利用料</b>: ¥{c['n_month']:,} （年間 ¥{nj_monthly_annual:,}）</li>
-            <li><b>コスト回収に必要な受注件数</b>: <span class="rep-hi">年間 約 {be_orders_1y:.1f} 件</span><br><span style="font-size:12px;color:#64748b;">※1案件あたりの平均粗利（¥{int(gross_profit_per_bid/10000):,}万）をもとに算出。年間でこの件数さえ受注できればツール費用は完全にペイでき、それ以上はすべて自社の純利益となる。</span></li>
+            <li><b>初期費用</b>: NJSS ¥{c['n_init']:,} / 入札王 ¥{c['k_init']:,}</li>
+            <li><b>月額利用料</b>: NJSS ¥{c['n_month']:,}（年間 ¥{nj_monthly_annual:,}）<br>　　　　　　 入札王 ¥{c['k_month']:,}（年間 ¥{ki_monthly_annual:,}）</li>
+            <li><b>コスト回収に必要な受注件数</b>: <br><b>→ <span class="rep-hi">NJSS 年間 約 {be_orders_1y_n:.1f} 件 / 入札王 年間 約 {be_orders_1y_k:.1f} 件</span></b><br><span style="font-size:12px;color:#64748b;">※1案件あたりの平均粗利（¥{int(gross_profit_per_bid/10000):,}万）をもとに算出。年間でこの件数さえ受注できれば初年度のツール費用（初期＋月額12ヶ月）は完全にペイでき、それ以上はすべて自社の純利益となる。</span></li>
         </ul>
         """, unsafe_allow_html=True)
         
@@ -818,6 +831,7 @@ elif current_page == "ROI分析":
             ("現状 コスト (累積)", "人力コスト(累積)", "#64748B", "normal")
         ]
         
+        # ツールチップ付きのHTMLテーブル
         table_html = """
         <table style="width:100%; border-collapse: collapse; font-size: 11.5px; margin-top: 5px; background: #FFFFFF; border: 1px solid #E2E8F0;">
             <tr style="border-bottom: 2px solid #CBD5E1;">
@@ -827,18 +841,28 @@ elif current_page == "ROI分析":
         table_html += '</tr>'
         
         for label, col_name, color, weight in metrics:
+            tt_col = f"tt_{col_name}" # ツールチップ用のカラム名
             table_html += f'<tr style="border-bottom: 1px solid #E2E8F0; background: #FFFFFF;"><td style="text-align:left; padding:5px; color:{color}; font-weight:{weight};">{label}</td>'
-            for val in df_roi[col_name]:
-                table_html += f'<td style="text-align:right; padding:5px; color:{color}; font-weight:{weight}; background: #FFFFFF;">{int(val/10000):,}</td>'
+            for idx, val in enumerate(df_roi[col_name]):
+                tt_text = df_roi[tt_col].iloc[idx] # dataframeからホバー用のテキストを取得
+                # title属性を追加し、cursorをhelpにしてホバー可能であることを明示
+                table_html += f'<td title="{tt_text}" style="text-align:right; padding:5px; color:{color}; font-weight:{weight}; background: #FFFFFF; cursor: help;">{int(val/10000):,}</td>'
             table_html += '</tr>'
         table_html += '</table>'
         
         st.markdown(table_html, unsafe_allow_html=True)
         
         st.markdown(f"""
-        <div class="rep-box">
-            <div style="font-size:13px; color:#475569; font-weight:bold;">ツール導入による追加利益（5年間）</div>
-            <div style="font-size:24px; color:#E11D48; font-weight:900; margin-top:5px;">＋ ¥{int(diff_5y/10000):,} 万</div>
+        <div class="rep-box" style="margin-top:15px; display:flex; justify-content:space-around;">
+            <div>
+                <div style="font-size:12px; color:#475569; font-weight:bold;">NJSS 追加利益（5年間）</div>
+                <div style="font-size:20px; color:{C1}; font-weight:900; margin-top:3px;">＋ ¥{int(diff_5y_n/10000):,} 万</div>
+            </div>
+            <div style="border-left: 1px solid #E2E8F0; margin: 0 10px;"></div>
+            <div>
+                <div style="font-size:12px; color:#475569; font-weight:bold;">入札王 追加利益（5年間）</div>
+                <div style="font-size:20px; color:{C2}; font-weight:900; margin-top:3px;">＋ ¥{int(diff_5y_k/10000):,} 万</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
