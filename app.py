@@ -26,11 +26,12 @@ _defaults = {
     "costs": {
         "n_init": 100000, "n_month": 50000, "n_opt": 0,
         "k_init": 0, "k_month": 30000, "k_opt": 0,
-        "margin": 20, "win_rate": 20, "annual_bids": 50,
-        "labor_search_hour": 1.0,      
+        "margin": 30, "win_rate": 20, "annual_bids": 30,
+        "labor_search_hour": 1.5,      
         "labor_cost_per_hour": 3000,   
         "marketing_annual": 500000,    
-        "tool_boost_rate": 20,         
+        "tool_bid_increase_rate": 40,  # 新規: 応札件数の増加率(%)
+        "tool_win_rate_boost": 5,      # 新規: 勝率の向上(ポイント)
     },
 }
 for k, v in _defaults.items():
@@ -86,10 +87,14 @@ footer { display: none !important; }
 .form-div-label { font-size: 12px; font-weight: 700; color: var(--accent) !important; }
 .rl { font-size: 13px; font-weight: 600; color: var(--text) !important; margin-bottom: 4px; }
 .rl .req { color: #EF4444 !important; font-size: 11px; margin-left: 5px; }
-.vs-box { background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 15px; }
-.vs-title { font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 10px; }
-.vs-item { display: flex; justify-content: space-between; font-size: 13px; color: #334155; margin-bottom: 4px; border-bottom: 1px dashed #E2E8F0; padding-bottom: 2px;}
-.vs-total { font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 10px; padding-top: 10px; border-top: 2px solid #CBD5E1; }
+
+/* 比較パネル用CSS */
+.vs-box { background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: space-between;}
+.vs-title { font-size: 16px; font-weight: 800; color: #334155; margin-bottom: 15px; text-align: center; padding-bottom: 10px; border-bottom: 2px solid #E2E8F0;}
+.vs-item { display: flex; justify-content: space-between; font-size: 13.5px; color: #475569; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #E2E8F0;}
+.vs-item.highlight { font-weight: 700; color: #0176D3; background: rgba(1,118,211,0.05); padding: 4px; border-radius: 4px; border:none;}
+.vs-total { font-size: 15px; font-weight: 700; color: #0F172A; margin-top: 15px; padding: 10px; background: #E2E8F0; border-radius: 8px; text-align: center;}
+.vs-total-large { font-size: 22px; font-weight: 800; color: #0F172A; margin-top: 10px; padding: 15px; background: #DBEAFE; border-radius: 8px; text-align: center; border: 2px solid #93C5FD;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,7 +162,6 @@ if "settings_loaded" not in st.session_state:
             k = str(r["項目名"])
             if k in st.session_state.costs:
                 val = safe_num(r["値1"])
-                # labor_search_hour は float、その他は int として保持
                 st.session_state.costs[k] = float(val) if "hour" in k else int(val)
         for _, r in df_set[df_set["種別"] == "WORD"].iterrows():
             w = str(r["項目名"])
@@ -171,41 +175,54 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE
+#  NEW ROI ENGINE (最強のメリット追加版)
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
     avg_bid = pd.to_numeric(df["落札金額(千円)"], errors="coerce").fillna(0).mean() * 1000 if not df.empty and (pd.to_numeric(df["落札金額(千円)"], errors="coerce").fillna(0) > 0).any() else 0
     c = st.session_state.costs
 
-    base_rev = avg_bid * (c["margin"]/100) * (c["win_rate"]/100) * c["annual_bids"]
-    boost_rev = base_rev * (1 + c["tool_boost_rate"]/100)
+    # 1案件あたりの粗利額
+    gross_profit_per_bid = avg_bid * (c["margin"]/100)
+
+    # パターンA: 現状（人力）の売上
+    # 売上 = 応札数 × 勝率 × 1案件粗利
+    base_sales = c["annual_bids"] * (c["win_rate"]/100) * gross_profit_per_bid
     
+    # パターンB: ツール導入時の売上
+    # ツールの恩恵1: 見逃し防止で応札件数が増える
+    tool_bids = c["annual_bids"] * (1 + c.get("tool_bid_increase_rate", 40)/100)
+    # ツールの恩恵2: 過去の競合データ分析で勝率が上がる
+    tool_win_rate = (c["win_rate"] + c.get("tool_win_rate_boost", 5)) / 100
+    tool_sales = (tool_bids * tool_win_rate) * gross_profit_per_bid
+
+    # コスト
     annual_manual_cost = c["labor_cost_per_hour"] * c["labor_search_hour"] * 240
     market_cost = c["marketing_annual"]
 
     rows = []
     cum_man = 0; cum_nj = 0; cum_ki = 0
     for y in range(1, 6):
-        man_profit = base_rev - (annual_manual_cost + market_cost)
+        # 利益 = 売上 - (各コスト)
+        man_profit = base_sales - (annual_manual_cost + market_cost)
         cum_man += man_profit
         
         nj_tool_cost = (c["n_init"] if y==1 else c["n_opt"]) + (c["n_month"] * 12)
-        nj_profit = boost_rev - (nj_tool_cost + market_cost)
+        nj_profit = tool_sales - (nj_tool_cost + market_cost)
         cum_nj += nj_profit
         
         ki_tool_cost = (c["k_init"] if y==1 else c["k_opt"]) + (c["k_month"] * 12)
-        ki_profit = boost_rev - (ki_tool_cost + market_cost)
+        ki_profit = tool_sales - (ki_tool_cost + market_cost)
         cum_ki += ki_profit
 
-        rows.append({"年度": f"{y}年目", "人力+ﾏｰｹ (累積)": int(cum_man), "NJSS+ﾏｰｹ (累積)": int(cum_nj), "入札王+ﾏｰｹ (累積)": int(cum_ki)})
+        rows.append({
+            "年度": f"{y}年目",
+            "人力+ﾏｰｹ (累積)": int(cum_man), "NJSS+ﾏｰｹ (累積)": int(cum_nj), "入札王+ﾏｰｹ (累積)": int(cum_ki),
+            "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit)
+        })
 
-    man_profit_m = (base_rev - annual_manual_cost - market_cost) / 12
-    nj_profit_m  = (boost_rev - (c["n_month"]*12 + market_cost)) / 12
-    nj_diff_m = nj_profit_m - man_profit_m
-    nj_be_months = (c["n_init"] / nj_diff_m) if nj_diff_m > 0 else 9999
-
-    return pd.DataFrame(rows), avg_bid, annual_manual_cost, nj_be_months, nj_diff_m
+    # データ一式を返す（単年利益・5年累計利益の表示用）
+    return pd.DataFrame(rows), avg_bid, annual_manual_cost, base_sales, tool_sales
 
 # ─────────────────────────────────────────────────────────────────
 #  UI HELPERS & API
@@ -570,17 +587,17 @@ elif current_page == "ワード検索数":
         else: st.info("キーワードを追加してください。")
 
 # ─────────────────────────────────────────────────────────────────
-#  PAGE: ROI
+#  PAGE: ROI (大幅アップデート版)
 # ─────────────────────────────────────────────────────────────────
 elif current_page == "ROI分析":
     page_header("事業性・ROI分析", "人力（As-Is）とツール導入時（To-Be）の収益構造の比較")
 
-    df_roi, avg_bid, ann_manual_cost, nj_be_months, nj_diff_m = calc_roi_data()
+    df_roi, avg_bid, ann_manual_cost, base_sales, tool_sales = calc_roi_data()
     c = st.session_state.costs
 
     col_set1, col_set2 = st.columns([1, 2])
     with col_set1:
-        st.markdown('<div class="sec">1. 営業・コスト前提条件</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">1. 基本前提（人力・現状）</div>', unsafe_allow_html=True)
         with st.container(border=True):
             st.session_state.costs["annual_bids"] = st.number_input("年間想定応札数（件）", value=int(c["annual_bids"]))
             st.session_state.costs["win_rate"] = st.slider("平均受注率（%）", 0, 100, int(c["win_rate"]))
@@ -592,9 +609,14 @@ elif current_page == "ROI分析":
             st.session_state.costs["labor_search_hour"] = st.number_input("1日の手動検索時間（h）", value=float(c["labor_search_hour"]), step=0.5)
             st.session_state.costs["labor_cost_per_hour"] = st.number_input("担当者時給（円）", value=int(c["labor_cost_per_hour"]), step=100)
             
+        st.markdown('<div class="sec" style="margin-top:15px;">2. 🚀 ツールの付加価値と費用</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.caption("【ツールの導入メリット（売上拡大）】")
+            st.session_state.costs["tool_bid_increase_rate"] = st.slider("見逃し防止による 応札数の増加率（%）", 0, 100, int(c.get("tool_bid_increase_rate", 40)))
+            st.session_state.costs["tool_win_rate_boost"] = st.slider("競合データ分析による 勝率の向上（+ポイント）", 0, 20, int(c.get("tool_win_rate_boost", 5)))
+            
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-            st.caption("【ツール導入効果と費用】")
-            st.session_state.costs["tool_boost_rate"] = st.slider("ツールによる案件捕捉増加率（%）", 0, 100, int(c["tool_boost_rate"]))
+            st.caption("【ツール利用コスト】")
             cx1, cx2 = st.columns(2)
             with cx1:
                 st.caption("NJSS 費用")
@@ -610,41 +632,52 @@ elif current_page == "ROI分析":
             sync_settings(); st.rerun()
 
     with col_set2:
-        st.markdown('<div class="sec">2. 収益構造の比較 (1年あたり)</div>', unsafe_allow_html=True)
-        v1, v2 = st.columns(2)
-        base_sales = avg_bid * (c["margin"]/100) * (c["win_rate"]/100) * c["annual_bids"]
-        nj_sales = base_sales * (1 + c["tool_boost_rate"]/100)
-        market_c = c["marketing_annual"]
+        st.markdown('<div class="sec">3. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
         
+        # 1年目・5年累計の数値を抽出
+        man_1y = df_roi.iloc[0]["人力(単年)"]
+        nj_1y  = df_roi.iloc[0]["NJSS(単年)"]
+        man_5y = df_roi.iloc[-1]["人力+ﾏｰｹ (累積)"]
+        nj_5y  = df_roi.iloc[-1]["NJSS+ﾏｰｹ (累積)"]
+        
+        market_c = c["marketing_annual"]
+        nj_monthly_annual = c["n_month"] * 12
+        
+        v1, v2 = st.columns(2)
         with v1:
             st.markdown(f"""
             <div class="vs-box">
                 <div class="vs-title">😟 現状（人力 ＋ マーケティング）</div>
-                <div class="vs-item"><span>期待売上</span><span>¥{int(base_sales/10000):,}万</span></div>
+                <div class="vs-item"><span>年間粗利額 (ベース)</span><span>¥{int(base_sales/10000):,}万</span></div>
                 <div class="vs-item"><span style="color:#EF4444;">人力検索コスト</span><span style="color:#EF4444;">- ¥{int(ann_manual_cost/10000):,}万</span></div>
                 <div class="vs-item"><span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span></div>
-                <div class="vs-total">単年純利益: ¥{int((base_sales - ann_manual_cost - market_c)/10000):,}万</div>
+                <div class="vs-total">単年 純利益<br><span style="font-size:1.2rem;">¥{int(man_1y/10000):,}万</span></div>
+                <div class="vs-total-large" style="background:#F1F5F9; border-color:#CBD5E1; color:#475569;">
+                    <div style="font-size:12px; font-weight:normal;">5年累計 純利益</div>
+                    ¥{int(man_5y/10000):,}万
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
         with v2:
             st.markdown(f"""
-            <div class="vs-box" style="border-color: {C1}; background: #F0F9FF;">
-                <div class="vs-title" style="color: {C1};">🚀 NJSS導入（ツール ＋ マーケティング）</div>
-                <div class="vs-item"><span style="color:{C1}; font-weight:bold;">期待売上 (捕捉↑)</span><span style="color:{C1}; font-weight:bold;">¥{int(nj_sales/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#10B981;">人力検索コスト</span><span style="color:#10B981;">¥0 (不要)</span></div>
-                <div class="vs-item"><span style="color:#EF4444;">NJSS利用費(月額)</span><span style="color:#EF4444;">- ¥{int((c["n_month"]*12)/10000):,}万</span></div>
+            <div class="vs-box" style="border: 2px solid {C1}; background: #F0F9FF;">
+                <div class="vs-title" style="color: {C1};">🚀 ツール導入（NJSS ＋ マーケティング）</div>
+                <div class="vs-item highlight"><span>年間粗利額 (分析・網羅によるUP)</span><span>¥{int(tool_sales/10000):,}万</span></div>
+                <div class="vs-item"><span style="color:#10B981; font-weight:bold;">人力検索コスト</span><span style="color:#10B981; font-weight:bold;">¥0 (不要)</span></div>
+                <div class="vs-item"><span style="color:#EF4444;">NJSS利用費(初期含まず)</span><span style="color:#EF4444;">- ¥{int(nj_monthly_annual/10000):,}万</span></div>
                 <div class="vs-item"><span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span></div>
-                <div class="vs-total" style="color:{C1};">単年純利益: ¥{int((nj_sales - (c["n_month"]*12) - market_c)/10000):,}万</div>
+                <div class="vs-total" style="color:{C1};">単年 純利益<br><span style="font-size:1.2rem;">¥{int(nj_1y/10000):,}万</span></div>
+                <div class="vs-total-large">
+                    <div style="font-size:12px; font-weight:normal; color:#0176D3;">5年累計 純利益</div>
+                    ¥{int(nj_5y/10000):,}万
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown('<div class="sec">3. 損益分岐点（ペイバック・ピリオド）</div>', unsafe_allow_html=True)
-        if nj_diff_m > 0:
-            st.success(f"💡 **NJSS導入により、毎月「¥{int(nj_diff_m):,}」の利益が人力運用時より上乗せされます。**\n初期費用(¥{c['n_init']:,})は、導入後 **約 {max(1, int(nj_be_months))}ヶ月** で回収し、それ以降は投資回収完了となります。")
-        else: st.error("⚠️ 現在の設定では、ツールの月額費用が人力運用による削減効果と売上増加を上回っています。")
-
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<div class="sec">4. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
+        
         tab_graph, tab_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示（詳細）"])
         with tab_graph:
             fig = px.line(df_roi, x="年度", y=["人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "入札王+ﾏｰｹ (累積)"], color_discrete_map={"人力+ﾏｰｹ (累積)": "#94A3B8", "NJSS+ﾏｰｹ (累積)": C1, "入札王+ﾏｰｹ (累積)": C2})
@@ -653,7 +686,9 @@ elif current_page == "ROI分析":
             st.plotly_chart(fig, use_container_width=True)
         with tab_table:
             st.caption("単位：円（全コスト差し引き後の手元に残る純利益）")
-            styled_df = df_roi[["年度", "人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "入札王+ﾏｰｹ (累積)"]].style.format({"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "入札王+ﾏｰｹ (累積)": "{:,.0f}"})
+            styled_df = df_roi[["年度", "人力+ﾏｰｹ (累積)", "NJSS+ﾏｰｹ (累積)", "入札王+ﾏｰｹ (累積)", "人力(単年)", "NJSS(単年)", "入札王(単年)"]].style.format(
+                {"人力+ﾏｰｹ (累積)": "{:,.0f}", "NJSS+ﾏｰｹ (累積)": "{:,.0f}", "入札王+ﾏｰｹ (累積)": "{:,.0f}", "人力(単年)": "{:,.0f}", "NJSS(単年)": "{:,.0f}", "入札王(単年)": "{:,.0f}"}
+            )
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
 # ─────────────────────────────────────────────────────────────────
@@ -705,7 +740,7 @@ elif current_page == "データ管理":
                 if ok:
                     try:
                         save_bids(pd.DataFrame(columns=COLS_BIDS)); save_settings(pd.DataFrame(columns=COLS_SETTINGS))
-                        st.session_state.update({"search_words": [], "search_counts": {}, "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,"k_opt":0,"margin":20,"win_rate":20,"annual_bids":50,"labor_search_hour":1.0,"labor_cost_per_hour":3000,"marketing_annual":500000,"tool_boost_rate":20}})
+                        st.session_state.update({"search_words": [], "search_counts": {}, "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,"k_opt":0,"margin":30,"win_rate":20,"annual_bids":30,"labor_search_hour":1.5,"labor_cost_per_hour":3000,"marketing_annual":500000,"tool_bid_increase_rate":40,"tool_win_rate_boost":5}})
                         st.success("初期化完了。")
                     except Exception as e: st.error(f"エラー: {e}")
                 else: st.error("確認チェックを入れてください。")
