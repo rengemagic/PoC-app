@@ -748,10 +748,9 @@ elif current_page == "ROI分析":
             fig_roi_curve.add_hline(y=0, line_dash="dash", line_color="#EF4444", annotation_text="損益分岐点 (ROI 0%)", annotation_position="bottom right")
             fig_roi_curve.add_vline(x=target_orders, line_dash="dot", line_color="#64748B", annotation_text=f"想定: {target_orders}件", annotation_position="top left")
             fig_roi_curve.update_traces(line_width=3)
-            fig_roi_curve.update_layout(
-                **PLY, hovermode="x unified", yaxis_title="初年度ROI (%)", 
-                height=300, legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5, title="")
-            )
+            # ---- FIX: dictionary update for layout to prevent multiple values for keyword argument ----
+            fig_roi_curve.update_layout(**PLY, hovermode="x unified", yaxis_title="初年度ROI (%)", height=300)
+            fig_roi_curve.update_layout(legend_title_text="")
             st.plotly_chart(fig_roi_curve, use_container_width=True)
 
         st.markdown('<div class="sec">6. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
