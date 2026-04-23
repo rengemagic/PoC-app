@@ -805,9 +805,6 @@ elif current_page == "ROI分析":
             fig_roi_curve.update_layout(legend_title_text="")
             st.plotly_chart(fig_roi_curve, use_container_width=True)
 
-        # ─────────────────────────────────────────────────────────────────
-        #  NEW: 収益構造の比較 にツールチップを追加
-        # ─────────────────────────────────────────────────────────────────
         st.markdown('<div class="sec">6. 収益構造の比較（マウスオーバーで計算式を表示）</div>', unsafe_allow_html=True)
         st.info("💡 項目名や金額にマウスカーソルを合わせると、具体的な計算ロジックの内訳が表示されます。")
         
@@ -978,7 +975,6 @@ elif current_page == "ROI分析":
             ("現状 コスト (累積)", "人力コスト(累積)", "#64748B", "normal")
         ]
         
-        # ツールチップ付きのHTMLテーブル
         table_html = """
         <table style="width:100%; border-collapse: collapse; font-size: 11.5px; margin-top: 5px; background: #FFFFFF; border: 1px solid #E2E8F0;">
             <tr style="border-bottom: 2px solid #CBD5E1;">
@@ -988,26 +984,31 @@ elif current_page == "ROI分析":
         table_html += '</tr>'
         
         for label, col_name, color, weight in metrics:
-            tt_col = f"tt_{col_name}" # ツールチップ用のカラム名
+            tt_col = f"tt_{col_name}"
             table_html += f'<tr style="border-bottom: 1px solid #E2E8F0; background: #FFFFFF;"><td style="text-align:left; padding:5px; color:{color}; font-weight:{weight};">{label}</td>'
             for idx, val in enumerate(df_roi[col_name]):
-                tt_text = df_roi[tt_col].iloc[idx] # dataframeからホバー用のテキストを取得
+                tt_text = df_roi[tt_col].iloc[idx]
                 table_html += f'<td title="{tt_text}" style="text-align:right; padding:5px; color:{color}; font-weight:{weight}; background: #FFFFFF; cursor: help;">{int(val/10000):,}</td>'
             table_html += '</tr>'
         table_html += '</table>'
         
         st.markdown(table_html, unsafe_allow_html=True)
         
+        # ─────────────────────────────────────────────────────────────────
+        #  NEW: 追加利益の説明文を追加したボックス
+        # ─────────────────────────────────────────────────────────────────
         st.markdown(f"""
         <div class="rep-box" style="margin-top:15px; display:flex; justify-content:space-around;">
-            <div>
-                <div style="font-size:12px; color:#475569; font-weight:bold;">NJSS 追加利益（5年間）</div>
-                <div style="font-size:20px; color:{C1}; font-weight:900; margin-top:3px;">＋ ¥{int(diff_5y_n/10000):,} 万</div>
+            <div style="flex:1; padding:5px;">
+                <div style="font-size:13px; color:#475569; font-weight:bold;">NJSS 導入による追加利益（5年累計）</div>
+                <div style="font-size:24px; color:{C1}; font-weight:900; margin-top:5px;">＋ ¥{int(diff_5y_n/10000):,} 万</div>
+                <div style="font-size:11px; color:#64748B; margin-top:8px; line-height:1.4;">※ツール費用・運用人件費をすべて差し引いて手元に残る、<br><b>ツール導入が生み出す純粋なプラス効果（現状との差額）</b>です。</div>
             </div>
             <div style="border-left: 1px solid #E2E8F0; margin: 0 10px;"></div>
-            <div>
-                <div style="font-size:12px; color:#475569; font-weight:bold;">入札王 追加利益（5年間）</div>
-                <div style="font-size:20px; color:{C2}; font-weight:900; margin-top:3px;">＋ ¥{int(diff_5y_k/10000):,} 万</div>
+            <div style="flex:1; padding:5px;">
+                <div style="font-size:13px; color:#475569; font-weight:bold;">入札王 導入による追加利益（5年累計）</div>
+                <div style="font-size:24px; color:{C2}; font-weight:900; margin-top:5px;">＋ ¥{int(diff_5y_k/10000):,} 万</div>
+                <div style="font-size:11px; color:#64748B; margin-top:8px; line-height:1.4;">※ツール費用・運用人件費をすべて差し引いて手元に残る、<br><b>ツール導入が生み出す純粋なプラス効果（現状との差額）</b>です。</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
