@@ -30,6 +30,7 @@ _defaults = {
         "labor_search_hour": 1.5,      
         "tool_labor_search_hour": 0.5, 
         "labor_cost_per_hour": 3000,   
+        "labor_days_per_year": 240,    # <- 年間稼働日数を追加
         "marketing_annual": 500000,    
         "tool_bid_increase_rate": 40,  
         "tool_win_rate_boost": 5,      
@@ -40,7 +41,7 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ─────────────────────────────────────────────────────────────────
-#  GLOBAL CSS
+#  GLOBAL CSS (カードUIのスタイルを追加)
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -74,6 +75,14 @@ footer { display: none !important; }
 .ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
 .ph-title { font-size: 1.8rem; font-weight: 800; color: var(--text) !important; letter-spacing: -0.5px; margin: 0; line-height: 1.1; }
 .ph-sub { font-size: 14px; color: var(--muted) !important; margin-top: 5px; font-weight: 500; }
+.sec { font-size: 1.15rem; font-weight: 700; color: var(--text) !important; margin-bottom: 0.5rem; border-left: 5px solid var(--accent); padding-left: 12px; background: linear-gradient(90deg, rgba(1,118,211,0.06) 0%, rgba(255,255,255,0) 100%); padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0; }
+.form-div { display: flex; align-items: center; gap: 12px; margin: 1.75rem 0 1.25rem; }
+.form-div-line { flex: 1; height: 1px; background: var(--line2); }
+.form-div-label { font-size: 12px; font-weight: 700; color: var(--accent) !important; }
+.rl { font-size: 13px; font-weight: 600; color: var(--text) !important; margin-bottom: 4px; }
+.rl .req { color: #EF4444 !important; font-size: 11px; margin-left: 5px; }
+
+/* ダッシュボード用 KPIカード */
 .kpi { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1.2rem 1rem; text-align: center; margin-bottom: 1rem; }
 .kpi-lbl { font-size: 12px; font-weight: 700; color: var(--muted) !important; margin-bottom: 6px; }
 .kpi-val { font-size: 2.1rem; font-weight: 700; color: var(--text) !important; line-height: 1; margin-bottom: 6px; }
@@ -82,12 +91,16 @@ footer { display: none !important; }
 .tag-up { background: rgba(16,185,129,0.15); color: var(--green) !important; }
 .tag-dn { background: rgba(239,68,68,0.12); color: var(--red) !important; }
 .tag-neu { background: var(--bg3); color: var(--muted) !important; }
-.sec { font-size: 1.15rem; font-weight: 700; color: var(--text) !important; margin-bottom: 0.5rem; border-left: 5px solid var(--accent); padding-left: 12px; background: linear-gradient(90deg, rgba(1,118,211,0.06) 0%, rgba(255,255,255,0) 100%); padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0; }
-.form-div { display: flex; align-items: center; gap: 12px; margin: 1.75rem 0 1.25rem; }
-.form-div-line { flex: 1; height: 1px; background: var(--line2); }
-.form-div-label { font-size: 12px; font-weight: 700; color: var(--accent) !important; }
-.rl { font-size: 13px; font-weight: 600; color: var(--text) !important; margin-bottom: 4px; }
-.rl .req { color: #EF4444 !important; font-size: 11px; margin-left: 5px; }
+
+/* 🌟 NEW: かっこいいFancy Card UI（ROI分析ページ用） */
+.fancy-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 22px 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); text-align: center; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; display: flex; flex-direction: column; justify-content: center; margin-bottom: 1rem;}
+.fancy-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+.fc-title { font-size: 13.5px; font-weight: 700; color: #64748B; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;}
+.fc-val { font-size: 2.3rem; font-weight: 800; color: #0F172A; line-height: 1.1; margin-bottom: 12px; font-family: "Helvetica Neue", Arial, sans-serif;}
+.fc-sub { font-size: 12.5px; font-weight: 700; padding: 6px 14px; border-radius: 20px; display: inline-block; letter-spacing: 0.02em;}
+.fc-sub.green { background: #DCFCE7; color: #16A34A; }
+.fc-sub.blue { background: #DBEAFE; color: #2563EB; }
+.fc-sub.purple { background: #F3E8FF; color: #9333EA; }
 
 /* 比較パネル用CSS */
 .vs-box { background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: space-between;}
@@ -102,7 +115,7 @@ footer { display: none !important; }
 .logic-box strong { color: #0F172A; font-size: 1rem; display: block; margin-top: 10px; }
 .logic-eq { color: var(--accent); font-family: monospace; font-size: 1.05rem; margin: 6px 0 16px 0; display: block; background: #FFFFFF; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-weight: bold;}
 
-/* サマリーレポート用CSS（完全白背景・フラットデザイン） */
+/* サマリーレポート用CSS */
 .report-wrap { background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 0px; padding: 30px; margin-top: 10px;}
 .rep-title { font-size: 22px; font-weight: 800; color: #0F172A; border-bottom: 3px solid #0176D3; padding-bottom: 12px; margin-bottom: 25px; text-align: center; background: #FFFFFF;}
 .rep-h2 { font-size: 16px; font-weight: 800; color: #0176D3; margin-top: 25px; margin-bottom: 12px; background: #FFFFFF; padding: 4px 12px; border-left: 5px solid #0176D3;}
@@ -190,7 +203,7 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE
+#  NEW ROI ENGINE (WITH DYNAMIC LABOR DAYS)
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
@@ -204,8 +217,9 @@ def calc_roi_data():
     tool_win_rate = (c["win_rate"] + c.get("tool_win_rate_boost", 5)) / 100
     tool_sales = (tool_bids * tool_win_rate) * gross_profit_per_bid
 
-    annual_manual_cost = c["labor_cost_per_hour"] * c["labor_search_hour"] * 240
-    annual_tool_labor_cost = c["labor_cost_per_hour"] * c.get("tool_labor_search_hour", 0.5) * 240
+    # 稼働日数を反映
+    annual_manual_cost = c["labor_cost_per_hour"] * c["labor_search_hour"] * c.get("labor_days_per_year", 240)
+    annual_tool_labor_cost = c["labor_cost_per_hour"] * c.get("tool_labor_search_hour", 0.5) * c.get("labor_days_per_year", 240)
     market_cost = c["marketing_annual"]
 
     rows = []
@@ -640,6 +654,7 @@ elif current_page == "ROI分析":
             
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
             st.caption("【人力運用時の隠れたコスト】")
+            st.session_state.costs["labor_days_per_year"] = st.number_input("年間稼働日数（日）", value=int(c.get("labor_days_per_year", 240)), step=1, help="1年間の営業日数（稼働日）です。人件費の計算に使用します。")
             st.session_state.costs["labor_search_hour"] = st.number_input("1日の手動検索時間（h）", value=float(c["labor_search_hour"]), step=0.5, help="1日あたり、担当者が入札サイトを手動で巡回・検索している時間です。")
             st.session_state.costs["labor_cost_per_hour"] = st.number_input("担当者時給（円）", value=int(c["labor_cost_per_hour"]), step=100, help="手動検索を行っている担当者の時給換算コストです。（見えない人件費の可視化）")
             
@@ -671,10 +686,27 @@ elif current_page == "ROI分析":
 
     with col_set2:
         st.markdown('<div class="sec">3. ツール導入による営業KPIの向上（計算結果）</div>', unsafe_allow_html=True)
+        
+        # --- NEW: カードUIの適用 (KPI) ---
         k1, k2, k3 = st.columns(3)
-        with k1: st.metric("年間応札数", f"{int(tool_bids)} 件", f"見逃し防止で +{int(tool_bids - c['annual_bids'])}件")
-        with k2: st.metric("平均受注率", f"{int(tool_win_rate*100)} %", f"データ分析で +{c['tool_win_rate_boost']}pt")
-        with k3: st.metric("1案件あたりの平均粗利", f"¥{int(gross_profit_per_bid/10000):,} 万", "")
+        c1_html = f'''<div class="fancy-card" style="border-top: 4px solid #3B82F6;">
+            <div class="fc-title">年間応札数</div>
+            <div class="fc-val">{int(tool_bids)} <span style="font-size:1.2rem;">件</span></div>
+            <div><span class="fc-sub blue">見逃し防止で +{int(tool_bids - c['annual_bids'])}件</span></div>
+        </div>'''
+        c2_html = f'''<div class="fancy-card" style="border-top: 4px solid #10B981;">
+            <div class="fc-title">平均受注率</div>
+            <div class="fc-val">{int(tool_win_rate*100)} <span style="font-size:1.2rem;">%</span></div>
+            <div><span class="fc-sub green">データ分析で +{c['tool_win_rate_boost']}pt</span></div>
+        </div>'''
+        c3_html = f'''<div class="fancy-card" style="border-top: 4px solid #8B5CF6;">
+            <div class="fc-title">1案件あたりの平均粗利</div>
+            <div class="fc-val"><span style="font-size:1.2rem;">¥</span>{int(gross_profit_per_bid/10000):,} <span style="font-size:1.2rem;">万</span></div>
+            <div style="height:25px;"></div>
+        </div>'''
+        with k1: st.markdown(c1_html, unsafe_allow_html=True)
+        with k2: st.markdown(c2_html, unsafe_allow_html=True)
+        with k3: st.markdown(c3_html, unsafe_allow_html=True)
         
         with st.expander("📊 ツールの付加価値による「期待売上」の算出ロジック", expanded=False):
             st.markdown(f"""
@@ -688,14 +720,26 @@ elif current_page == "ROI分析":
             """, unsafe_allow_html=True)
 
         st.markdown('<div class="sec">4. 業務効率化（時間削減・コスト削減効果）</div>', unsafe_allow_html=True)
-        man_h = c["labor_search_hour"] * 240
-        tool_h = c.get("tool_labor_search_hour", 0.5) * 240
+        days = c.get("labor_days_per_year", 240)
+        man_h = c["labor_search_hour"] * days
+        tool_h = c.get("tool_labor_search_hour", 0.5) * days
         diff_h = man_h - tool_h
         diff_c = ann_manual_cost - ann_tool_labor_cost
 
+        # --- NEW: カードUIの適用 (効率化) ---
         kpi_t1, kpi_t2 = st.columns(2)
-        with kpi_t1: st.metric("年間作業時間の削減", f"▲ {int(diff_h)} 時間", f"現状 {int(man_h)}h → 導入後 {int(tool_h)}h", delta_color="inverse")
-        with kpi_t2: st.metric("年間人件費の削減", f"▲ ¥{int(diff_c/10000):,} 万", f"現状 ¥{int(ann_manual_cost/10000)}万 → 導入後 ¥{int(ann_tool_labor_cost/10000)}万", delta_color="inverse")
+        t1_html = f'''<div class="fancy-card" style="border-top: 4px solid #F59E0B;">
+            <div class="fc-title">年間作業時間の削減</div>
+            <div class="fc-val" style="color:#D97706;">▲ {int(diff_h)} <span style="font-size:1.2rem;">時間</span></div>
+            <div><span class="fc-sub" style="background:#FEF3C7; color:#D97706;">現状 {int(man_h)}h → 導入後 {int(tool_h)}h</span></div>
+        </div>'''
+        t2_html = f'''<div class="fancy-card" style="border-top: 4px solid #EF4444;">
+            <div class="fc-title">年間見えない人件費の削減</div>
+            <div class="fc-val" style="color:#DC2626;">▲ <span style="font-size:1.2rem;">¥</span>{int(diff_c/10000):,} <span style="font-size:1.2rem;">万</span></div>
+            <div><span class="fc-sub" style="background:#FEE2E2; color:#DC2626;">現状 ¥{int(ann_manual_cost/10000)}万 → 導入後 ¥{int(ann_tool_labor_cost/10000)}万</span></div>
+        </div>'''
+        with kpi_t1: st.markdown(t1_html, unsafe_allow_html=True)
+        with kpi_t2: st.markdown(t2_html, unsafe_allow_html=True)
 
         df_time = pd.DataFrame([
             {"方式": "ツール導入後", "年間作業時間 (時間)": tool_h, "年間人件費 (万円)": ann_tool_labor_cost / 10000, "種類": "導入後"},
@@ -740,15 +784,25 @@ elif current_page == "ROI分析":
             t_nr = ((t_sales - nj_inv) / nj_inv) * 100 if nj_inv > 0 else 0
             t_kr = ((t_sales - ki_inv) / ki_inv) * 100 if ki_inv > 0 else 0
             
-            st.metric("NJSS 初年度ROI", f"{int(t_nr):,} %", f"投資: ¥{int(nj_inv/10000)}万 / 粗利: ¥{int(t_sales/10000)}万")
-            st.metric("入札王 初年度ROI", f"{int(t_kr):,} %", f"投資: ¥{int(ki_inv/10000)}万 / 粗利: ¥{int(t_sales/10000)}万")
+            # --- NEW: カードUIの適用 (ROI) ---
+            r1_html = f'''<div class="fancy-card" style="border-top: 4px solid {C1}; padding: 15px; margin-bottom: 10px;">
+                <div class="fc-title">NJSS 初年度ROI</div>
+                <div class="fc-val" style="color:{C1}; font-size:1.8rem;">{int(t_nr):,} <span style="font-size:1rem;">%</span></div>
+                <div><span class="fc-sub" style="background:#E0F2FE; color:{C1}; font-size:11px;">投資: ¥{int(nj_inv/10000)}万 / 粗利: ¥{int(t_sales/10000)}万</span></div>
+            </div>'''
+            r2_html = f'''<div class="fancy-card" style="border-top: 4px solid {C2}; padding: 15px;">
+                <div class="fc-title">入札王 初年度ROI</div>
+                <div class="fc-val" style="color:{C2}; font-size:1.8rem;">{int(t_kr):,} <span style="font-size:1rem;">%</span></div>
+                <div><span class="fc-sub" style="background:#CCFBF1; color:{C2}; font-size:11px;">投資: ¥{int(ki_inv/10000)}万 / 粗利: ¥{int(t_sales/10000)}万</span></div>
+            </div>'''
+            st.markdown(r1_html, unsafe_allow_html=True)
+            st.markdown(r2_html, unsafe_allow_html=True)
             
         with col_r2:
             fig_roi_curve = px.line(df_roi_curve, x="受注件数", y=["NJSS", "入札王"], color_discrete_map={"NJSS": C1, "入札王": C2})
             fig_roi_curve.add_hline(y=0, line_dash="dash", line_color="#EF4444", annotation_text="損益分岐点 (ROI 0%)", annotation_position="bottom right")
             fig_roi_curve.add_vline(x=target_orders, line_dash="dot", line_color="#64748B", annotation_text=f"想定: {target_orders}件", annotation_position="top left")
             fig_roi_curve.update_traces(line_width=3)
-            # ---- FIX: dictionary update for layout to prevent multiple values for keyword argument ----
             fig_roi_curve.update_layout(**PLY, hovermode="x unified", yaxis_title="初年度ROI (%)", height=300)
             fig_roi_curve.update_layout(legend_title_text="")
             st.plotly_chart(fig_roi_curve, use_container_width=True)
@@ -845,7 +899,7 @@ elif current_page == "ROI分析":
     
     with col_rep1:
         st.markdown('<div class="rep-h2">1. 比較シミュレーションの前提</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="rep-text">本レポートでは、今後新たに入札市場へ参入するにあたり、<b>「ツールを使用せず人力のみで運用した場合」</b>と<b>「入札情報収集ツール（NJSS・入札王）を導入した場合」</b>の収益性を比較しています。<br><br><span style="font-size:13px; color:#475569;">※現在、人力での検索業務は行っていませんが、今後ツール未導入のまま入札に参加した場合に発生する「検索人件費（1日 {c["labor_search_hour"]} 時間想定）」と「案件の見逃し（機会損失）」を可視化するため、比較対象（ベースライン）として設定しています。ツール導入後も日々の確認・仕分け作業として1日 {c.get("tool_labor_search_hour", 0.5)} 時間の人件費が発生する前提で現実的な算出を行っています。</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="rep-text">本レポートでは、今後新たに入札市場へ参入するにあたり、<b>「ツールを使用せず人力のみで運用した場合」</b>と<b>「入札情報収集ツール（NJSS・入札王）を導入した場合」</b>の収益性を比較しています。<br><br><span style="font-size:13px; color:#475569;">※現在、人力での検索業務は行っていませんが、今後ツール未導入のまま入札に参加した場合に発生する「検索人件費（1日 {c["labor_search_hour"]} 時間 × 年間 {days} 日想定）」と「案件の見逃し（機会損失）」を可視化するため、比較対象（ベースライン）として設定しています。ツール導入後も日々の確認・仕分け作業として1日 {c.get("tool_labor_search_hour", 0.5)} 時間の人件費が発生する前提で現実的な算出を行っています。</span></div>', unsafe_allow_html=True)
         
         st.markdown('<div class="rep-h2">2. 試算の前提条件（算出根拠）</div>', unsafe_allow_html=True)
         st.markdown(f"""
@@ -989,7 +1043,7 @@ elif current_page == "データ管理":
                 if ok:
                     try:
                         save_bids(pd.DataFrame(columns=COLS_BIDS)); save_settings(pd.DataFrame(columns=COLS_SETTINGS))
-                        st.session_state.update({"search_words": [], "search_counts": {}, "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,"k_opt":0,"margin":30,"win_rate":20,"annual_bids":30,"labor_search_hour":1.5,"tool_labor_search_hour":0.5,"labor_cost_per_hour":3000,"marketing_annual":500000,"tool_bid_increase_rate":40,"tool_win_rate_boost":5}})
+                        st.session_state.update({"search_words": [], "search_counts": {}, "costs": {"n_init":0,"n_month":0,"n_opt":0,"k_init":0,"k_month":0,"k_opt":0,"margin":30,"win_rate":20,"annual_bids":30,"labor_search_hour":1.5,"tool_labor_search_hour":0.5,"labor_days_per_year":240,"labor_cost_per_hour":3000,"marketing_annual":500000,"tool_bid_increase_rate":40,"tool_win_rate_boost":5}})
                         st.success("初期化完了。")
                     except Exception as e: st.error(f"エラー: {e}")
                 else: st.error("確認チェックを入れてください。")
