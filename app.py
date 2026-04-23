@@ -30,7 +30,7 @@ _defaults = {
         "labor_search_hour": 1.5,      
         "tool_labor_search_hour": 0.5, 
         "labor_cost_per_hour": 3000,   
-        "labor_days_per_year": 240,    # <- 年間稼働日数を追加
+        "labor_days_per_year": 240,    
         "marketing_annual": 500000,    
         "tool_bid_increase_rate": 40,  
         "tool_win_rate_boost": 5,      
@@ -41,7 +41,7 @@ for k, v in _defaults.items():
         st.session_state[k] = v
 
 # ─────────────────────────────────────────────────────────────────
-#  GLOBAL CSS (カードUIのスタイルを追加)
+#  GLOBAL CSS
 # ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -92,7 +92,7 @@ footer { display: none !important; }
 .tag-dn { background: rgba(239,68,68,0.12); color: var(--red) !important; }
 .tag-neu { background: var(--bg3); color: var(--muted) !important; }
 
-/* 🌟 NEW: かっこいいFancy Card UI（ROI分析ページ用） */
+/* Fancy Card UI（ROI分析ページ用） */
 .fancy-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 22px 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); text-align: center; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; display: flex; flex-direction: column; justify-content: center; margin-bottom: 1rem;}
 .fancy-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
 .fc-title { font-size: 13.5px; font-weight: 700; color: #64748B; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;}
@@ -105,10 +105,14 @@ footer { display: none !important; }
 /* 比較パネル用CSS */
 .vs-box { background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: space-between;}
 .vs-title { font-size: 16px; font-weight: 800; color: #334155; margin-bottom: 15px; text-align: center; padding-bottom: 10px; border-bottom: 2px solid #E2E8F0;}
-.vs-item { display: flex; justify-content: space-between; font-size: 13.5px; color: #475569; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #E2E8F0;}
+.vs-item { display: flex; justify-content: space-between; font-size: 13.5px; color: #475569; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #E2E8F0; transition: background 0.2s;}
+.vs-item:hover { background: rgba(0,0,0,0.02); border-radius: 4px;}
 .vs-item.highlight { font-weight: 700; color: #0176D3; background: rgba(1,118,211,0.05); padding: 4px; border-radius: 4px; border:none;}
-.vs-total { font-size: 15px; font-weight: 700; color: #0F172A; margin-top: 15px; padding: 10px; background: #E2E8F0; border-radius: 8px; text-align: center;}
-.vs-total-large { font-size: 22px; font-weight: 800; color: #0F172A; margin-top: 10px; padding: 15px; background: #DBEAFE; border-radius: 8px; text-align: center; border: 2px solid #93C5FD;}
+.vs-item.highlight:hover { background: rgba(1,118,211,0.08); }
+.vs-total { font-size: 15px; font-weight: 700; color: #0F172A; margin-top: 15px; padding: 10px; background: #E2E8F0; border-radius: 8px; text-align: center; cursor: help; transition: background 0.2s;}
+.vs-total:hover { background: #CBD5E1;}
+.vs-total-large { font-size: 22px; font-weight: 800; color: #0F172A; margin-top: 10px; padding: 15px; background: #DBEAFE; border-radius: 8px; text-align: center; border: 2px solid #93C5FD; cursor: help; transition: transform 0.2s;}
+.vs-total-large:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05);}
 
 /* ロジック表示ボックスCSS */
 .logic-box { background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 1.2rem; margin-top: 0.5rem; font-size: 0.9rem; color: #334155; }
@@ -687,7 +691,6 @@ elif current_page == "ROI分析":
     with col_set2:
         st.markdown('<div class="sec">3. ツール導入による営業KPIの向上（計算結果）</div>', unsafe_allow_html=True)
         
-        # --- NEW: カードUIの適用 (KPI) ---
         k1, k2, k3 = st.columns(3)
         c1_html = f'''<div class="fancy-card" style="border-top: 4px solid #3B82F6;">
             <div class="fc-title">年間応札数</div>
@@ -726,7 +729,6 @@ elif current_page == "ROI分析":
         diff_h = man_h - tool_h
         diff_c = ann_manual_cost - ann_tool_labor_cost
 
-        # --- NEW: カードUIの適用 (効率化) ---
         kpi_t1, kpi_t2 = st.columns(2)
         t1_html = f'''<div class="fancy-card" style="border-top: 4px solid #F59E0B;">
             <div class="fc-title">年間作業時間の削減</div>
@@ -758,9 +760,6 @@ elif current_page == "ROI分析":
             fig_t2.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=40, t=0, b=0), showlegend=False, yaxis_title="", height=120)
             st.plotly_chart(fig_t2, use_container_width=True)
 
-        # ─────────────────────────────────────────────────────────────────
-        #  NEW: 受注件数別 初年度ROIシミュレーション
-        # ─────────────────────────────────────────────────────────────────
         st.markdown('<div class="sec" style="margin-top: 15px;">5. 受注件数別 初年度ROI（投資対効果）シミュレーション</div>', unsafe_allow_html=True)
         st.caption("初年度のツール投資額（初期費用＋12ヶ月分の月額）に対して、実際に何件受注できれば投資回収ライン（0%）を突破し、利益化できるかを可視化します。")
         
@@ -784,7 +783,6 @@ elif current_page == "ROI分析":
             t_nr = ((t_sales - nj_inv) / nj_inv) * 100 if nj_inv > 0 else 0
             t_kr = ((t_sales - ki_inv) / ki_inv) * 100 if ki_inv > 0 else 0
             
-            # --- NEW: カードUIの適用 (ROI) ---
             r1_html = f'''<div class="fancy-card" style="border-top: 4px solid {C1}; padding: 15px; margin-bottom: 10px;">
                 <div class="fc-title">NJSS 初年度ROI</div>
                 <div class="fc-val" style="color:{C1}; font-size:1.8rem;">{int(t_nr):,} <span style="font-size:1rem;">%</span></div>
@@ -807,7 +805,11 @@ elif current_page == "ROI分析":
             fig_roi_curve.update_layout(legend_title_text="")
             st.plotly_chart(fig_roi_curve, use_container_width=True)
 
-        st.markdown('<div class="sec">6. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
+        # ─────────────────────────────────────────────────────────────────
+        #  NEW: 収益構造の比較 にツールチップを追加
+        # ─────────────────────────────────────────────────────────────────
+        st.markdown('<div class="sec">6. 収益構造の比較（マウスオーバーで計算式を表示）</div>', unsafe_allow_html=True)
+        st.info("💡 項目名や金額にマウスカーソルを合わせると、具体的な計算ロジックの内訳が表示されます。")
         
         man_1y = df_roi.iloc[0]["人力(単年)"]
         nj_1y  = df_roi.iloc[0]["NJSS(単年)"]
@@ -823,11 +825,19 @@ elif current_page == "ROI分析":
             st.markdown(f"""
             <div class="vs-box">
                 <div class="vs-title">😟 現状（人力 ＋ マーケティング）</div>
-                <div class="vs-item"><span>年間粗利額 (ベース)</span><span>¥{int(base_sales/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#EF4444;">人力検索コスト</span><span style="color:#EF4444;">- ¥{int(ann_manual_cost/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span></div>
-                <div class="vs-total">単年 純利益<br><span style="font-size:1.2rem;">¥{int(man_1y/10000):,}万</span></div>
-                <div class="vs-total-large" style="background:#F1F5F9; border-color:#CBD5E1; color:#475569;">
+                <div class="vs-item" title="【計算式】想定応札数({c['annual_bids']}件) × 現状勝率({c['win_rate']}%) × 1案件平均粗利(¥{int(gross_profit_per_bid/10000):,}万)" style="cursor:help;">
+                    <span>年間粗利額 (ベース)</span><span>¥{int(base_sales/10000):,}万</span>
+                </div>
+                <div class="vs-item" title="【計算式】1日の手動検索時間({c['labor_search_hour']}h) × 担当者時給(¥{c['labor_cost_per_hour']:,}) × 年間稼働日数({days}日)" style="cursor:help;">
+                    <span style="color:#EF4444;">人力検索コスト</span><span style="color:#EF4444;">- ¥{int(ann_manual_cost/10000):,}万</span>
+                </div>
+                <div class="vs-item" title="【入力値】年間マーケティング費用" style="cursor:help;">
+                    <span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span>
+                </div>
+                <div class="vs-total" title="【計算式】年間粗利額(ベース) － 人力検索コスト － マーケティング費" style="cursor:help;">
+                    単年 純利益<br><span style="font-size:1.2rem;">¥{int(man_1y/10000):,}万</span>
+                </div>
+                <div class="vs-total-large" title="【計算式】単年純利益 × 5年間" style="background:#F1F5F9; border-color:#CBD5E1; color:#475569; cursor:help;">
                     <div style="font-size:12px; font-weight:normal;">5年累計 純利益</div>
                     ¥{int(man_5y/10000):,}万
                 </div>
@@ -838,12 +848,22 @@ elif current_page == "ROI分析":
             st.markdown(f"""
             <div class="vs-box" style="border: 2px solid {C1}; background: #F0F9FF;">
                 <div class="vs-title" style="color: {C1};">🚀 ツール導入（NJSS ＋ マーケティング）</div>
-                <div class="vs-item highlight"><span>年間粗利額 (分析・網羅によるUP)</span><span>¥{int(tool_sales/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#10B981; font-weight:bold;">ツール運用人件費</span><span style="color:#10B981; font-weight:bold;">- ¥{int(ann_tool_labor_cost/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#EF4444;">NJSS利用費(初期含まず)</span><span style="color:#EF4444;">- ¥{int(nj_monthly_annual/10000):,}万</span></div>
-                <div class="vs-item"><span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span></div>
-                <div class="vs-total" style="color:{C1};">単年 純利益<br><span style="font-size:1.2rem;">¥{int(nj_1y/10000):,}万</span></div>
-                <div class="vs-total-large">
+                <div class="vs-item highlight" title="【計算式】向上後応札数({int(tool_bids)}件) × 向上後勝率({int(tool_win_rate*100)}%) × 1案件平均粗利(¥{int(gross_profit_per_bid/10000):,}万)" style="cursor:help;">
+                    <span>年間粗利額 (分析・網羅UP)</span><span>¥{int(tool_sales/10000):,}万</span>
+                </div>
+                <div class="vs-item" title="【計算式】1日の確認時間({c.get('tool_labor_search_hour', 0.5)}h) × 担当者時給(¥{c['labor_cost_per_hour']:,}) × 年間稼働日数({days}日)" style="cursor:help;">
+                    <span style="color:#10B981; font-weight:bold;">ツール運用人件費</span><span style="color:#10B981; font-weight:bold;">- ¥{int(ann_tool_labor_cost/10000):,}万</span>
+                </div>
+                <div class="vs-item" title="【計算式】NJSS月額費用(¥{c['n_month']:,}) × 12ヶ月" style="cursor:help;">
+                    <span style="color:#EF4444;">NJSS利用費(初期含まず)</span><span style="color:#EF4444;">- ¥{int(nj_monthly_annual/10000):,}万</span>
+                </div>
+                <div class="vs-item" title="【入力値】年間マーケティング費用" style="cursor:help;">
+                    <span style="color:#EF4444;">マーケティング費</span><span style="color:#EF4444;">- ¥{int(market_c/10000):,}万</span>
+                </div>
+                <div class="vs-total" title="【計算式】年間粗利額 － ツール運用人件費 － NJSS利用費(年間) － マーケ費 － NJSS初期費用(初年度のみ¥{c['n_init']:,})" style="color:{C1}; cursor:help;">
+                    単年 純利益 (※初年度は初期費用を含む)<br><span style="font-size:1.2rem;">¥{int(nj_1y/10000):,}万</span>
+                </div>
+                <div class="vs-total-large" title="【計算式】5年間の純利益の累計（初年度の初期費用マイナス分も含む）" style="cursor:help;">
                     <div style="font-size:12px; font-weight:normal; color:#0176D3;">5年累計 純利益</div>
                     ¥{int(nj_5y/10000):,}万
                 </div>
@@ -874,7 +894,7 @@ elif current_page == "ROI分析":
             st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     # ─────────────────────────────────────────────────────────────────
-    #  NEW: サマリーレポート セクション
+    #  サマリーレポート セクション
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown('<div class="sec" style="font-size:1.3rem;">8. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
