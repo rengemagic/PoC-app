@@ -28,7 +28,7 @@ _defaults = {
         "k_init": 0, "k_month": 30000, "k_opt": 0,
         "margin": 30, "win_rate": 20, "annual_bids": 30,
         "labor_search_hour": 1.5,      
-        "tool_labor_search_hour": 0.5, # <- ツール導入後の確認時間
+        "tool_labor_search_hour": 0.5, 
         "labor_cost_per_hour": 3000,   
         "marketing_annual": 500000,    
         "tool_bid_increase_rate": 40,  
@@ -190,7 +190,7 @@ if "settings_loaded" not in st.session_state:
     st.session_state.settings_loaded = True
 
 # ─────────────────────────────────────────────────────────────────
-#  NEW ROI ENGINE (WITH TOOLTIP DATA AND TOOL LABOR COST)
+#  NEW ROI ENGINE
 # ─────────────────────────────────────────────────────────────────
 def calc_roi_data():
     df = vdf(load_bids())
@@ -233,7 +233,6 @@ def calc_roi_data():
             "人力+ﾏｰｹ (累積)": int(cum_man), "NJSS+ﾏｰｹ (累積)": int(cum_nj), "入札王+ﾏｰｹ (累積)": int(cum_ki),
             "人力(単年)": int(man_profit), "NJSS(単年)": int(nj_profit), "入札王(単年)": int(ki_profit),
             "人力コスト(累積)": int(cum_man_cost), "NJSSコスト(累積)": int(cum_nj_cost), "入札王コスト(累積)": int(cum_ki_cost),
-            # HTMLテーブルのホバー用計算式データ
             "tt_人力+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(man_profit/10000):,}万)\n[単年利益内訳] ベース売上 - (人力検索コスト + マーケ費)",
             "tt_NJSS+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(nj_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (NJSS費用 + ツール運用人件費 + マーケ費)",
             "tt_入札王+ﾏｰｹ (累積)": f"【計算式】前年までの累積利益 ＋ 今年の単年利益(¥{int(ki_profit/10000):,}万)\n[単年利益内訳] 向上後売上 - (入札王費用 + ツール運用人件費 + マーケ費)",
@@ -715,7 +714,47 @@ elif current_page == "ROI分析":
             fig_t2.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=40, t=0, b=0), showlegend=False, yaxis_title="", height=120)
             st.plotly_chart(fig_t2, use_container_width=True)
 
-        st.markdown('<div class="sec">5. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
+        # ─────────────────────────────────────────────────────────────────
+        #  NEW: 受注件数別 初年度ROIシミュレーション
+        # ─────────────────────────────────────────────────────────────────
+        st.markdown('<div class="sec" style="margin-top: 15px;">5. 受注件数別 初年度ROI（投資対効果）シミュレーション</div>', unsafe_allow_html=True)
+        st.caption("初年度のツール投資額（初期費用＋12ヶ月分の月額）に対して、実際に何件受注できれば投資回収ライン（0%）を突破し、利益化できるかを可視化します。")
+        
+        nj_inv = c["n_init"] + (c["n_month"] * 12)
+        ki_inv = c["k_init"] + (c["k_month"] * 12)
+        
+        max_x = max(10, int(c['annual_bids'] * 1.5))
+        roi_data_pts = []
+        for i in range(0, max_x + 1):
+            s = i * gross_profit_per_bid
+            nr = ((s - nj_inv) / nj_inv) * 100 if nj_inv > 0 else 0
+            kr = ((s - ki_inv) / ki_inv) * 100 if ki_inv > 0 else 0
+            roi_data_pts.append({"受注件数": i, "NJSS": nr, "入札王": kr})
+        df_roi_curve = pd.DataFrame(roi_data_pts)
+        
+        col_r1, col_r2 = st.columns([1, 1.8])
+        with col_r1:
+            st.markdown("##### 🎯 目標受注件数での確認")
+            target_orders = st.slider("初年度の想定受注件数 (件)", min_value=1, max_value=max_x, value=int(tool_bids * tool_win_rate) if int(tool_bids * tool_win_rate) > 0 else 5)
+            t_sales = target_orders * gross_profit_per_bid
+            t_nr = ((t_sales - nj_inv) / nj_inv) * 100 if nj_inv > 0 else 0
+            t_kr = ((t_sales - ki_inv) / ki_inv) * 100 if ki_inv > 0 else 0
+            
+            st.metric("NJSS 初年度ROI", f"{int(t_nr):,} %", f"投資: ¥{int(nj_inv/10000)}万 / 粗利: ¥{int(t_sales/10000)}万")
+            st.metric("入札王 初年度ROI", f"{int(t_kr):,} %", f"投資: ¥{int(ki_inv/10000)}万 / 粗利: ¥{int(t_sales/10000)}万")
+            
+        with col_r2:
+            fig_roi_curve = px.line(df_roi_curve, x="受注件数", y=["NJSS", "入札王"], color_discrete_map={"NJSS": C1, "入札王": C2})
+            fig_roi_curve.add_hline(y=0, line_dash="dash", line_color="#EF4444", annotation_text="損益分岐点 (ROI 0%)", annotation_position="bottom right")
+            fig_roi_curve.add_vline(x=target_orders, line_dash="dot", line_color="#64748B", annotation_text=f"想定: {target_orders}件", annotation_position="top left")
+            fig_roi_curve.update_traces(line_width=3)
+            fig_roi_curve.update_layout(
+                **PLY, hovermode="x unified", yaxis_title="初年度ROI (%)", 
+                height=300, legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5, title="")
+            )
+            st.plotly_chart(fig_roi_curve, use_container_width=True)
+
+        st.markdown('<div class="sec">6. 収益構造の比較（保存後、自動計算されます）</div>', unsafe_allow_html=True)
         
         man_1y = df_roi.iloc[0]["人力(単年)"]
         nj_1y  = df_roi.iloc[0]["NJSS(単年)"]
@@ -759,7 +798,7 @@ elif current_page == "ROI分析":
             """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="sec">6. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">7. 累積純利益シミュレーション（5カ年）</div>', unsafe_allow_html=True)
         
         tab_graph, tab_table = st.tabs(["📈 グラフ表示", "📊 テーブル表示（詳細）"])
         with tab_graph:
@@ -785,7 +824,7 @@ elif current_page == "ROI分析":
     #  NEW: サマリーレポート セクション
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown('<div class="sec" style="font-size:1.3rem;">7. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec" style="font-size:1.3rem;">8. 稟議・報告用 サマリーレポート（PowerPoint転記用）</div>', unsafe_allow_html=True)
     st.info("💡 以下のレポート全体は白背景で統一されています。そのままスクリーンショットを撮ってスライドに貼り付けてご活用いただけます。\n\n🔍 **テーブルの数値にカーソルを合わせると、計算式と内訳が確認できます。**")
     
     diff_5y_n = nj_5y - man_5y
